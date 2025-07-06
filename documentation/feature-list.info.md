@@ -7,6 +7,8 @@ The following feature specifications are available for implementation:
 - **[Data Layer & Entity Management](./data-layer-entity-management.feat.md)** - Complete specification for database, entities, and repositories (✅ Ready for implementation)
 - **[Security & Authentication](./security-authentication.feat.md)** - Complete specification for biometric auth, SSH key import, token vault, and secure storage (✅ Ready for implementation)
 - **[Communication Layer](./communication-layer.feat.md)** - Complete specification for SSH tunnels, WebSocket communication, message protocol, and connection management (✅ Ready for implementation)
+- **[UI Navigation & Foundation](./ui-navigation-foundation.feat.md)** - Complete specification for navigation framework, Material Design 3 theme, base UI components, and screen scaffolding (✅ Ready for implementation)
+- **[Background Services](./background-services.feat.md)** - Complete specification for foreground service, notifications, WorkManager integration, battery optimization, and background monitoring (✅ Ready for implementation)
 
 For creating new feature specifications, use the [Feature Documentation Template](./feature-document-structure.template.md).
 
@@ -39,7 +41,7 @@ Based on the frontend specification analysis, here are the **key functional area
 - Connection state management
 - Reconnection logic with exponential backoff
 
-### 4. **UI Navigation & Foundation**
+### 4. **UI Navigation & Foundation** ✅ **[Full Specification Available](./ui-navigation-foundation.feat.md)**
 **Independent Implementation Area**
 - Jetpack Compose setup with Material Design 3
 - Navigation structure (bottom tabs, app-level navigation)
@@ -47,13 +49,17 @@ Based on the frontend specification analysis, here are the **key functional area
 - Screen scaffolding for all major screens
 - Theme management (dark/light modes)
 
-### 5. **Background Services**
+### 5. **Background Services** ✅ **[Full Specification Available](./background-services.feat.md)**
 **Independent Implementation Area**
 - Foreground service for monitoring
-- WorkManager integration
+- WorkManager integration  
 - Notification system setup
 - Battery optimization logic
 - Connection health polling
+- Sub-agent progress monitoring
+- Server resource monitoring
+- Default permission policies
+- Wake lock management
 
 ### 6. **Voice Integration**
 **Independent Implementation Area**

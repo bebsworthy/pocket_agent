@@ -505,6 +505,200 @@ class WebSocketClient @Inject constructor(
 }
 ```
 
+### WebSocket Manager
+
+**Purpose**: High-level manager that coordinates multiple WebSocket connections for different projects. Provides a unified interface for background services to interact with WebSocket connections, handle health checks, and manage permission responses across all active connections.
+
+```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import okhttp3.WebSocket
+import java.util.concurrent.ConcurrentHashMap
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class WebSocketManager @Inject constructor(
+    private val webSocketClient: WebSocketClient,
+    private val messageProtocol: MessageProtocol,
+    private val connectionStateManager: ConnectionStateManager,
+    private val scope: CoroutineScope
+) {
+    
+    private val activeConnections = ConcurrentHashMap<String, WebSocketConnection>()
+    
+    data class WebSocketConnection(
+        val projectId: String,
+        val webSocket: WebSocket,
+        val client: WebSocketClient
+    )
+    
+    /**
+     * Get WebSocket connection for a specific project
+     */
+    fun getConnection(projectId: String): WebSocket? {
+        return activeConnections[projectId]?.webSocket
+    }
+    
+    /**
+     * Create and manage a new WebSocket connection for a project
+     */
+    suspend fun createConnection(
+        projectId: String,
+        localPort: Int,
+        path: String = "/ws"
+    ): Result<WebSocketConnection> {
+        return try {
+            // Create new client instance for this connection
+            val client = WebSocketClient(
+                okHttpClient = webSocketClient.okHttpClient,
+                messageProtocol = messageProtocol,
+                connectionStateManager = connectionStateManager,
+                messageQueueManager = webSocketClient.messageQueueManager
+            )
+            
+            // Connect
+            client.connect(projectId, localPort, path)
+            
+            // Get the WebSocket instance
+            client.getWebSocket()?.let { webSocket ->
+                val connection = WebSocketConnection(projectId, webSocket, client)
+                activeConnections[projectId] = connection
+                Result.success(connection)
+            } ?: Result.failure(IllegalStateException("Failed to get WebSocket after connection"))
+            
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Send health check to specific project
+     */
+    suspend fun sendHealthCheck(projectId: String): HealthCheckResponse? {
+        val connection = activeConnections[projectId] ?: return null
+        
+        return try {
+            val healthMessage = messageProtocol.HealthCheckMessage()
+            connection.client.sendMessage(healthMessage)
+            
+            // Wait for health response with timeout
+            withTimeoutOrNull(10_000L) {
+                connection.client.incomingMessages
+                    .filterIsInstance<messageProtocol.HealthCheckResponse>()
+                    .first { it.requestId == healthMessage.id }
+            }?.let { response ->
+                HealthCheckResponse(
+                    healthy = response.healthy,
+                    wrapperVersion = response.wrapperVersion,
+                    claudeStatus = response.claudeStatus,
+                    timestamp = response.timestamp
+                )
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+    
+    /**
+     * Send permission response
+     */
+    suspend fun sendPermissionResponse(
+        requestId: String,
+        approved: Boolean,
+        projectId: String? = null
+    ) {
+        val connection = if (projectId != null) {
+            activeConnections[projectId]
+        } else {
+            // Find connection that has this permission request
+            activeConnections.values.firstOrNull { conn ->
+                // In a real implementation, track pending permissions per connection
+                true
+            }
+        } ?: return
+        
+        val response = messageProtocol.PermissionResponse(
+            requestId = requestId,
+            approved = approved
+        )
+        
+        connection.client.sendMessage(response)
+    }
+    
+    /**
+     * Pause Claude session
+     */
+    suspend fun pauseSession(projectName: String) {
+        // Find connection by project name
+        val connection = activeConnections.values.firstOrNull { conn ->
+            // In real implementation, map project names to IDs
+            true
+        } ?: return
+        
+        val pauseMessage = messageProtocol.SessionControlMessage(
+            action = messageProtocol.SessionAction.PAUSE
+        )
+        
+        connection.client.sendMessage(pauseMessage)
+    }
+    
+    /**
+     * Send ping to check connection liveness
+     */
+    suspend fun sendPing(projectId: String): Boolean {
+        val connection = activeConnections[projectId] ?: return false
+        
+        return try {
+            connection.webSocket.send(okio.ByteString.EMPTY)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+    
+    /**
+     * Disconnect specific project
+     */
+    fun disconnect(projectId: String) {
+        activeConnections.remove(projectId)?.let { connection ->
+            connection.client.disconnect()
+        }
+    }
+    
+    /**
+     * Disconnect all projects
+     */
+    fun disconnectAll() {
+        activeConnections.forEach { (_, connection) ->
+            connection.client.disconnect()
+        }
+        activeConnections.clear()
+    }
+    
+    /**
+     * Get all active project IDs
+     */
+    fun getActiveProjects(): Set<String> {
+        return activeConnections.keys.toSet()
+    }
+    
+    /**
+     * Monitor connection states
+     */
+    val connectionStates: Flow<Map<String, ConnectionState>> = 
+        connectionStateManager.connectionStates
+}
+
+// Response data classes
+data class HealthCheckResponse(
+    val healthy: Boolean,
+    val wrapperVersion: String,
+    val claudeStatus: String,
+    val timestamp: Long
+)
+```
+
 ### Message Protocol
 
 **Purpose**: Defines the complete message protocol between mobile app and wrapper service. Includes all message types (commands, responses, permissions, status updates), serialization/deserialization logic, and type-safe message handling using Kotlin sealed classes.
@@ -735,6 +929,42 @@ class MessageProtocol @Inject constructor() {
     ) : Message()
     
     @Serializable
+    @SerialName("health_check")
+    data class HealthCheckMessage(
+        override val id: String = UUID.randomUUID().toString(),
+        override val timestamp: Long = System.currentTimeMillis(),
+        override val type: MessageType = MessageType.HEARTBEAT
+    ) : Message()
+    
+    @Serializable
+    @SerialName("health_check_response")
+    data class HealthCheckResponse(
+        override val id: String,
+        override val timestamp: Long,
+        override val type: MessageType = MessageType.HEARTBEAT,
+        val requestId: String,
+        val healthy: Boolean,
+        val wrapperVersion: String,
+        val claudeStatus: String
+    ) : Message()
+    
+    @Serializable
+    @SerialName("session_control")
+    data class SessionControlMessage(
+        override val id: String = UUID.randomUUID().toString(),
+        override val timestamp: Long = System.currentTimeMillis(),
+        override val type: MessageType = MessageType.SESSION_STATUS,
+        val action: SessionAction
+    ) : Message()
+    
+    enum class SessionAction {
+        PAUSE,
+        RESUME,
+        STOP,
+        RESTART
+    }
+    
+    @Serializable
     @SerialName("wrapper_handshake")
     data class WrapperHandshakeMessage(
         override val id: String,
@@ -806,6 +1036,68 @@ class MessageProtocol @Inject constructor() {
         }
     }
 }
+```
+
+### Shared Models
+
+**Purpose**: Common data models and enums used across the communication layer and other features. These models ensure consistent data representation throughout the application.
+
+```kotlin
+// Connection status enum used by background services and UI
+enum class ConnectionStatus {
+    DISCONNECTED,      // No active connection
+    CONNECTING,        // Establishing connection
+    CONNECTED,         // Active connection
+    ERROR,            // Connection error
+    DISCONNECTING,    // Closing connection
+    SHUTDOWN          // Claude Code shutdown
+}
+
+// Claude message representation
+data class ClaudeMessage(
+    val id: String,
+    val content: String,
+    val timestamp: Long,
+    val type: MessageType,
+    val conversationId: String? = null,
+    val isPartial: Boolean = false,
+    val metadata: Map<String, String> = emptyMap()
+) {
+    enum class MessageType {
+        USER_INPUT,
+        CLAUDE_RESPONSE,
+        SYSTEM_MESSAGE,
+        ERROR_MESSAGE,
+        STATUS_UPDATE
+    }
+}
+
+// Battery state for optimization
+data class BatteryState(
+    val percentage: Int,
+    val isCharging: Boolean,
+    val isPowerSaveMode: Boolean,
+    val level: BatteryLevel
+)
+
+enum class BatteryLevel {
+    CHARGING,
+    NORMAL,      // > 30%
+    LOW,         // 15-30%
+    CRITICAL,    // < 15%
+    POWER_SAVE   // Power save mode active
+}
+
+// Session state for persistence
+data class SessionState(
+    val sessionId: String,
+    val projectId: String,
+    val conversationId: String?,
+    val lastMessageId: String?,
+    val lastActivity: Long,
+    val pendingPermissions: List<String> = emptyList(),
+    val metadata: Map<String, String> = emptyMap()
+)
 ```
 
 ### Connection State Manager
@@ -2304,6 +2596,155 @@ suspend fun SecurityAuditLogger.logPermissionDecision(requestId: String, approve
 }
 ```
 
+### Connection Manager
+
+**Purpose**: High-level connection orchestrator that manages the complete connection lifecycle for projects. Coordinates SSH tunnel establishment, WebSocket connections, and provides a unified interface for other features to interact with connections.
+
+```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class ConnectionManager @Inject constructor(
+    private val sshTunnelManager: SshTunnelManager,
+    private val webSocketManager: WebSocketManager,
+    private val connectionStateManager: ConnectionStateManager,
+    private val reconnectionManager: ReconnectionManager,
+    private val projectRepository: ProjectRepository,
+    private val scope: CoroutineScope
+) {
+    
+    /**
+     * Establish complete connection for a project
+     */
+    suspend fun connect(projectId: String): Result<Unit> {
+        return try {
+            val project = projectRepository.getProject(projectId).firstOrNull()
+                ?: return Result.failure(IllegalArgumentException("Project not found"))
+            
+            // Update state
+            connectionStateManager.updateState(projectId, ConnectionStateManager.ConnectionState.CONNECTING)
+            
+            // 1. Create SSH tunnel
+            val tunnel = sshTunnelManager.createTunnel(
+                projectId = projectId,
+                serverProfile = project.serverProfile
+            ).getOrThrow()
+            
+            // 2. Create WebSocket connection
+            val connection = webSocketManager.createConnection(
+                projectId = projectId,
+                localPort = tunnel.localPort,
+                path = "/ws"
+            ).getOrThrow()
+            
+            // 3. Start reconnection monitoring
+            reconnectionManager.startMonitoring(
+                ReconnectionManager.ReconnectionConfig(
+                    projectId = projectId,
+                    onReconnect = { reconnect(projectId) }
+                )
+            )
+            
+            Result.success(Unit)
+        } catch (e: Exception) {
+            connectionStateManager.updateState(
+                projectId, 
+                ConnectionStateManager.ConnectionState.ERROR(e.message ?: "Connection failed")
+            )
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Disconnect a project
+     */
+    suspend fun disconnect(projectId: String) {
+        connectionStateManager.updateState(
+            projectId,
+            ConnectionStateManager.ConnectionState.DISCONNECTING("User requested")
+        )
+        
+        reconnectionManager.stopMonitoring(projectId)
+        webSocketManager.disconnect(projectId)
+        sshTunnelManager.closeTunnel(projectId)
+        
+        connectionStateManager.updateState(
+            projectId,
+            ConnectionStateManager.ConnectionState.DISCONNECTED
+        )
+    }
+    
+    /**
+     * Reconnect SSH tunnel
+     */
+    suspend fun reconnectSshTunnel(projectId: String): Result<Unit> {
+        val project = projectRepository.getProject(projectId).firstOrNull()
+            ?: return Result.failure(IllegalArgumentException("Project not found"))
+        
+        // Close existing tunnel
+        sshTunnelManager.closeTunnel(projectId)
+        
+        // Create new tunnel
+        return sshTunnelManager.createTunnel(
+            projectId = projectId,
+            serverProfile = project.serverProfile
+        ).map { Unit }
+    }
+    
+    /**
+     * Reconnect WebSocket
+     */
+    suspend fun reconnectWebSocket(projectId: String): Result<Unit> {
+        val tunnel = sshTunnelManager.getTunnel(projectId)
+            ?: return Result.failure(IllegalStateException("No SSH tunnel found"))
+        
+        return webSocketManager.createConnection(
+            projectId = projectId,
+            localPort = tunnel.localPort,
+            path = "/ws"
+        ).map { Unit }
+    }
+    
+    /**
+     * Get project name
+     */
+    suspend fun getProjectName(projectId: String): String {
+        return projectRepository.getProject(projectId).firstOrNull()?.name ?: "Unknown"
+    }
+    
+    /**
+     * Update connection status
+     */
+    fun updateConnectionStatus(projectId: String, status: ConnectionStatus) {
+        val state = when (status) {
+            ConnectionStatus.DISCONNECTED -> ConnectionStateManager.ConnectionState.DISCONNECTED
+            ConnectionStatus.CONNECTING -> ConnectionStateManager.ConnectionState.CONNECTING
+            ConnectionStatus.CONNECTED -> ConnectionStateManager.ConnectionState.CONNECTED
+            ConnectionStatus.ERROR -> ConnectionStateManager.ConnectionState.ERROR("Status error")
+            ConnectionStatus.DISCONNECTING -> ConnectionStateManager.ConnectionState.DISCONNECTING("Status change")
+            ConnectionStatus.SHUTDOWN -> ConnectionStateManager.ConnectionState.DISCONNECTED
+        }
+        connectionStateManager.updateState(projectId, state)
+    }
+    
+    /**
+     * Retry connection
+     */
+    suspend fun retryConnection(projectName: String) {
+        // In real implementation, map project name to ID
+        val projectId = projectRepository.getProjectByName(projectName)?.id ?: return
+        reconnect(projectId)
+    }
+    
+    private suspend fun reconnect(projectId: String): Result<Unit> {
+        return connect(projectId)
+    }
+}
+```
+
 ### Background Service Manager
 
 **Purpose**: Manages Android foreground service for persistent connection monitoring, handles notification display, respects Doze mode restrictions, and ensures proper service lifecycle management.
@@ -2801,6 +3242,142 @@ object CommunicationModule {
     ): NotificationBuilder {
         return NotificationBuilder(context)
     }
+}
+```
+
+### Shared Service Interfaces
+
+**Purpose**: Defines common service interfaces used across multiple features. These interfaces provide abstraction for cross-cutting concerns like preferences, analytics, and error reporting.
+
+```kotlin
+import kotlinx.coroutines.flow.Flow
+
+// Preferences management interface
+interface PreferencesManager {
+    // Permission preferences
+    fun getPermissionPolicies(): Map<String, PermissionPolicy>?
+    suspend fun savePermissionPolicy(category: String, policy: PermissionPolicy)
+    suspend fun clearPermissionPolicies()
+    fun getDefaultTimeoutAction(): TimeoutAction
+    suspend fun setDefaultTimeoutAction(action: TimeoutAction)
+    
+    // Connection preferences
+    fun getAutoReconnectEnabled(): Boolean
+    suspend fun setAutoReconnectEnabled(enabled: Boolean)
+    fun getPollingFrequencyAdjustmentEnabled(): Boolean
+    suspend fun setPollingFrequencyAdjustmentEnabled(enabled: Boolean)
+    
+    // UI preferences
+    fun getThemeMode(): ThemeMode
+    suspend fun setThemeMode(mode: ThemeMode)
+    fun getHighContrastEnabled(): Boolean
+    suspend fun setHighContrastEnabled(enabled: Boolean)
+    
+    // General preferences
+    fun <T> getPreference(key: String, defaultValue: T): T
+    suspend fun <T> setPreference(key: String, value: T)
+    fun <T> observePreference(key: String, defaultValue: T): Flow<T>
+}
+
+enum class ThemeMode {
+    LIGHT,
+    DARK,
+    SYSTEM
+}
+
+// Analytics tracking interface
+interface AnalyticsTracker {
+    fun trackEvent(event: String, parameters: Map<String, Any> = emptyMap())
+    fun trackError(event: String, throwable: Throwable)
+    fun trackScreen(screenName: String)
+    fun trackUserProperty(name: String, value: String)
+    fun setUserId(userId: String?)
+    
+    // Predefined events
+    fun trackConnectionEstablished(projectId: String, duration: Long)
+    fun trackConnectionFailed(projectId: String, error: String)
+    fun trackPermissionDecision(decision: String, category: String, automated: Boolean)
+    fun trackQuickActionExecuted(actionType: String, source: String)
+}
+
+// Crash reporting interface
+interface CrashReporter {
+    fun initialize(context: Context)
+    fun reportCrash(throwable: Throwable)
+    fun reportNonFatal(throwable: Throwable)
+    fun log(message: String)
+    fun setCustomKey(key: String, value: String)
+    fun setUserId(userId: String?)
+    
+    // Breadcrumbs for debugging
+    fun addBreadcrumb(message: String, data: Map<String, Any> = emptyMap())
+    fun clearBreadcrumbs()
+}
+
+// Security audit logging interface
+interface SecurityAuditLogger {
+    suspend fun logSecurityEvent(
+        eventType: SecurityEventType,
+        details: String,
+        success: Boolean,
+        userId: String? = null
+    )
+    
+    suspend fun logSshConnection(
+        hostname: String,
+        username: String,
+        success: Boolean,
+        error: String? = null
+    )
+    
+    suspend fun logPermissionRequest(
+        tool: String,
+        action: String,
+        decision: String,
+        automated: Boolean
+    )
+    
+    suspend fun logCommandExecution(
+        command: String,
+        projectId: String,
+        blocked: Boolean,
+        reason: String? = null
+    )
+    
+    fun getAuditLogs(limit: Int = 100): Flow<List<SecurityAuditLog>>
+    suspend fun clearOldLogs(beforeTimestamp: Long)
+}
+
+enum class SecurityEventType {
+    SSH_CONNECTION,
+    PERMISSION_REQUEST,
+    PERMISSION_DECISION,
+    COMMAND_EXECUTION,
+    COMMAND_BLOCKED,
+    KEY_IMPORT,
+    KEY_ACCESS,
+    TOKEN_ACCESS,
+    AUTHENTICATION_FAILURE,
+    SESSION_START,
+    SESSION_END
+}
+
+data class SecurityAuditLog(
+    val id: String,
+    val timestamp: Long,
+    val eventType: SecurityEventType,
+    val details: String,
+    val success: Boolean,
+    val userId: String?
+)
+
+// Encryption service interface (referenced by background services)
+interface EncryptionService {
+    suspend fun encrypt(data: ByteArray): ByteArray
+    suspend fun decrypt(encryptedData: ByteArray): ByteArray
+    suspend fun encryptString(plainText: String): String
+    suspend fun decryptString(encryptedText: String): String
+    fun generateSecureKey(): String
 }
 ```
 

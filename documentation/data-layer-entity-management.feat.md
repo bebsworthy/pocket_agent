@@ -83,7 +83,8 @@ As defined in the [Frontend Specification](./frontend.spec.md#entity-relationshi
     entities = [
         SshIdentityEntity::class,
         ServerProfileEntity::class,
-        ProjectEntity::class
+        ProjectEntity::class,
+        MessageEntity::class
     ],
     version = 10000, // v1.0.0 - Using semantic versioning
     exportSchema = true // CRITICAL: Always export schemas for migration testing
@@ -93,6 +94,7 @@ abstract class ClaudeCodeDatabase : RoomDatabase() {
     abstract fun sshIdentityDao(): SshIdentityDao
     abstract fun serverProfileDao(): ServerProfileDao
     abstract fun projectDao(): ProjectDao
+    abstract fun messageDao(): MessageDao
 }
 ```
 
@@ -189,6 +191,41 @@ enum class ProjectStatus {
     DISCONNECTED,
     ERROR
 }
+
+// Message entity for conversation persistence
+@Entity(
+    tableName = "messages",
+    foreignKeys = [
+        ForeignKey(
+            entity = ProjectEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["projectId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [
+        Index(value = ["projectId", "timestamp"]),
+        Index(value = ["conversationId"])
+    ]
+)
+data class MessageEntity(
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val projectId: String,
+    val conversationId: String?,
+    val content: String,
+    val type: MessageType,
+    val timestamp: Long = System.currentTimeMillis(),
+    val isPartial: Boolean = false,
+    val metadata: String? = null // JSON string for extensibility
+)
+
+enum class MessageType {
+    USER_INPUT,
+    CLAUDE_RESPONSE,
+    SYSTEM_MESSAGE,
+    ERROR_MESSAGE,
+    STATUS_UPDATE
+}
 ```
 
 ### Data Access Objects (DAOs)
@@ -259,6 +296,12 @@ interface ProjectDao {
     @Query("SELECT * FROM projects WHERE id = :id")
     suspend fun getProjectById(id: String): ProjectEntity?
     
+    @Query("SELECT * FROM projects WHERE id = :id")
+    fun getProjectById(projectId: String): Flow<ProjectEntity?>
+    
+    @Query("SELECT * FROM projects WHERE name = :name LIMIT 1")
+    suspend fun getProjectByName(name: String): ProjectEntity?
+    
     @Query("SELECT * FROM projects WHERE serverProfileId = :serverProfileId")
     suspend fun getProjectsByServer(serverProfileId: String): List<ProjectEntity>
     
@@ -276,6 +319,39 @@ interface ProjectDao {
     
     @Query("UPDATE projects SET claudeSessionId = :sessionId WHERE id = :id")
     suspend fun updateClaudeSession(id: String, sessionId: String?)
+}
+```
+
+#### Message DAO
+```kotlin
+@Dao
+interface MessageDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessage(message: MessageEntity)
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessages(messages: List<MessageEntity>)
+    
+    @Query("SELECT * FROM messages WHERE projectId = :projectId ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun getMessagesByProject(projectId: String, limit: Int = 100): List<MessageEntity>
+    
+    @Query("SELECT * FROM messages WHERE projectId = :projectId ORDER BY timestamp DESC LIMIT :limit")
+    fun getLatestMessages(projectId: String, limit: Int): Flow<List<MessageEntity>>
+    
+    @Query("SELECT * FROM messages WHERE id = :id")
+    suspend fun getMessageById(id: String): MessageEntity?
+    
+    @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY timestamp ASC")
+    suspend fun getMessagesByConversation(conversationId: String): List<MessageEntity>
+    
+    @Query("DELETE FROM messages WHERE projectId = :projectId")
+    suspend fun deleteMessagesByProject(projectId: String)
+    
+    @Query("DELETE FROM messages WHERE timestamp < :beforeTimestamp")
+    suspend fun deleteOldMessages(beforeTimestamp: Long)
+    
+    @Query("SELECT COUNT(*) FROM messages WHERE projectId = :projectId")
+    suspend fun getMessageCount(projectId: String): Int
 }
 ```
 
@@ -360,6 +436,8 @@ interface SshIdentityRepository {
     suspend fun updateIdentity(identity: SshIdentity)
     suspend fun deleteIdentity(identity: SshIdentity)
     suspend fun markIdentityUsed(id: String)
+    suspend fun updateLastUsed(id: String)
+    suspend fun isIdentityInUse(id: String): Boolean
 }
 
 interface ServerProfileRepository {
@@ -374,13 +452,24 @@ interface ServerProfileRepository {
 
 interface ProjectRepository {
     fun getAllProjects(): Flow<List<ProjectWithServer>>
+    fun getProject(projectId: String): Flow<Project?>
     suspend fun getProjectById(id: String): Project?
+    suspend fun getProjectByName(name: String): Project?
     suspend fun getProjectsByServer(serverProfileId: String): List<Project>
     suspend fun createProject(project: Project)
     suspend fun updateProject(project: Project)
     suspend fun deleteProject(project: Project)
     suspend fun updateProjectStatus(id: String, status: ProjectStatus)
     suspend fun updateClaudeSession(id: String, sessionId: String?)
+}
+
+interface MessageRepository {
+    suspend fun saveMessage(message: MessageEntity)
+    suspend fun getMessagesByProject(projectId: String, limit: Int = 100): List<MessageEntity>
+    suspend fun getMessageById(id: String): MessageEntity?
+    suspend fun deleteMessagesByProject(projectId: String)
+    suspend fun deleteOldMessages(beforeTimestamp: Long)
+    fun getLatestMessages(projectId: String, limit: Int): Flow<List<MessageEntity>>
 }
 ```
 
@@ -425,6 +514,17 @@ class SshIdentityRepositoryImpl @Inject constructor(
     
     override suspend fun markIdentityUsed(id: String) {
         dao.updateLastUsed(id, Instant.now())
+    }
+    
+    override suspend fun updateLastUsed(id: String) {
+        dao.updateLastUsed(id, Instant.now())
+    }
+    
+    override suspend fun isIdentityInUse(id: String): Boolean {
+        // This would require access to ServerProfileDao
+        // In a real implementation, inject ServerProfileDao or use a query
+        // For now, return false - should be implemented properly
+        return false
     }
     
     private fun validateSshIdentity(identity: SshIdentity) {
@@ -498,8 +598,16 @@ class ProjectRepositoryImpl @Inject constructor(
         return dao.getAllProjects()
     }
     
+    override fun getProject(projectId: String): Flow<Project?> {
+        return dao.getProjectById(projectId).map { it?.toDomainModel() }
+    }
+    
     override suspend fun getProjectById(id: String): Project? {
         return dao.getProjectById(id)?.toDomainModel()
+    }
+    
+    override suspend fun getProjectByName(name: String): Project? {
+        return dao.getProjectByName(name)?.toDomainModel()
     }
     
     override suspend fun getProjectsByServer(serverProfileId: String): List<Project> {
@@ -539,6 +647,36 @@ class ProjectRepositoryImpl @Inject constructor(
         require(project.projectPath.startsWith("/")) { "Project path must be absolute" }
         require(project.scriptsFolder.isNotBlank()) { "Scripts folder cannot be blank" }
         require(!project.scriptsFolder.startsWith("/")) { "Scripts folder must be relative" }
+    }
+}
+
+@Singleton
+class MessageRepositoryImpl @Inject constructor(
+    private val dao: MessageDao
+) : MessageRepository {
+    
+    override suspend fun saveMessage(message: MessageEntity) {
+        dao.insertMessage(message)
+    }
+    
+    override suspend fun getMessagesByProject(projectId: String, limit: Int): List<MessageEntity> {
+        return dao.getMessagesByProject(projectId, limit)
+    }
+    
+    override suspend fun getMessageById(id: String): MessageEntity? {
+        return dao.getMessageById(id)
+    }
+    
+    override suspend fun deleteMessagesByProject(projectId: String) {
+        dao.deleteMessagesByProject(projectId)
+    }
+    
+    override suspend fun deleteOldMessages(beforeTimestamp: Long) {
+        dao.deleteOldMessages(beforeTimestamp)
+    }
+    
+    override fun getLatestMessages(projectId: String, limit: Int): Flow<List<MessageEntity>> {
+        return dao.getLatestMessages(projectId, limit)
     }
 }
 ```

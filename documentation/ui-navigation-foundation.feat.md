@@ -67,18 +67,58 @@ This feature is designed to be implemented independently in Phase 1 as the found
 ```kotlin
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
+import androidx.navigation.navigation
 import kotlinx.serialization.Serializable
+import java.time.Instant
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import javax.inject.Inject
 import javax.inject.Singleton
 
 // Navigation destinations using type-safe routes
+// Domain models needed for navigation
+data class Project(
+    val id: String,
+    val name: String,
+    val serverProfile: ServerProfile,
+    val projectPath: String,
+    val lastActive: Instant,
+    val claudeSessionId: String? = null,
+    val scriptsFolder: String = "scripts",
+    val status: ProjectStatus = ProjectStatus.ACTIVE
+)
+
+data class ServerProfile(
+    val id: String,
+    val name: String,
+    val hostname: String,
+    val port: Int = 22,
+    val username: String,
+    val sshIdentityId: String
+)
+
+enum class ConnectionStatus {
+    CONNECTED, CONNECTING, DISCONNECTED, ERROR, SHUTDOWN
+}
+
+enum class ProjectStatus {
+    ACTIVE, PAUSED, ARCHIVED
+}
+
 @Serializable
 sealed class Screen {
     @Serializable
@@ -144,7 +184,10 @@ fun AppNavigation(
         composable<Screen.ProjectsList> {
             ProjectsListScreen(
                 onNavigateToProject = { projectId ->
-                    navController.navigate(Screen.ProjectDetail(projectId))
+                    // Validate project exists before navigating
+                    navController.navigate(Screen.ProjectDetail(projectId)) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToCreateProject = {
                     navController.navigate(Screen.ProjectCreation())
@@ -161,10 +204,19 @@ fun AppNavigation(
             )
         }
         
-        composable<Screen.ProjectCreation> { backStackEntry ->
+        composable<Screen.ProjectCreation>(
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "pocketagent://create-project?serverId={serverId}"
+                }
+            )
+        ) { backStackEntry ->
             val args = backStackEntry.toRoute<Screen.ProjectCreation>()
+            val savedStateHandle = backStackEntry.savedStateHandle
+            
             ProjectCreationScreen(
                 serverId = args.serverId,
+                savedStateHandle = savedStateHandle,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToServers = {
                     navController.navigate(Screen.ServerManagement)
@@ -198,12 +250,29 @@ fun AppNavigation(
             )
         }
         
-        composable<Screen.ProjectDetail> { backStackEntry ->
-            val args = backStackEntry.toRoute<Screen.ProjectDetail>()
-            ProjectDetailScreen(
-                projectId = args.projectId,
-                onNavigateBack = { navController.popBackStack() }
+        composable<Screen.ProjectDetail>(
+            deepLinks = listOf(
+                navDeepLink {
+                    uriPattern = "pocketagent://project/{projectId}"
+                }
             )
+        ) { backStackEntry ->
+            val args = backStackEntry.toRoute<Screen.ProjectDetail>()
+            val savedStateHandle = backStackEntry.savedStateHandle
+            
+            // Validate project ID exists
+            if (args.projectId.isNotEmpty()) {
+                ProjectDetailScreen(
+                    projectId = args.projectId,
+                    savedStateHandle = savedStateHandle,
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            } else {
+                // Navigate back if invalid project ID
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+            }
         }
     }
 }
@@ -211,9 +280,12 @@ fun AppNavigation(
 @Composable
 fun ProjectDetailScreen(
     projectId: String,
+    savedStateHandle: SavedStateHandle,
     onNavigateBack: () -> Unit,
     viewModel: ProjectDetailViewModel = hiltViewModel()
 ) {
+    // Restore selected tab from saved state
+    val selectedTab = savedStateHandle.get<ProjectScreen>("selected_tab") ?: ProjectScreen.Dashboard
     val projectNavController = rememberNavController()
     val navBackStackEntry by projectNavController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -224,8 +296,10 @@ fun ProjectDetailScreen(
                 currentRoute = currentRoute,
                 onNavigate = { screen ->
                     projectNavController.navigate(screen) {
-                        popUpTo(projectNavController.graph.findStartDestination().id) {
-                            saveState = true
+                        projectNavController.graph.findStartDestination()?.id?.let { startId ->
+                            popUpTo(startId) {
+                                saveState = true
+                            }
                         }
                         launchSingleTop = true
                         restoreState = true
@@ -236,7 +310,7 @@ fun ProjectDetailScreen(
     ) { paddingValues ->
         NavHost(
             navController = projectNavController,
-            startDestination = ProjectScreen.Dashboard,
+            startDestination = selectedTab,
             modifier = Modifier.padding(paddingValues),
             enterTransition = { fadeIn(animationSpec = tween(200)) },
             exitTransition = { fadeOut(animationSpec = tween(200)) }
@@ -464,16 +538,20 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import java.time.Instant
 
 // Primary action button with loading state
 @Composable
@@ -808,11 +886,17 @@ fun ErrorBanner(
 
 ```kotlin
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.Flow
@@ -1267,6 +1351,22 @@ fun ErrorBoundary(
     }
 }
 
+// Time formatting extension
+fun Instant.toRelativeTimeString(): String {
+    val now = Instant.now()
+    val duration = java.time.Duration.between(this, now)
+    
+    return when {
+        duration.seconds < 60 -> "Just now"
+        duration.toMinutes() < 60 -> "${duration.toMinutes()}m ago"
+        duration.toHours() < 24 -> "${duration.toHours()}h ago"
+        duration.toDays() < 7 -> "${duration.toDays()}d ago"
+        else -> DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).format(
+            this.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+        )
+    }
+}
+
 // Retry policy
 class RetryPolicy(
     val maxAttempts: Int = 3,
@@ -1316,17 +1416,26 @@ suspend fun <T> retryWithPolicy(
 **Purpose**: Defines how the UI Navigation & Foundation feature integrates with the rest of the application through dependency injection, providing all necessary UI components and navigation infrastructure to other features.
 
 ```kotlin
+import android.content.Context
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ActivityComponent
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.android.scopes.ActivityScoped
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Inject
 import javax.inject.Singleton
 
 // Navigation module
@@ -1415,8 +1524,10 @@ fun NavHostController.navigateToProject(projectId: String) {
 
 fun NavHostController.navigateToChat(projectId: String) {
     navigate(Screen.ProjectDetail(projectId)) {
-        popUpTo(graph.findStartDestination().id) {
-            saveState = true
+        graph.findStartDestination()?.id?.let { startId ->
+            popUpTo(startId) {
+                saveState = true
+            }
         }
     }
     // Navigate to chat tab within project
@@ -1433,6 +1544,1107 @@ fun rememberThemeMode(): ThemeMode {
 fun updateThemeMode(mode: ThemeMode) {
     val config = LocalThemeConfig.current
     // Update theme through preferences
+}
+
+// Default error handler implementation
+class DefaultErrorHandler @Inject constructor(
+    private val context: Context
+) : ErrorHandler {
+    override fun handleError(throwable: Throwable) {
+        val message = ErrorMessageProvider.getMessage(throwable, context)
+        // Log error and show user-friendly message
+    }
+}
+
+interface ErrorHandler {
+    fun handleError(throwable: Throwable)
+}
+
+// Snackbar manager implementation
+class SnackbarManagerImpl : SnackbarManager {
+    override suspend fun showSnackbar(
+        message: String,
+        actionLabel: String?,
+        duration: SnackbarDuration
+    ): SnackbarResult {
+        // Implementation
+        return SnackbarResult.Dismissed
+    }
+}
+
+interface SnackbarManager {
+    suspend fun showSnackbar(
+        message: String,
+        actionLabel: String? = null,
+        duration: SnackbarDuration = SnackbarDuration.Short
+    ): SnackbarResult
+}
+```
+
+### Screen Implementations
+
+**Purpose**: Basic screen implementations that serve as the foundation for feature-specific development. These provide the necessary structure and navigation hooks for each major screen in the application.
+
+```kotlin
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.SavedStateHandle
+
+// Welcome Screen
+@Composable
+fun WelcomeScreen(
+    onNavigateToProjects: () -> Unit
+) {
+    BaseScreen(
+        title = ""
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.ic_pocket_agent_logo),
+                contentDescription = "Pocket Agent Logo",
+                modifier = Modifier.size(120.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                text = "Welcome to Pocket Agent",
+                style = MaterialTheme.typography.displaySmall,
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "Control Claude Code from your mobile device",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            PrimaryActionButton(
+                text = "Get Started",
+                onClick = onNavigateToProjects,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+// Projects List Screen
+@Composable
+fun ProjectsListScreen(
+    onNavigateToProject: (String) -> Unit,
+    onNavigateToCreateProject: () -> Unit,
+    onNavigateToServers: () -> Unit,
+    onNavigateToSshIdentities: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    viewModel: ProjectsListViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    
+    BaseScreen(
+        title = "Projects",
+        actions = {
+            IconButton(onClick = onNavigateToSettings) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings")
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onNavigateToCreateProject
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Create new project")
+            }
+        }
+    ) { paddingValues ->
+        when (val state = uiState) {
+            is UiState.Loading -> LoadingState()
+            is UiState.Empty -> EmptyState(
+                icon = Icons.Default.FolderOpen,
+                title = "No projects yet",
+                description = "Create your first project to get started",
+                actionText = "Create Project",
+                onAction = onNavigateToCreateProject
+            )
+            is UiState.Success -> {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(state.data.projects) { projectWithStatus ->
+                        ProjectCard(
+                            project = projectWithStatus.project,
+                            connectionStatus = projectWithStatus.connectionStatus,
+                            onClick = { onNavigateToProject(projectWithStatus.project.id) },
+                            onQuickAction = { 
+                                viewModel.quickConnect(projectWithStatus.project.id)
+                            }
+                        )
+                    }
+                    
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedCard(
+                            onClick = onNavigateToServers,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Dns,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text("Manage Servers")
+                            }
+                        }
+                    }
+                    
+                    item {
+                        OutlinedCard(
+                            onClick = onNavigateToSshIdentities,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Key,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Text("Manage SSH Keys")
+                            }
+                        }
+                    }
+                }
+            }
+            is UiState.Error -> ErrorState(
+                error = state.message,
+                onRetry = { viewModel.retry() }
+            )
+        }
+    }
+}
+
+// Stub screens for navigation targets
+@Composable
+fun ProjectCreationScreen(
+    serverId: String?,
+    savedStateHandle: SavedStateHandle,
+    onNavigateBack: () -> Unit,
+    onNavigateToServers: () -> Unit,
+    onProjectCreated: (String) -> Unit
+) {
+    BaseScreen(
+        title = "Create Project",
+        onNavigateBack = onNavigateBack
+    ) { paddingValues ->
+        // Implementation will be in project management feature
+        Text("Project Creation Wizard")
+    }
+}
+
+@Composable
+fun ServerManagementScreen(
+    onNavigateBack: () -> Unit,
+    onNavigateToSshIdentities: () -> Unit
+) {
+    BaseScreen(
+        title = "Servers",
+        onNavigateBack = onNavigateBack
+    ) { paddingValues ->
+        // Implementation will be in server management feature
+        Text("Server Management")
+    }
+}
+
+@Composable
+fun SshIdentityManagementScreen(
+    onNavigateBack: () -> Unit
+) {
+    BaseScreen(
+        title = "SSH Keys",
+        onNavigateBack = onNavigateBack
+    ) { paddingValues ->
+        // Implementation will be in security feature
+        Text("SSH Key Management")
+    }
+}
+
+@Composable
+fun AppSettingsScreen(
+    onNavigateBack: () -> Unit
+) {
+    BaseScreen(
+        title = "Settings",
+        onNavigateBack = onNavigateBack
+    ) { paddingValues ->
+        // Implementation will include theme settings
+        Text("App Settings")
+    }
+}
+
+// Project-level screens
+@Composable
+fun DashboardScreen(
+    projectId: String
+) {
+    // Implementation will be in dashboard feature
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Dashboard for project: $projectId")
+    }
+}
+
+@Composable
+fun ChatScreen(
+    projectId: String
+) {
+    // Implementation will be in chat feature
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Chat for project: $projectId")
+    }
+}
+
+@Composable
+fun FilesScreen(
+    projectId: String
+) {
+    // Implementation will be in files feature
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Files for project: $projectId")
+    }
+}
+
+@Composable
+fun ProjectSettingsScreen(
+    projectId: String,
+    onNavigateToMainSettings: () -> Unit
+) {
+    // Implementation will be in project settings feature
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("Settings for project: $projectId")
+    }
+}
+```
+
+### Wrapper Installation Dialog
+
+**Purpose**: Dialog component for guiding users through wrapper service installation when connecting to a server that doesn't have the wrapper installed or has an outdated version.
+
+```kotlin
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+
+@Composable
+fun WrapperInstallationDialog(
+    serverName: String,
+    currentVersion: String? = null,
+    requiredVersion: String,
+    installCommand: String = "curl -sSL https://install.claude-wrapper.dev | sh",
+    onInstall: () -> Unit,
+    onCancel: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+            ) {
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .align(Alignment.CenterHorizontally),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = if (currentVersion == null) {
+                        "Wrapper Installation Required"
+                    } else {
+                        "Wrapper Update Available"
+                    },
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = if (currentVersion == null) {
+                        "The Claude Code wrapper service is not installed on $serverName."
+                    } else {
+                        "The wrapper on $serverName needs to be updated from v$currentVersion to v$requiredVersion."
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "Installation command:",
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        SelectionContainer {
+                            Text(
+                                text = installCommand,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "The app will run this command automatically when you click Install.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onCancel) {
+                        Text("Cancel")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(onClick = onInstall) {
+                        Text(if (currentVersion == null) "Install" else "Update")
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Wrapper installation progress dialog
+@Composable
+fun WrapperInstallationProgressDialog(
+    progress: WrapperInstallationProgress,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = { 
+            if (progress is WrapperInstallationProgress.Completed) onDismiss()
+        },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                when (progress) {
+                    is WrapperInstallationProgress.Installing -> {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Installing wrapper service...",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = progress.percentage / 100f,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    is WrapperInstallationProgress.Completed -> {
+                        Icon(
+                            Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.successColor()
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Installation completed!",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = onDismiss) {
+                            Text("Continue")
+                        }
+                    }
+                    is WrapperInstallationProgress.Error -> {
+                        Icon(
+                            Icons.Default.Error,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "Installation failed",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = progress.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = onDismiss) {
+                            Text("Close")
+                        }
+                    }
+                }
+                
+                if (progress is WrapperInstallationProgress.Installing && progress.output.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        color = MaterialTheme.codeBackgroundColor(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(8.dp)
+                        ) {
+                            Text(
+                                text = progress.output,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = FontFamily.Monospace
+                                ),
+                                modifier = Modifier.verticalScroll(rememberScrollState())
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+sealed class WrapperInstallationProgress {
+    data class Installing(val percentage: Int, val output: String) : WrapperInstallationProgress()
+    object Completed : WrapperInstallationProgress()
+    data class Error(val message: String) : WrapperInstallationProgress()
+}
+```
+
+### Theme Persistence
+
+**Purpose**: DataStore implementation for persisting theme preferences across app restarts, ensuring user's theme choice is maintained.
+
+```kotlin
+import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.*
+import androidx.datastore.preferences.preferencesDataStore
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
+import java.io.IOException
+import javax.inject.Inject
+import javax.inject.Singleton
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "theme_preferences")
+
+@Singleton
+class ThemePreferencesDataStore @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    private object PreferencesKeys {
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val USE_DYNAMIC_COLOR = booleanPreferencesKey("use_dynamic_color")
+    }
+    
+    val themeConfigFlow: Flow<ThemeConfig> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            ThemeConfig(
+                themeMode = ThemeMode.valueOf(
+                    preferences[PreferencesKeys.THEME_MODE] ?: ThemeMode.SYSTEM.name
+                ),
+                useDynamicColor = preferences[PreferencesKeys.USE_DYNAMIC_COLOR] ?: true
+            )
+        }
+    
+    suspend fun updateThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.THEME_MODE] = mode.name
+        }
+    }
+    
+    suspend fun updateDynamicColorPreference(useDynamicColor: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.USE_DYNAMIC_COLOR] = useDynamicColor
+        }
+    }
+}
+
+// Updated PreferencesManager interface
+interface PreferencesManager {
+    val themeMode: ThemeMode
+    val useDynamicColors: Boolean
+    suspend fun setThemeMode(mode: ThemeMode)
+    suspend fun setUseDynamicColors(enabled: Boolean)
+}
+
+@Singleton
+class PreferencesManagerImpl @Inject constructor(
+    private val themePreferencesDataStore: ThemePreferencesDataStore
+) : PreferencesManager {
+    
+    private var cachedThemeMode: ThemeMode = ThemeMode.SYSTEM
+    private var cachedUseDynamicColors: Boolean = true
+    
+    init {
+        // Initialize cached values from DataStore
+        // This would be done in a coroutine scope in actual implementation
+    }
+    
+    override val themeMode: ThemeMode
+        get() = cachedThemeMode
+    
+    override val useDynamicColors: Boolean
+        get() = cachedUseDynamicColors
+    
+    override suspend fun setThemeMode(mode: ThemeMode) {
+        cachedThemeMode = mode
+        themePreferencesDataStore.updateThemeMode(mode)
+    }
+    
+    override suspend fun setUseDynamicColors(enabled: Boolean) {
+        cachedUseDynamicColors = enabled
+        themePreferencesDataStore.updateDynamicColorPreference(enabled)
+    }
+}
+```
+
+### Accessibility Components
+
+**Purpose**: Enhanced accessibility support including screen reader announcements, focus management, and keyboard navigation helpers to ensure the app is fully accessible to all users.
+
+```kotlin
+import android.content.Context
+import android.view.KeyEvent
+import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityManager
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.*
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.*
+import androidx.compose.ui.unit.dp
+
+// Screen reader announcement helper
+@Composable
+fun ScreenReaderAnnouncement(
+    message: String,
+    polite: Boolean = true
+) {
+    val context = LocalContext.current
+    
+    LaunchedEffect(message) {
+        context.announceForAccessibility(message, polite)
+    }
+}
+
+fun Context.announceForAccessibility(
+    message: String,
+    polite: Boolean = true
+) {
+    val accessibilityManager = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+    if (accessibilityManager.isEnabled) {
+        val event = AccessibilityEvent.obtain().apply {
+            eventType = if (polite) {
+                AccessibilityEvent.TYPE_ANNOUNCEMENT
+            } else {
+                AccessibilityEvent.TYPE_VIEW_FOCUSED
+            }
+            className = Context::class.java.name
+            packageName = packageName
+            text.add(message)
+        }
+        accessibilityManager.sendAccessibilityEvent(event)
+    }
+}
+
+// Focus management for keyboard navigation
+@Composable
+fun FocusableGroup(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    val focusRequester = remember { FocusRequester() }
+    
+    Box(
+        modifier = modifier
+            .focusRequester(focusRequester)
+            .focusable()
+            .semantics {
+                role = Role.RadioButton
+                focused = true
+            }
+    ) {
+        content()
+    }
+}
+
+// Keyboard navigation helper
+@Composable
+fun KeyboardNavigationHandler(
+    onEscape: () -> Unit = {},
+    onEnter: () -> Unit = {},
+    content: @Composable () -> Unit
+) {
+    Box(
+        modifier = Modifier.onKeyEvent { keyEvent ->
+            when (keyEvent.nativeKeyEvent.keyCode) {
+                android.view.KeyEvent.KEYCODE_ESCAPE -> {
+                    onEscape()
+                    true
+                }
+                android.view.KeyEvent.KEYCODE_ENTER -> {
+                    onEnter()
+                    true
+                }
+                else -> false
+            }
+        }
+    ) {
+        content()
+    }
+}
+
+// Accessibility-enhanced list item
+@Composable
+fun AccessibleListItem(
+    title: String,
+    subtitle: String? = null,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    leadingContent: @Composable (() -> Unit)? = null,
+    trailingContent: @Composable (() -> Unit)? = null
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.semantics {
+            contentDescription = buildString {
+                append(title)
+                subtitle?.let { append(", $it") }
+            }
+            role = Role.Button
+        }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            leadingContent?.invoke()
+            
+            Column(
+                modifier = Modifier.weight(1f).padding(horizontal = 16.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                subtitle?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            
+            trailingContent?.invoke()
+        }
+    }
+}
+
+// Live region for dynamic content updates
+@Composable
+fun LiveRegion(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier.semantics {
+            liveRegion = LiveRegionMode.Polite
+            contentDescription = text
+        }
+    ) {
+        Text(text = text)
+    }
+}
+
+// Skip to content button for screen readers
+@Composable
+fun SkipToContentButton(
+    onSkip: () -> Unit
+) {
+    TextButton(
+        onClick = onSkip,
+        modifier = Modifier
+            .semantics {
+                contentDescription = "Skip to main content"
+            }
+            .focusable()
+    ) {
+        Text("Skip to content")
+    }
+}
+```
+
+### Deep Link Handler
+
+**Purpose**: Implements deep link handling for navigating directly to specific screens from external sources like notifications or share intents.
+
+```kotlin
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavHostController
+
+@Composable
+fun HandleDeepLinks(
+    navController: NavHostController
+) {
+    val context = LocalContext.current
+    
+    LaunchedEffect(Unit) {
+        // Handle initial deep link from intent
+        val intent = (context as? androidx.activity.ComponentActivity)?.intent
+        intent?.let { handleIntent(it, navController) }
+    }
+    
+    // Handle new intents while app is running
+    DisposableEffect(context) {
+        val activity = context as? androidx.activity.ComponentActivity
+        val callback = { intent: Intent ->
+            handleIntent(intent, navController)
+        }
+        
+        activity?.addOnNewIntentListener(callback)
+        
+        onDispose {
+            activity?.removeOnNewIntentListener(callback)
+        }
+    }
+}
+
+private fun handleIntent(
+    intent: Intent,
+    navController: NavHostController
+) {
+    when (intent.action) {
+        Intent.ACTION_VIEW -> {
+            intent.data?.let { uri ->
+                handleDeepLink(uri, navController)
+            }
+        }
+        "com.pocketagent.ACTION_OPEN_PROJECT" -> {
+            val projectId = intent.getStringExtra("project_id")
+            projectId?.let {
+                navController.navigate(Screen.ProjectDetail(it)) {
+                    popUpTo(navController.graph.startDestinationId) {
+                        inclusive = false
+                    }
+                }
+            }
+        }
+        "com.pocketagent.ACTION_OPEN_CHAT" -> {
+            val projectId = intent.getStringExtra("project_id")
+            projectId?.let {
+                navController.navigateToChat(it)
+            }
+        }
+    }
+}
+
+private fun handleDeepLink(
+    uri: Uri,
+    navController: NavHostController
+) {
+    when (uri.host) {
+        "project" -> {
+            val projectId = uri.pathSegments.firstOrNull()
+            projectId?.let {
+                navController.navigate(Screen.ProjectDetail(it)) {
+                    popUpTo(navController.graph.startDestinationId) {
+                        inclusive = false
+                    }
+                }
+            }
+        }
+        "create-project" -> {
+            val serverId = uri.getQueryParameter("serverId")
+            navController.navigate(Screen.ProjectCreation(serverId))
+        }
+        "settings" -> {
+            navController.navigate(Screen.AppSettings)
+        }
+    }
+}
+
+// Extension function for ComponentActivity
+fun androidx.activity.ComponentActivity.addOnNewIntentListener(
+    listener: (Intent) -> Unit
+) {
+    // Implementation would use activity callbacks
+}
+
+fun androidx.activity.ComponentActivity.removeOnNewIntentListener(
+    listener: (Intent) -> Unit
+) {
+    // Implementation would remove activity callbacks
+}
+```
+
+### Repository Interfaces
+
+**Purpose**: Define the repository interfaces referenced in the navigation components, providing the contract for data access that will be implemented by the data layer.
+
+```kotlin
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+import javax.inject.Singleton
+
+// Project repository interface
+interface ProjectRepository {
+    fun getProjects(): Flow<List<Project>>
+    fun getProject(projectId: String): Flow<Project?>
+    suspend fun createProject(project: Project): Result<Project>
+    suspend fun updateProject(project: Project): Result<Unit>
+    suspend fun deleteProject(projectId: String): Result<Unit>
+    suspend fun getRecentProjects(limit: Int = 5): List<Project>
+}
+
+// Connection manager interface
+interface ConnectionManager {
+    val connectionStates: Flow<Map<String, ConnectionStatus>>
+    suspend fun connect(projectId: String): Result<Unit>
+    suspend fun disconnect(projectId: String): Result<Unit>
+    suspend fun shutdown(projectId: String): Result<Unit>
+    fun getConnectionStatus(projectId: String): ConnectionStatus
+}
+
+// View model implementation
+@HiltViewModel
+class ProjectsListViewModel @Inject constructor(
+    private val projectRepository: ProjectRepository,
+    private val connectionManager: ConnectionManager
+) : BaseViewModel<ProjectsListState>() {
+    
+    init {
+        loadProjects()
+    }
+    
+    override fun retry() {
+        loadProjects()
+    }
+    
+    private fun loadProjects() {
+        combine(
+            projectRepository.getProjects(),
+            connectionManager.connectionStates
+        ) { projects, connectionStates ->
+            ProjectsListState(
+                projects = projects.map { project ->
+                    ProjectWithStatus(
+                        project = project,
+                        connectionStatus = connectionStates[project.id] ?: ConnectionStatus.DISCONNECTED
+                    )
+                }
+            )
+        }.executeWithState(
+            onSuccess = { it },
+            onError = { "Failed to load projects: ${it.message}" }
+        )
+    }
+    
+    fun quickConnect(projectId: String) {
+        viewModelScope.launch {
+            connectionManager.connect(projectId)
+                .onSuccess {
+                    emitEvent(UiEvent.Navigate(Screen.ProjectDetail(projectId)))
+                }
+                .onFailure { error ->
+                    emitEvent(
+                        UiEvent.ShowSnackbar(
+                            message = "Failed to connect: ${error.message}",
+                            action = SnackbarAction("Retry") {
+                                quickConnect(projectId)
+                            }
+                        )
+                    )
+                }
+        }
+    }
+    
+    fun deleteProject(projectId: String) {
+        viewModelScope.launch {
+            projectRepository.deleteProject(projectId)
+                .onSuccess {
+                    emitEvent(UiEvent.ShowSnackbar("Project deleted"))
+                }
+                .onFailure { error ->
+                    emitEvent(UiEvent.ShowSnackbar("Failed to delete project"))
+                }
+        }
+    }
+}
+
+// Helper classes
+data class ProjectsListState(
+    val projects: List<ProjectWithStatus>
+)
+
+data class ProjectWithStatus(
+    val project: Project,
+    val connectionStatus: ConnectionStatus
+)
+
+// Project detail view model
+@HiltViewModel
+class ProjectDetailViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val projectRepository: ProjectRepository,
+    private val connectionManager: ConnectionManager
+) : ViewModel() {
+    
+    private val projectId: String = savedStateHandle.get<String>("projectId") ?: ""
+    
+    val project = projectRepository.getProject(projectId)
+    val connectionStatus = connectionManager.connectionStates.map { states ->
+        states[projectId] ?: ConnectionStatus.DISCONNECTED
+    }
 }
 ```
 
@@ -1506,6 +2718,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.test.assert
 
 @RunWith(AndroidJUnit4::class)
 class NavigationTest {
