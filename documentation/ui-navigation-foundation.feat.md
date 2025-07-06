@@ -2530,6 +2530,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -2553,6 +2556,46 @@ interface ConnectionManager {
     suspend fun disconnect(projectId: String): Result<Unit>
     suspend fun shutdown(projectId: String): Result<Unit>
     fun getConnectionStatus(projectId: String): ConnectionStatus
+}
+
+// Navigation manager interface
+@Singleton
+class NavigationManager @Inject constructor() {
+    private val _navigationEvents = MutableSharedFlow<NavigationEvent>()
+    val navigationEvents: SharedFlow<NavigationEvent> = _navigationEvents.asSharedFlow()
+    
+    fun navigateToProjects() {
+        _navigationEvents.tryEmit(NavigationEvent.NavigateToProjects)
+    }
+    
+    fun navigateToProject(projectId: String) {
+        _navigationEvents.tryEmit(NavigationEvent.NavigateToProject(projectId))
+    }
+    
+    fun navigateBack() {
+        _navigationEvents.tryEmit(NavigationEvent.NavigateBack)
+    }
+    
+    fun navigateToHome() {
+        _navigationEvents.tryEmit(NavigationEvent.NavigateToHome)
+    }
+    
+    fun navigateToHelp() {
+        _navigationEvents.tryEmit(NavigationEvent.NavigateToHelp)
+    }
+    
+    fun navigateToSettings() {
+        _navigationEvents.tryEmit(NavigationEvent.NavigateToSettings)
+    }
+    
+    sealed class NavigationEvent {
+        object NavigateToProjects : NavigationEvent()
+        data class NavigateToProject(val projectId: String) : NavigationEvent()
+        object NavigateBack : NavigationEvent()
+        object NavigateToHome : NavigationEvent()
+        object NavigateToHelp : NavigationEvent()
+        object NavigateToSettings : NavigationEvent()
+    }
 }
 
 // View model implementation

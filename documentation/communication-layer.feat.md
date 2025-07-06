@@ -1098,6 +1098,15 @@ data class SessionState(
     val pendingPermissions: List<String> = emptyList(),
     val metadata: Map<String, String> = emptyMap()
 )
+
+// Chat manager interface for voice integration
+interface ChatManager {
+    suspend fun sendMessage(projectId: String, message: String): Result<String>
+    suspend fun getLastMessage(projectId: String): ClaudeMessage?
+    suspend fun getConversationHistory(projectId: String, limit: Int = 10): List<ClaudeMessage>
+    fun observeMessages(projectId: String): Flow<ClaudeMessage>
+    suspend fun clearChat(projectId: String): Result<Unit>
+}
 ```
 
 ### Connection State Manager
