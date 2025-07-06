@@ -1,15 +1,47 @@
 # Data Layer & Entity Management Feature Specification
 **For Android Mobile Application**
 
+## Table of Contents
+1. [Overview](#overview)
+2. [Architecture](#architecture)
+   - [Technology Stack](#technology-stack-android-specific)
+   - [Key Components](#key-components)
+3. [Components Architecture](#components-architecture)
+   - [Database Schema](#database-schema)
+   - [Entity Definitions](#entity-definitions)
+   - [Data Access Objects (DAOs)](#data-access-objects-daos)
+   - [Relationship Classes](#relationship-classes)
+   - [Repository Pattern](#repository-pattern)
+   - [Error Handling](#error-handling)
+   - [Database Converters](#database-converters)
+   - [Extension Functions](#extension-functions)
+   - [Dependency Injection Module](#dependency-injection-module)
+   - [Database Initialization](#database-initialization)
+4. [Testing](#testing)
+   - [Migration Testing Checklist](#migration-testing-checklist)
+   - [Unit Tests for DAOs](#unit-tests-for-daos)
+   - [Repository Tests](#repository-tests)
+5. [Implementation Notes](#implementation-notes-android-mobile)
+   - [Database Migration Strategy](#database-migration-strategy-android-app-updates)
+   - [Performance Considerations](#performance-considerations-android-specific)
+   - [Error Handling](#error-handling-1)
+   - [Migration Classes](#migration-classes)
+   - [Package Structure](#package-structure)
+   - [Test Fixtures](#test-fixtures)
+   - [Android Mobile Performance Optimization](#android-mobile-performance-optimization)
+   - [Thread Safety & Concurrency](#thread-safety--concurrency)
+   - [Future Extensions](#future-extensions-android-mobile-focus)
+
 ## Overview
 
-The Data Layer & Entity Management feature provides the foundational data persistence and entity management capabilities for the **Claude Code Android Mobile App**. This feature implements the core data models, database schema, and repository pattern that supports the three primary entities: SSH Identities, Server Profiles, and Projects.
+The Data Layer & Entity Management feature provides the foundational data persistence and entity management capabilities for **Pocket Agent - a remote coding agent mobile interface**. This feature implements the core data models, database schema, and repository pattern that supports the three primary entities: SSH Identities, Server Profiles, and Projects.
 
 **Target Platform**: Native Android Application (API 26+)
 **Development Environment**: Android Studio with Kotlin
 **Architecture**: Android Clean Architecture with MVVM pattern
+**Primary Specification**: [Frontend Technical Specification](./frontend.spec.md#profile-and-project-management)
 
-This feature is designed to be implemented independently and serves as the foundation for all other app functionality. All specifications are tailored for Android development best practices and mobile-specific constraints.
+This feature implements the data layer requirements defined in the [Frontend Technical Specification](./frontend.spec.md), specifically the Entity Relationships and Profile/Project Management sections. All specifications are tailored for Android development best practices and mobile-specific constraints.
 
 ## Architecture
 
@@ -23,6 +55,16 @@ This feature is designed to be implemented independently and serves as the found
 - **Testing**: Room in-memory database for Android unit testing (supports Android Test framework)
 - **Memory Management**: Android-optimized LruCache for entity caching
 - **Security**: Android Keystore integration for sensitive data protection
+
+### Entity Relationships (From Frontend Specification)
+
+As defined in the [Frontend Specification](./frontend.spec.md#entity-relationships), this feature implements the following entity hierarchy:
+
+**SSH Identity (1) → (N) Server Profile → (N) Project**
+
+- **SSH Identity**: Encrypted SSH private keys stored in vault (multi-server capable)
+- **Server Profile**: Connection endpoints linking to specific SSH identities
+- **Project**: Individual Claude Code sessions with server associations
 
 ### Key Components
 
@@ -43,8 +85,8 @@ This feature is designed to be implemented independently and serves as the found
         ServerProfileEntity::class,
         ProjectEntity::class
     ],
-    version = 1,
-    exportSchema = true
+    version = 10000, // v1.0.0 - Using semantic versioning
+    exportSchema = true // CRITICAL: Always export schemas for migration testing
 )
 @TypeConverters(DatabaseConverters::class)
 abstract class ClaudeCodeDatabase : RoomDatabase() {
@@ -65,8 +107,9 @@ abstract class ClaudeCodeDatabase : RoomDatabase() {
 data class SshIdentityEntity(
     @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val name: String,
-    val keyAlias: String, // Android Keystore alias
-    val publicKey: String, // Base64 encoded public key
+    val encryptedPrivateKey: String, // Base64 encoded encrypted private key
+    val publicKeyFingerprint: String, // SSH key fingerprint for identification
+    val description: String?, // Optional description
     val created: Instant,
     val lastUsed: Instant?
 )
@@ -275,8 +318,9 @@ data class ServerWithProjects(
 data class SshIdentity(
     val id: String,
     val name: String,
-    val keyAlias: String,
-    val publicKey: String,
+    val encryptedPrivateKey: String,
+    val publicKeyFingerprint: String,
+    val description: String?,
     val created: Instant,
     val lastUsed: Instant?
 )
@@ -386,9 +430,11 @@ class SshIdentityRepositoryImpl @Inject constructor(
     private fun validateSshIdentity(identity: SshIdentity) {
         require(identity.name.isNotBlank()) { "SSH Identity name cannot be blank" }
         require(identity.name.length <= 100) { "SSH Identity name too long (max 100 characters)" }
-        require(identity.keyAlias.isNotBlank()) { "Key alias cannot be blank" }
-        require(identity.publicKey.isNotBlank()) { "Public key cannot be blank" }
-        require(identity.publicKey.startsWith("ssh-")) { "Invalid SSH public key format" }
+        require(identity.encryptedPrivateKey.isNotBlank()) { "Encrypted private key cannot be blank" }
+        require(identity.publicKeyFingerprint.isNotBlank()) { "Public key fingerprint cannot be blank" }
+        require(identity.publicKeyFingerprint.matches(Regex("^[A-Fa-f0-9:]+$"))) { 
+            "Invalid fingerprint format" 
+        }
     }
 }
 
@@ -568,8 +614,9 @@ fun SshIdentityEntity.toDomainModel(): SshIdentity {
     return SshIdentity(
         id = id,
         name = name,
-        keyAlias = keyAlias,
-        publicKey = publicKey,
+        encryptedPrivateKey = encryptedPrivateKey,
+        publicKeyFingerprint = publicKeyFingerprint,
+        description = description,
         created = created,
         lastUsed = lastUsed
     )
@@ -579,8 +626,9 @@ fun SshIdentity.toEntity(): SshIdentityEntity {
     return SshIdentityEntity(
         id = id,
         name = name,
-        keyAlias = keyAlias,
-        publicKey = publicKey,
+        encryptedPrivateKey = encryptedPrivateKey,
+        publicKeyFingerprint = publicKeyFingerprint,
+        description = description,
         created = created,
         lastUsed = lastUsed
     )
@@ -660,7 +708,9 @@ object DatabaseModule {
         )
         .addTypeConverter(DatabaseConverters())
         .addCallback(DatabaseInitializationCallback())
-        .fallbackToDestructiveMigration() // TODO: Implement proper migrations
+        .addMigrations(*MigrationManager.getMigrations())
+        .fallbackToDestructiveMigrationFrom(1, 2, 3) // Only for pre-release versions
+        .fallbackToDestructiveMigrationOnDowngrade() // Prevent crashes on downgrade
         .build()
     }
     
@@ -734,8 +784,9 @@ class DatabaseSeeder @Inject constructor(
         val devIdentity = SshIdentity(
             id = "dev-identity-1",
             name = "Development Key",
-            keyAlias = "dev_key_alias",
-            publicKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ...",
+            encryptedPrivateKey = "base64EncodedEncryptedKey...",
+            publicKeyFingerprint = "SHA256:abcd1234efgh5678ijkl",
+            description = "Default development SSH key",
             created = Instant.now(),
             lastUsed = null
         )
@@ -750,6 +801,24 @@ class DatabaseSeeder @Inject constructor(
 ```
 
 ## Testing
+
+### Migration Testing Checklist
+
+```kotlin
+/**
+ * Migration Testing Checklist:
+ * 1. [ ] Export new schema to /schemas directory
+ * 2. [ ] Write migration with proper SQL syntax
+ * 3. [ ] Add migration to MigrationManager
+ * 4. [ ] Write comprehensive migration test
+ * 5. [ ] Test with production-size dataset (1000+ records)
+ * 6. [ ] Test rollback scenario
+ * 7. [ ] Document breaking changes in CHANGELOG
+ * 8. [ ] Update database version in @Database annotation
+ * 9. [ ] Commit schema file to version control
+ * 10. [ ] Test on minimum API level device
+ */
+```
 
 ### Unit Tests for DAOs
 ```kotlin
@@ -778,8 +847,9 @@ class SshIdentityDaoTest {
     fun insertAndRetrieveIdentity() = runTest {
         val identity = SshIdentityEntity(
             name = "Test Identity",
-            keyAlias = "test_key",
-            publicKey = "ssh-rsa AAAAB3...",
+            encryptedPrivateKey = "testEncryptedKey",
+            publicKeyFingerprint = "SHA256:test1234",
+            description = "Test key",
             created = Instant.now()
         )
         
@@ -812,8 +882,9 @@ class SshIdentityRepositoryTest {
         val entities = listOf(
             SshIdentityEntity(
                 name = "Test",
-                keyAlias = "test",
-                publicKey = "key",
+                encryptedPrivateKey = "encryptedTestKey",
+                publicKeyFingerprint = "SHA256:test",
+                description = "Test description",
                 created = Instant.now()
             )
         )
@@ -831,11 +902,172 @@ class SshIdentityRepositoryTest {
 ## Implementation Notes (Android Mobile)
 
 ### Database Migration Strategy (Android App Updates)
-- Start with version 1 schema
-- Use Room's automatic migration detection for Android app updates
-- Plan manual migrations for complex schema changes during app releases
-- Export schema to version control for migration planning across app versions
-- **Mobile Consideration**: Handle migrations gracefully to avoid app crashes during updates
+
+#### Versioning Strategy
+- Database version = Major * 10000 + Minor * 100 + Patch (e.g., v1.2.3 = 10203)
+- Always export schemas to version control
+- Test migrations with production-like data
+
+#### Migration Implementation
+
+```kotlin
+// Migration Manager
+object MigrationManager {
+    private val migrations = mutableListOf<Migration>()
+    
+    init {
+        // Register all migrations in order
+        migrations.add(MIGRATION_10000_10001)
+        migrations.add(MIGRATION_10001_10100)
+        // Add future migrations here
+    }
+    
+    fun getMigrations(): Array<Migration> = migrations.toTypedArray()
+}
+
+// Example: Adding nullable columns (v1.0.0 -> v1.0.1)
+val MIGRATION_10000_10001 = object : Migration(10000, 10001) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Add wrapper version tracking
+        database.execSQL(
+            "ALTER TABLE server_profiles ADD COLUMN wrapper_version TEXT"
+        )
+        
+        // Add error tracking
+        database.execSQL(
+            "ALTER TABLE projects ADD COLUMN last_error TEXT"
+        )
+    }
+}
+
+// Example: Adding new table (v1.0.1 -> v1.1.0)
+val MIGRATION_10001_10100 = object : Migration(10001, 10100) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Create session history table
+        database.execSQL("""
+            CREATE TABLE IF NOT EXISTS session_history (
+                id TEXT PRIMARY KEY NOT NULL,
+                project_id TEXT NOT NULL,
+                started_at INTEGER NOT NULL,
+                ended_at INTEGER,
+                status TEXT NOT NULL,
+                summary TEXT,
+                FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+            )
+        """)
+        
+        // Add index for performance
+        database.execSQL(
+            "CREATE INDEX index_session_history_project_id ON session_history(project_id)"
+        )
+    }
+}
+```
+
+#### Migration Testing
+
+```kotlin
+@RunWith(AndroidJUnit4::class)
+class MigrationTest {
+    private val TEST_DB = "migration-test"
+    
+    @Rule
+    @JvmField
+    val helper: MigrationTestHelper = MigrationTestHelper(
+        InstrumentationRegistry.getInstrumentation(),
+        ClaudeCodeDatabase::class.java.canonicalName,
+        FrameworkSQLiteOpenHelperFactory()
+    )
+    
+    @Test
+    fun migrate10000To10001() {
+        // Create version 1.0.0 database
+        helper.createDatabase(TEST_DB, 10000).apply {
+            // Insert test data with old schema
+            execSQL("""
+                INSERT INTO server_profiles VALUES 
+                ('id1', 'Test Server', 'example.com', 22, 'user', 'ssh1', null, 'DISCONNECTED', 0)
+            """)
+            close()
+        }
+        
+        // Run migration and validate
+        val db = helper.runMigrationsAndValidate(
+            TEST_DB, 10001, true, MIGRATION_10000_10001
+        )
+        
+        // Verify data integrity and new columns
+        val cursor = db.query("SELECT * FROM server_profiles WHERE id = 'id1'")
+        cursor.moveToFirst()
+        assertEquals("Test Server", cursor.getString(cursor.getColumnIndex("name")))
+        assertNull(cursor.getString(cursor.getColumnIndex("wrapper_version")))
+    }
+}
+```
+
+#### Pre-Migration Backup
+
+```kotlin
+class SafeMigrationHelper @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    suspend fun performSafeMigration() {
+        val backupFile = File(context.filesDir, "db_backup_${System.currentTimeMillis()}")
+        val currentDb = context.getDatabasePath("claude_code_database")
+        
+        try {
+            // Backup current database
+            currentDb.copyTo(backupFile)
+            
+            // Migration happens automatically when database is accessed
+            // If successful, schedule backup deletion after 7 days
+            scheduleBackupCleanup(backupFile)
+        } catch (e: Exception) {
+            // Restore from backup on failure
+            backupFile.copyTo(currentDb, overwrite = true)
+            throw MigrationException("Migration failed, restored from backup", e)
+        }
+    }
+}
+```
+
+#### Migration Guidelines
+
+**DO:**
+- Always test migrations with production-like data
+- Keep migrations simple and focused
+- Version control all schema files in `/schemas` directory
+- Add indexes in separate migrations for performance
+- Provide rollback capability for critical data
+- Use semantic versioning for database versions
+
+**DON'T:**
+- Never use `fallbackToDestructiveMigration()` after v1.0.0 release
+- Avoid complex logic in migrations
+- Don't rename columns (add new, migrate data, drop old)
+- Never modify foreign key constraints directly
+- Don't skip version numbers in migrations
+
+#### Schema Export Configuration
+
+```kotlin
+// In app/build.gradle.kts
+android {
+    defaultConfig {
+        javaCompileOptions {
+            annotationProcessorOptions {
+                arguments["room.schemaLocation"] = "$projectDir/schemas"
+            }
+        }
+    }
+}
+```
+
+**Mobile Consideration**: 
+- Handle migrations gracefully to avoid app crashes during updates
+- Test on low-end devices with limited storage
+- Consider migration performance impact on app startup
+- Implement progress indicators for long migrations
 
 ### Performance Considerations (Android-Specific)
 - Use Flow for reactive data observation (integrates with Compose UI)
@@ -851,6 +1083,52 @@ class SshIdentityRepositoryTest {
 - Log database errors for debugging
 - Provide meaningful error messages to upper layers
 
+### Migration Classes
+
+```kotlin
+// Migration exception for error handling
+class MigrationException(
+    message: String, 
+    cause: Throwable? = null
+) : Exception(message, cause)
+
+// Migration validation helper
+object MigrationValidator {
+    fun validateMigrationPath(from: Int, to: Int): Boolean {
+        val migrations = MigrationManager.getMigrations()
+        val path = migrations.filter { 
+            it.startVersion >= from && it.endVersion <= to 
+        }
+        
+        // Ensure continuous path exists
+        var currentVersion = from
+        path.forEach { migration ->
+            if (migration.startVersion != currentVersion) return false
+            currentVersion = migration.endVersion
+        }
+        
+        return currentVersion == to
+    }
+}
+
+// Complex migration example with data transformation
+val MIGRATION_10100_10200 = object : Migration(10100, 10200) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        // Example: Encrypt existing SSH key aliases
+        database.execSQL(
+            "ALTER TABLE ssh_identities ADD COLUMN encrypted_alias TEXT"
+        )
+        
+        // Migrate existing data (simplified - real implementation would encrypt)
+        database.execSQL("""
+            UPDATE ssh_identities 
+            SET encrypted_alias = 'encrypted_' || keyAlias
+            WHERE encrypted_alias IS NULL
+        """)
+    }
+}
+```
+
 ### Package Structure
 
 ```
@@ -860,7 +1138,10 @@ data/
 │   ├── DatabaseConverters.kt
 │   ├── DatabaseInitializationCallback.kt
 │   └── migrations/
-│       └── DatabaseMigrations.kt
+│       ├── MigrationManager.kt
+│       ├── MigrationValidator.kt
+│       ├── SafeMigrationHelper.kt
+│       └── Migrations.kt  // All migration definitions
 ├── entities/
 │   ├── SshIdentityEntity.kt
 │   ├── ServerProfileEntity.kt
@@ -890,12 +1171,13 @@ object TestDataFactory {
     fun createSshIdentity(
         id: String = UUID.randomUUID().toString(),
         name: String = "Test Identity",
-        keyAlias: String = "test_key_${Random.nextInt()}",
-        publicKey: String = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ...",
+        encryptedPrivateKey: String = "testEncryptedPrivateKey",
+        publicKeyFingerprint: String = "SHA256:testFingerprint",
+        description: String? = "Test SSH configuration",
         created: Instant = Instant.now(),
         lastUsed: Instant? = null
     ): SshIdentity {
-        return SshIdentity(id, name, keyAlias, publicKey, created, lastUsed)
+        return SshIdentity(id, name, encryptedPrivateKey, publicKeyFingerprint, description, created, lastUsed)
     }
     
     fun createServerProfile(
@@ -986,9 +1268,11 @@ class ThreadSafeOperations {
 ### Future Extensions (Android Mobile Focus)
 - **Security**: Add database encryption using SQLCipher for sensitive SSH data
 - **Sync**: Implement cloud backup/restore via Android backup service
-- **Performance**: Add LruCache for frequently accessed entities
+- **Performance**: Add LruCache for frequently accessed entities (partially implemented)
 - **Search**: Implement SQLite FTS for mobile keyboard search
 - **Offline**: Add soft delete functionality for offline operation
 - **Audit**: Add audit trail tables for security tracking
 - **Storage**: Consider Android storage optimization (App Bundle, dynamic delivery)
 - **Multi-User**: Support Android work profiles and multi-user scenarios
+- **Migration Analytics**: Track migration success rates and performance metrics
+- **Auto-Rollback**: Implement automatic rollback on migration failure detection

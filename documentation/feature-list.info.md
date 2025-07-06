@@ -1,23 +1,33 @@
-# Claude Code Mobile App - Feature List & Concurrent Development Analysis
+# Pocket Agent - a remote coding agent mobile interface - Feature List & Concurrent Development Analysis
+
+## Available Feature Documentation
+
+The following feature specifications are available for implementation:
+
+- **[Data Layer & Entity Management](./data-layer-entity-management.feat.md)** - Complete specification for database, entities, and repositories (✅ Ready for implementation)
+- **[Security & Authentication](./security-authentication.feat.md)** - Complete specification for biometric auth, SSH key import, token vault, and secure storage (✅ Ready for implementation)
+
+For creating new feature specifications, use the [Feature Documentation Template](./feature-document-structure.template.md).
 
 ## Core Functional Areas for Concurrent Development
 
 Based on the frontend specification analysis, here are the **key functional areas that can be specified and implemented concurrently**:
 
-### 1. **Data Layer & Entity Management** 
+### 1. **Data Layer & Entity Management** ✅ **[Full Specification Available](./data-layer-entity-management.feat.md)**
 **Independent Implementation Area**
-- SSH Identity management (key generation, storage)
+- SSH Identity management (key import and secure storage)
 - Server Profile CRUD operations  
 - Project configuration management
 - Room database schema and DAOs
 - Repository pattern implementation
 
-### 2. **Security & Authentication**
+### 2. **Security & Authentication** ✅ **[Full Specification Available](./security-authentication.feat.md)**
 **Independent Implementation Area**
 - Android Keystore integration
 - Biometric authentication framework
+- SSH key import and secure storage
 - Token vault implementation
-- SSH key pair generation and storage
+- Secure credential storage for tokens and SSH keys
 - Encrypted SharedPreferences setup
 
 ### 3. **Communication Layer**
@@ -85,10 +95,10 @@ Based on the frontend specification analysis, here are the **key functional area
 **SSH Identity (1) → (N) Server Profile → (N) Project**
 
 ### SSH Identity
-- Cryptographic key pairs for authentication
+- Imported SSH private keys stored encrypted
 - Multi-server usage capability
 - Context separation (work, personal, client)
-- Hardware-backed security storage
+- Biometric-protected key storage
 
 ### Server Profile  
 - Connection endpoints and configuration

@@ -1,4 +1,4 @@
-# Claude Code Mobile Remote Control
+# Pocket Agent - a remote coding agent mobile interface
 ## Technical Specification v1.0
 
 ### Table of Contents

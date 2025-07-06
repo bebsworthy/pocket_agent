@@ -38,11 +38,10 @@ App Root
     │   │   ├── RepositoryCloneDialog
     │   │   └── → ServerManagementScreen
     │   ├── ServerManagementScreen
-    │   │   ├── SSHKeyGenerator
     │   │   └── → SSHIdentityManagementScreen
     │   ├── SSHIdentityManagementScreen
-    │   │   ├── SSHKeyGenerator
-    │   │   └── PublicKeyExporter
+    │   │   ├── SshKeyImportManager
+    │   │   └── KeyFingerprintViewer
     │   ├── AppSettingsScreen
     │   │   ├── ThemeManager
     │   │   └── HighContrastTheme

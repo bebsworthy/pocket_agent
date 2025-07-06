@@ -1,4 +1,4 @@
-# Claude Code Mobile App
+# Pocket Agent - a remote coding agent mobile interface
 ## Frontend Technical Specification v1.0
 
 ### Table of Contents
@@ -14,43 +14,10 @@
 
 ---
 
-## Future Enhancements
-
-### Intelligent Build System Integration (v2)
-Automatically discover and present commands from common project build systems:
-
-**JavaScript/TypeScript Projects**
-- Parse `package.json` scripts section for npm/yarn/pnpm/bun commands
-- Auto-detect monorepo tools (lerna, nx, rush)
-
-**Build System Files**
-- **Makefile**: Extract available targets from make output
-- **justfile**: Parse just command definitions
-- **Taskfile.yml**: Parse task runner configurations
-
-**Language-Specific Tooling**
-- **Rust**: Standard cargo commands (build, test, check, clippy, fmt)
-- **Go**: Common go commands (test, build, mod tidy, vet)
-- **Python**: Commands from pyproject.toml, setup.py, tox.ini
-- **Java**: Gradle tasks and Maven goals from build files
-
-**Smart Categorization**
-- Automatic grouping by command type (build, test, lint, deploy)
-- Context-aware suggestions based on project changes
-- Integration with CI/CD pipeline definitions
-
-### Advanced Features (v3+)
-- **Multi-project orchestration**: Coordinate related projects across servers
-- **Custom workflow automation**: Chain quick actions with conditions
-- **Team collaboration**: Share project configurations and scripts
-- **Performance analytics**: Track and optimize development workflows
-
----
-
 ## System Overview
 
 ### Purpose
-The Claude Code Mobile App enables developers to remotely control Claude Code instances running on development servers through their Android devices. The app provides a native mobile interface for AI-powered development workflows while maintaining full functionality including interactive permission handling.
+Pocket Agent - a remote coding agent mobile interface enables developers to remotely control Claude Code instances running on development servers through their Android devices. The app provides a native mobile interface for AI-powered development workflows while maintaining full functionality including interactive permission handling.
 
 ### Target Platform
 - **Primary**: Android 8.0+ (API level 26+)
@@ -172,17 +139,17 @@ erDiagram
 ```
 
 #### SSH Identity Management
-SSH identities represent cryptographic key pairs and authentication credentials:
+SSH identities represent encrypted SSH private keys imported and stored securely in the app:
 
-- **Key Generation**: Create SSH key pairs in Android Keystore
+- **Key Import**: Import existing SSH private keys into the app
 - **Multi-Server Usage**: One SSH identity can authenticate to multiple servers
 - **Context Separation**: Separate identities for work, personal, client environments
-- **Secure Storage**: Private keys never leave hardware security module
+- **Secure Storage**: Private keys encrypted with biometric protection
 
 Examples:
-- "Home SSH Key" → Used for personal development servers
-- "Work SSH Key" → Used for company development infrastructure
-- "Client Project Key" → Used for specific client environments
+- "Home SSH Key" → Personal development key imported into app
+- "Work SSH Key" → Company-issued SSH key imported into app
+- "Client Project Key" → Client-specific SSH key imported into app
 
 #### Server Profile Management
 Server profiles define connection endpoints and configuration:
@@ -480,7 +447,7 @@ graph TB
 2. **Projects List**: Overview of all configured projects with status
 3. **Project Creation**: Wizard for setting up new projects
 4. **Server Management**: Configure and manage server profiles
-5. **SSH Identity Management**: Create and manage SSH key pairs
+5. **SSH Identity Management**: Import and manage SSH private keys
 6. **App Settings**: Global application preferences
 
 #### Project-Level Navigation
@@ -505,11 +472,12 @@ Configuration of development servers:
 - Link to SSH identity management
 
 **SSH Identity Management Screen**
-Cryptographic key management:
-- List of SSH identities with usage information
-- Generate new SSH key pairs
-- Export public keys for server configuration
-- Security settings and key rotation
+SSH key import and management:
+- List of imported SSH keys with usage information
+- Import new SSH private keys (file picker or paste)
+- Passphrase entry for encrypted keys
+- View public key fingerprint for verification
+- Delete imported keys securely
 
 #### Project-Level Screens
 
@@ -647,10 +615,10 @@ graph TB
 ```
 
 ### SSH Key Management
-- **Hardware Generation**: Create SSH keys in Android Keystore when possible
-- **Secure Storage**: Private keys never leave secure hardware
-- **Public Key Distribution**: Safe sharing of public keys for server authentication
-- **Key Rotation**: Support for periodic key updates
+- **Secure Import**: Import existing SSH private keys
+- **Biometric Protection**: Keys encrypted with biometric authentication
+- **Multiple Keys**: Support different keys for different environments
+- **Key Validation**: Verify imported keys and show fingerprints
 
 ### Permission Security
 - **Scope Validation**: Ensure operations stay within project boundaries
@@ -793,7 +761,7 @@ graph TB
 
 ## Conclusion
 
-This frontend specification provides a comprehensive blueprint for building a production-ready Claude Code mobile application. The architecture leverages Android's native capabilities while maintaining security, performance, and accessibility standards.
+This frontend specification provides a comprehensive blueprint for building a production-ready Pocket Agent mobile application. The architecture leverages Android's native capabilities while maintaining security, performance, and accessibility standards.
 
 ### Key Technical Decisions
 - **Native Android**: Optimal SSH and WebSocket handling with full platform integration
