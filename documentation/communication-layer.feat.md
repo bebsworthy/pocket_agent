@@ -1053,7 +1053,7 @@ enum class ConnectionStatus {
     SHUTDOWN          // Claude Code shutdown
 }
 
-// Claude message representation
+// Claude message representation with detailed chat message types
 data class ClaudeMessage(
     val id: String,
     val content: String,
@@ -1061,15 +1061,184 @@ data class ClaudeMessage(
     val type: MessageType,
     val conversationId: String? = null,
     val isPartial: Boolean = false,
-    val metadata: Map<String, String> = emptyMap()
+    val metadata: Map<String, String> = emptyMap(),
+    val uiData: MessageUIData? = null
 ) {
     enum class MessageType {
-        USER_INPUT,
-        CLAUDE_RESPONSE,
-        SYSTEM_MESSAGE,
-        ERROR_MESSAGE,
-        STATUS_UPDATE
+        USER_INPUT,             // User text input
+        CLAUDE_RESPONSE,        // Claude's response
+        SYSTEM_MESSAGE,         // System notifications
+        ERROR_MESSAGE,          // Error notifications
+        STATUS_UPDATE,          // Connection/session status
+        PERMISSION_REQUEST,     // Interactive permission card
+        PROGRESS_UPDATE,        // Task progress with percentage
+        CODE_BLOCK,            // Code snippet with syntax highlighting
+        SUB_AGENT_STATUS,      // Sub-agent activity update
+        TASK_COMPLETION,       // Task summary with results
+        TYPING_INDICATOR,      // Claude is thinking
+        FILE_REFERENCE,        // File path with preview
+        COMMAND_EXECUTION,     // Shell command result
+        VOICE_INPUT,           // Voice transcription
+        CONNECTION_STATUS,     // Connection metrics card
+        QUICK_ACTION_RESULT    // Quick action execution result
     }
+    
+    // Additional UI data for rich message rendering
+    data class MessageUIData(
+        val alignment: MessageAlignment = MessageAlignment.LEFT,
+        val backgroundColor: String? = null,
+        val icon: String? = null,
+        val actions: List<MessageAction> = emptyList(),
+        val progress: ProgressData? = null,
+        val codeData: CodeBlockData? = null,
+        val commandData: CommandExecutionData? = null,
+        val permissionData: PermissionRequestData? = null,
+        val subAgentData: SubAgentData? = null,
+        val fileReferenceData: FileReferenceData? = null,
+        val voiceData: VoiceInputData? = null,
+        val quickActionData: QuickActionData? = null,
+        val connectionData: ConnectionStatusData? = null
+    )
+    
+    enum class MessageAlignment {
+        LEFT,    // Claude, system messages
+        RIGHT,   // User messages
+        CENTER   // System notifications
+    }
+    
+    data class MessageAction(
+        val id: String,
+        val label: String,
+        val style: ActionStyle,
+        val enabled: Boolean = true
+    )
+    
+    enum class ActionStyle {
+        PRIMARY,    // Allow, Retry
+        SECONDARY,  // Deny, Cancel
+        DANGER,     // Delete, Stop
+        TEXT        // Copy, View More
+    }
+    
+    data class ProgressData(
+        val percentage: Float,
+        val currentStep: String,
+        val totalSteps: Int?,
+        val estimatedTimeRemaining: Long?
+    )
+    
+    data class CodeBlockData(
+        val language: String,
+        val code: String,
+        val fileName: String? = null,
+        val startLine: Int? = null,
+        val highlighted: List<Int> = emptyList()
+    )
+    
+    data class CommandExecutionData(
+        val command: String,
+        val output: String,
+        val exitCode: Int,
+        val executionTime: Long,
+        val isError: Boolean
+    )
+    
+    data class PermissionRequestData(
+        val tool: String,
+        val action: String,
+        val affectedResources: List<String>,
+        val riskLevel: RiskLevel,
+        val timeoutSeconds: Int,
+        val defaultAction: PermissionAction
+    )
+    
+    enum class PermissionAction {
+        ALLOW,
+        DENY,
+        PENDING
+    }
+    
+    data class SubAgentData(
+        val agentId: String,
+        val agentName: String,
+        val status: SubAgentStatus,
+        val currentTask: String,
+        val startTime: Long,
+        val completionTime: Long? = null
+    )
+    
+    enum class SubAgentStatus {
+        PLANNING,
+        RUNNING,
+        PAUSED,
+        COMPLETED,
+        CANCELLED,
+        FAILED
+    }
+    
+    data class FileReferenceData(
+        val filePath: String,
+        val lineStart: Int? = null,
+        val lineEnd: Int? = null,
+        val preview: String? = null,
+        val gitStatus: GitFileStatus? = null
+    )
+    
+    enum class GitFileStatus {
+        MODIFIED,
+        ADDED,
+        DELETED,
+        UNTRACKED,
+        UNCHANGED
+    }
+    
+    data class VoiceInputData(
+        val transcription: String,
+        val confidence: Float,
+        val duration: Long,
+        val language: String
+    )
+    
+    data class QuickActionData(
+        val actionName: String,
+        val actionType: QuickActionType,
+        val executionTime: Long,
+        val status: QuickActionStatus,
+        val result: String? = null
+    )
+    
+    enum class QuickActionType {
+        CLAUDE_PROMPT,
+        SHELL_COMMAND,
+        PROJECT_SCRIPT
+    }
+    
+    enum class QuickActionStatus {
+        RUNNING,
+        SUCCESS,
+        FAILED,
+        CANCELLED
+    }
+    
+    data class ConnectionStatusData(
+        val sshStatus: ConnectionState,
+        val websocketStatus: ConnectionState,
+        val latencyMs: Long,
+        val dataTransferred: DataTransferStats,
+        val uptime: Long
+    )
+    
+    data class ConnectionState(
+        val connected: Boolean,
+        val message: String? = null
+    )
+    
+    data class DataTransferStats(
+        val bytesSent: Long,
+        val bytesReceived: Long,
+        val messagesSent: Int,
+        val messagesReceived: Int
+    )
 }
 
 // Battery state for optimization

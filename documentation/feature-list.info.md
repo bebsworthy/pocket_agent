@@ -10,6 +10,7 @@ The following feature specifications are available for implementation:
 - **[UI Navigation & Foundation](./ui-navigation-foundation.feat.md)** - Complete specification for navigation framework, Material Design 3 theme, base UI components, and screen scaffolding (✅ Ready for implementation)
 - **[Background Services](./background-services.feat.md)** - Complete specification for foreground service, notifications, WorkManager integration, battery optimization, and background monitoring (✅ Ready for implementation)
 - **[Voice Integration](./voice-integration.feat.md)** - Complete specification for speech-to-text, text-to-speech, voice commands, audio permissions, and voice UI components (✅ Ready for implementation)
+- **[Screen Design & UI](./screen-design.feat.md)** - Complete specification for all screens, user flows, visual design system, and interaction patterns (✅ Ready for implementation)
 
 For creating new feature specifications, use the [Feature Documentation Template](./feature-document-structure.template.md).
 
