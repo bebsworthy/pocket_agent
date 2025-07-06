@@ -56,7 +56,7 @@ This feature is designed to be implemented [independently/as part of X] and serv
 
 ### [Component 1 Name]
 
-[Brief description of the component]
+**Purpose**: [One-paragraph English summary explaining what this code does, its responsibilities, and how it fits into the overall feature. This helps reviewers understand the component's role without reading the code.]
 
 ```kotlin
 // Complete, compilable code definition
@@ -76,7 +76,7 @@ class ComponentExample @Inject constructor(
 
 ### [Component 2 Name]
 
-[Brief description of the component]
+**Purpose**: [One-paragraph English summary explaining what this code does, its responsibilities, and how it fits into the overall feature. This helps reviewers understand the component's role without reading the code.]
 
 ```kotlin
 // Complete implementation with all details
@@ -98,6 +98,8 @@ class ComponentImplementation : ComponentInterface {
 
 ### Error Handling
 
+**Purpose**: [Explain the error handling strategy, exception hierarchy, and how errors are propagated and handled throughout the feature.]
+
 ```kotlin
 sealed class FeatureException(message: String, cause: Throwable? = null) : Exception(message, cause) {
     class ValidationException(message: String) : FeatureException(message)
@@ -118,6 +120,8 @@ inline fun <T> Result<T>.onError(action: (Throwable) -> Unit): Result<T> {
 ```
 
 ### Integration Points
+
+**Purpose**: [Explain how this feature integrates with the rest of the application through dependency injection, including module configuration and bindings.]
 
 ```kotlin
 // Dependency Injection setup
@@ -147,6 +151,8 @@ abstract class FeatureBindingModule {
 
 ### Testing Checklist
 
+**Purpose**: Comprehensive testing checklist to ensure all aspects of the feature are properly tested, including unit tests, integration tests, and edge cases.
+
 ```kotlin
 /**
  * Feature Testing Checklist:
@@ -164,6 +170,8 @@ abstract class FeatureBindingModule {
 ```
 
 ### Unit Tests
+
+**Purpose**: Example unit tests demonstrating how to test individual components in isolation using mocks and proper test setup.
 
 ```kotlin
 @RunWith(AndroidJUnit4::class)
@@ -208,6 +216,8 @@ class FeatureComponentTest {
 ```
 
 ### Integration Tests
+
+**Purpose**: Example integration tests showing how to test component interactions with real dependencies like databases in a controlled test environment.
 
 ```kotlin
 @RunWith(AndroidJUnit4::class)
@@ -259,6 +269,8 @@ class FeatureIntegrationTest {
 - **Network Efficiency**: [Data usage optimization]
 - **UI Responsiveness**: [Main thread considerations]
 - **Storage**: [Cache strategies and cleanup policies]
+
+**Purpose**: Example showing performance optimization techniques specific to Android, including memory caching and efficient data fetching strategies.
 
 ```kotlin
 // Example: Performance-optimized implementation
@@ -348,3 +360,4 @@ feature_name/
 - **Test-Driven**: Include testing strategy upfront
 - **Migration Ready**: Consider future changes from day one
 - **Performance Conscious**: Address platform limitations explicitly
+- **Code Block Summaries**: Every code block MUST be preceded by a **Purpose** section that explains in plain English what the code does, making it easy to review functionality without reading implementation details

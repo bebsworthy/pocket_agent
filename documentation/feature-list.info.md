@@ -6,6 +6,7 @@ The following feature specifications are available for implementation:
 
 - **[Data Layer & Entity Management](./data-layer-entity-management.feat.md)** - Complete specification for database, entities, and repositories (✅ Ready for implementation)
 - **[Security & Authentication](./security-authentication.feat.md)** - Complete specification for biometric auth, SSH key import, token vault, and secure storage (✅ Ready for implementation)
+- **[Communication Layer](./communication-layer.feat.md)** - Complete specification for SSH tunnels, WebSocket communication, message protocol, and connection management (✅ Ready for implementation)
 
 For creating new feature specifications, use the [Feature Documentation Template](./feature-document-structure.template.md).
 
@@ -30,7 +31,7 @@ Based on the frontend specification analysis, here are the **key functional area
 - Secure credential storage for tokens and SSH keys
 - Encrypted SharedPreferences setup
 
-### 3. **Communication Layer**
+### 3. **Communication Layer** ✅ **[Full Specification Available](./communication-layer.feat.md)**
 **Independent Implementation Area** 
 - WebSocket client implementation (OkHttp3)
 - SSH tunnel management (JSch)
