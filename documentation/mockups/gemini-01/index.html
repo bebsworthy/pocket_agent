@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Agent Mockup</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Hide scrollbar for the app container */
+        .app-screen-container::-webkit-scrollbar {
+            display: none;
+        }
+        .app-screen-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Custom animation for bottom sheet */
+        @keyframes slide-up {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        .animate-slide-up {
+            animation: slide-up 0.3s ease-out forwards;
+        }
+        /* Custom animation for dialog */
+        @keyframes fade-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.2s ease-out forwards;
+        }
+    </style>
+    <script>
+        // Tailwind CSS dark mode configuration
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'dev-primary': {
+                            '50': '#f0f9ff', '100': '#e0f2fe', '200': '#bae6fd', '300': '#7dd3fc', '400': '#38bdf8', '500': '#0ea5e9', '600': '#0284c7', '700': '#0369a1', '800': '#075985', '900': '#0c4a6e', '950': '#082f49'
+                        },
+                        'status-connected': '#10b981', // Green-500
+                        'status-connecting': '#f59e0b', // Amber-500
+                        'status-disconnected': '#6b7280', // Gray-500
+                        'status-error': '#ef4444', // Red-500
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-800 dark:bg-gray-900 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Phone Mockup Frame -->
+    <div class="w-full max-w-sm h-[800px] max-h-[90vh] bg-black rounded-[40px] shadow-2xl p-3 border-4 border-gray-700">
+        <div class="w-full h-full bg-white dark:bg-gray-950 rounded-[30px] overflow-hidden relative flex flex-col">
+            <!-- Notch -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-b-xl z-20"></div>
+
+            <!-- App Screens Container -->
+            <main id="app-container" class="flex-1 overflow-y-auto app-screen-container relative">
+                <!-- Each div is a screen. The 'hidden' class is toggled by JS -->
+
+                <!-- ====================================================== -->
+                <!-- 1. Splash Screen -->
+                <!-- ====================================================== -->
+                <div id="splash-screen" class="w-full h-full flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-gray-950">
+                    <div class="flex-1 flex flex-col items-center justify-center">
+                        <svg class="w-20 h-20 text-dev-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 20.563a2 2 0 002.219-1.253l4.374-12.247a2 2 0 00-3.812-1.362L8.407 17.95a2 2 0 001.28 2.58A2 2 0 0010 20.563z"></path><path d="M12 3v.01"></path><path d="M12 21v.01"></path><path d="M3 12h.01"></path><path d="M21 12h.01"></path><path d="M5.636 5.636l.01.01"></path><path d="M18.364 18.364l.01.01"></path><path d="M5.636 18.364l.01-.01"></path><path d="M18.364 5.636l.01-.01"></path></svg>
+                        <h1 class="text-3xl font-bold text-gray-800 dark:text-white mt-4">Pocket Agent</h1>
+                    </div>
+                    <div class="w-full">
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mb-4">
+                            <div class="bg-dev-primary-500 h-1.5 rounded-full animate-pulse"></div>
+                        </div>
+                        <p class="text-xs text-gray-400">v1.0.0</p>
+                    </div>
+                </div>
+
+                <!-- ====================================================== -->
+                <!-- 2. Onboarding Flow -->
+                <!-- ====================================================== -->
+                <div id="onboarding-welcome-screen" class="w-full h-full flex flex-col p-6 bg-white dark:bg-gray-950 hidden">
+                    <div class="text-right">
+                        <button class="text-sm text-dev-primary-500 font-medium" data-target="projects-list-screen">Skip</button>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center justify-center text-center">
+                        <div class="w-48 h-48 bg-dev-primary-100 dark:bg-dev-primary-900/50 rounded-full flex items-center justify-center mb-8">
+                           <svg class="w-24 h-24 text-dev-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 9.5L12 12l-2-2.5"></path><path d="M12 12l2 2.5-2 2.5"></path><path d="M10 14.5L12 12"></path><circle cx="12" cy="12" r="10"></circle></svg>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Welcome to Pocket Agent</h2>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2">Your secure, on-the-go AI pair programmer for any remote project.</p>
+                        <ul class="text-left text-sm text-gray-600 dark:text-gray-300 mt-6 space-y-2">
+                            <li class="flex items-start"><span class="text-status-connected mr-2 mt-1">✓</span> Secure SSH Connection</li>
+                            <li class="flex items-start"><span class="text-status-connected mr-2 mt-1">✓</span> AI-Powered Chat & Actions</li>
+                            <li class="flex items-start"><span class="text-status-connected mr-2 mt-1">✓</span> Integrated File Management</li>
+                        </ul>
+                    </div>
+                    <button class="w-full bg-dev-primary-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-dev-primary-700 transition" data-target="onboarding-ssh-screen">Get Started</button>
+                </div>
+
+                <div id="onboarding-ssh-screen" class="w-full h-full flex flex-col p-6 bg-white dark:bg-gray-950 hidden">
+                    <div class="flex-1 flex flex-col items-center justify-center text-center">
+                        <div class="w-48 h-48 bg-dev-primary-100 dark:bg-dev-primary-900/50 rounded-full flex items-center justify-center mb-8">
+                            <svg class="w-24 h-24 text-dev-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15.5 8.5L12 12l3.5 3.5"></path><path d="M8.5 8.5L12 12l-3.5 3.5"></path><path d="M2 12.5a10.5 10.5 0 1121 0c0 2.29-1.01 4.58-2.97 6.03a1.5 1.5 0 01-2.06-.31l-1.39-2.18a1.5 1.5 0 01.3-2.06c.4-.33.62-.8.62-1.28a1.5 1.5 0 00-3 0c0 .48.22.95.62 1.28a1.5 1.5 0 01.3 2.06l-1.39 2.18a1.5 1.5 0 01-2.06.31A10.46 10.46 0 012 12.5z"></path></svg>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white">Import Your SSH Key</h2>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2">Pocket Agent needs an SSH key to securely connect to your servers. You can import an existing key from your device.</p>
+                    </div>
+                    <div class="space-y-3">
+                        <button class="w-full bg-dev-primary-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-dev-primary-700 transition" data-target="onboarding-server-screen">Import SSH Key</button>
+                        <button class="w-full text-dev-primary-500 font-medium py-3 px-4 rounded-lg" data-target="onboarding-server-screen">I'll do this later</button>
+                    </div>
+                </div>
+
+                <div id="onboarding-server-screen" class="w-full h-full flex flex-col p-6 bg-white dark:bg-gray-950 hidden">
+                     <div class="flex-1 flex flex-col justify-center">
+                        <h2 class="text-2xl font-bold text-gray-800 dark:text-white text-center mb-6">Setup Your First Server</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Server Name</label>
+                                <input type="text" placeholder="e.g., My Production Server" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-dev-primary-500 focus:border-dev-primary-500">
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Hostname</label>
+                                <input type="text" placeholder="e.g., 192.168.1.100 or domain.com" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-dev-primary-500 focus:border-dev-primary-500">
+                            </div>
+                            <div class="flex space-x-4">
+                                <div class="flex-1">
+                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Port</label>
+                                    <input type="number" value="22" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-dev-primary-500 focus:border-dev-primary-500">
+                                </div>
+                                <div class="flex-1">
+                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Username</label>
+                                    <input type="text" placeholder="e.g., root" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-dev-primary-500 focus:border-dev-primary-500">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">SSH Key</label>
+                                <select class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm focus:outline-none focus:ring-dev-primary-500 focus:border-dev-primary-500">
+                                    <option>id_rsa (imported)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <button class="w-full bg-dev-primary-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-dev-primary-700 transition" data-target="projects-list-screen">Save & Continue</button>
+                        <button class="w-full border border-dev-primary-500 text-dev-primary-500 font-medium py-3 px-4 rounded-lg">Test Connection</button>
+                    </div>
+                </div>
+
+                <!-- ====================================================== -->
+                <!-- 3. Projects List Screen -->
+                <!-- ====================================================== -->
+                <div id="projects-list-screen" class="w-full h-full flex flex-col bg-gray-100 dark:bg-gray-900 hidden">
+                    <!-- Top App Bar -->
+                    <header class="flex-shrink-0 bg-white dark:bg-gray-950/80 backdrop-blur-sm p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
+                        <div class="flex items-center space-x-2">
+                            <svg class="w-7 h-7 text-dev-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 20.563a2 2 0 002.219-1.253l4.374-12.247a2 2 0 00-3.812-1.362L8.407 17.95a2 2 0 001.28 2.58A2 2 0 0010 20.563z"></path></svg>
+                            <h1 class="text-xl font-bold text-gray-800 dark:text-white">Projects</h1>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </button>
+                            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800" data-target="app-settings-screen">
+                                <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                            </button>
+                        </div>
+                    </header>
+                    <!-- Project List Area -->
+                    <div id="projects-list-container" class="flex-1 p-4 space-y-4">
+                        <!-- Empty State -->
+                        <div id="projects-empty-state" class="text-center py-16">
+                            <div class="w-32 h-32 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                               <svg class="w-16 h-16 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">No projects yet</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Tap the '+' button to create your first project.</p>
+                        </div>
+                        <!-- Populated State (JS will add cards here) -->
+                    </div>
+                    <!-- FAB -->
+                    <button class="absolute bottom-6 right-6 bg-dev-primary-600 text-white rounded-full p-4 shadow-lg hover:bg-dev-primary-700 transition" data-target="project-creation-screen">
+                        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                    </button>
+                </div>
+                
+                <!-- ====================================================== -->
+                <!-- 4. Project Creation Screen -->
+                <!-- ====================================================== -->
+                <div id="project-creation-screen" class="w-full h-full flex flex-col bg-gray-100 dark:bg-gray-900 hidden">
+                    <header class="flex-shrink-0 bg-white dark:bg-gray-950 p-4 flex items-center border-b border-gray-200 dark:border-gray-800">
+                        <button class="p-2 -ml-2 rounded-full" data-target="projects-list-screen">
+                            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <h1 class="text-xl font-bold text-gray-800 dark:text-white ml-2">Create Project</h1>
+                    </header>
+                    <div class="flex-1 p-6 space-y-6 overflow-y-auto">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Step 1: Select Server</h3>
+                            <div class="mt-2 space-y-2">
+                                <div class="p-3 border-2 border-dev-primary-500 bg-dev-primary-50 dark:bg-dev-primary-900/30 rounded-lg">
+                                    <p class="font-semibold text-dev-primary-800 dark:text-dev-primary-200">My Production Server</p>
+                                    <p class="text-sm text-dev-primary-600 dark:text-dev-primary-400">192.168.1.100</p>
+                                </div>
+                                <div class="p-3 border border-gray-300 dark:border-gray-700 rounded-lg">
+                                    <p class="font-semibold text-gray-700 dark:text-gray-300">Staging Server</p>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">staging.domain.com</p>
+                                </div>
+                                <button class="w-full text-center py-3 border border-dashed border-gray-400 dark:border-gray-600 text-gray-500 dark:text-gray-400 rounded-lg text-sm font-medium">+ Add New Server</button>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white">Step 2: Configure Project</h3>
+                            <div class="mt-2 space-y-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Project Name</label>
+                                    <input type="text" placeholder="e.g., Pocket Agent App" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-dev-primary-500 focus:border-dev-primary-500">
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Project Path on Server</label>
+                                    <input type="text" value="/home/user/pocket-agent" class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md text-sm shadow-sm placeholder-gray-400 focus:outline-none focus:ring-dev-primary-500 focus:border-dev-primary-500">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800">
+                        <button id="create-project-btn" class="w-full bg-dev-primary-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-dev-primary-700 transition">Create Project</button>
+                    </div>
+                </div>
+
+                <!-- ====================================================== -->
+                <!-- 5. Project Dashboard -->
+                <!-- ====================================================== -->
+                <div id="project-dashboard-screen" class="w-full h-full flex flex-col bg-gray-100 dark:bg-gray-900 hidden">
+                    <header class="flex-shrink-0 bg-white dark:bg-gray-950/80 backdrop-blur-sm p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
+                        <div class="flex items-center space-x-2">
+                            <button class="p-2 -ml-2 rounded-full" data-target="projects-list-screen">
+                                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <h1 class="text-xl font-bold text-gray-800 dark:text-white">Pocket Agent App</h1>
+                        </div>
+                        <button class="flex items-center space-x-2 text-sm font-medium text-status-connected bg-status-connected/10 px-3 py-1 rounded-full">
+                            <span class="w-2 h-2 bg-status-connected rounded-full"></span>
+                            <span>Connected</span>
+                        </button>
+                    </header>
+                    <div class="flex-1 p-4 space-y-6 overflow-y-auto">
+                        <!-- Connection Card -->
+                        <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow">
+                            <p class="text-sm text-gray-500 dark:text-gray-400">SERVER</p>
+                            <p class="font-semibold text-gray-800 dark:text-white">My Production Server</p>
+                            <div class="mt-4 flex justify-between items-center">
+                                <div>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">UPTIME</p>
+                                    <p class="font-semibold text-gray-800 dark:text-white">4h 17m</p>
+                                </div>
+                                <button class="text-sm font-medium text-red-500 bg-red-500/10 px-4 py-2 rounded-lg">Disconnect</button>
+                            </div>
+                        </div>
+                        <!-- Quick Actions -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800 dark:text-white px-2">Quick Actions</h3>
+                            <div class="grid grid-cols-2 gap-4 mt-2">
+                                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow text-center">
+                                    <div class="w-10 h-10 bg-dev-primary-100 dark:bg-dev-primary-900/50 rounded-full flex items-center justify-center mx-auto">
+                                        🚀
+                                    </div>
+                                    <p class="mt-2 font-semibold text-sm text-gray-700 dark:text-gray-200">Run tests</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Script</p>
+                                </div>
+                                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow text-center">
+                                    <div class="w-10 h-10 bg-dev-primary-100 dark:bg-dev-primary-900/50 rounded-full flex items-center justify-center mx-auto">
+                                        🔄
+                                    </div>
+                                    <p class="mt-2 font-semibold text-sm text-gray-700 dark:text-gray-200">Restart</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Service</p>
+                                </div>
+                                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow text-center">
+                                    <div class="w-10 h-10 bg-dev-primary-100 dark:bg-dev-primary-900/50 rounded-full flex items-center justify-center mx-auto">
+                                        💾
+                                    </div>
+                                    <p class="mt-2 font-semibold text-sm text-gray-700 dark:text-gray-200">Git status</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Command</p>
+                                </div>
+                                <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow text-center">
+                                    <div class="w-10 h-10 bg-dev-primary-100 dark:bg-dev-primary-900/50 rounded-full flex items-center justify-center mx-auto">
+                                        📈
+                                    </div>
+                                    <p class="mt-2 font-semibold text-sm text-gray-700 dark:text-gray-200">Check logs</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400">Script</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Bottom Nav -->
+                    <footer class="flex-shrink-0 bg-white dark:bg-gray-950 p-2 flex items-center justify-around border-t border-gray-200 dark:border-gray-800">
+                        <button class="flex flex-col items-center text-dev-primary-600 dark:text-dev-primary-400 w-1/4 py-1" data-target="project-dashboard-screen">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                            <span class="text-xs font-medium">Dashboard</span>
+                        </button>
+                        <button class="flex flex-col items-center text-gray-500 dark:text-gray-400 w-1/4 py-1" data-target="chat-screen">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                            <span class="text-xs font-medium">Chat</span>
+                        </button>
+                        <button class="flex flex-col items-center text-gray-500 dark:text-gray-400 w-1/4 py-1" data-target="files-browser-screen">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                            <span class="text-xs font-medium">Files</span>
+                        </button>
+                        <button class="flex flex-col items-center text-gray-500 dark:text-gray-400 w-1/4 py-1" data-target="project-settings-screen">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 16v-2m8-6h2M4 12H2m15.364 6.364l1.414 1.414M4.222 4.222l1.414 1.414m12.728 0l-1.414 1.414M5.636 18.364l-1.414 1.414M12 16a4 4 0 100-8 4 4 0 000 8z"></path></svg>
+                            <span class="text-xs font-medium">Settings</span>
+                        </button>
+                    </footer>
+                </div>
+
+                <!-- ====================================================== -->
+                <!-- 6. Chat Screen -->
+                <!-- ====================================================== -->
+                <div id="chat-screen" class="w-full h-full flex flex-col bg-gray-100 dark:bg-gray-900 hidden">
+                    <header class="flex-shrink-0 bg-white dark:bg-gray-950/80 backdrop-blur-sm p-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
+                        <div class="flex items-center space-x-2">
+                           <button class="p-2 -ml-2 rounded-full" data-target="project-dashboard-screen">
+                                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <h1 class="text-xl font-bold text-gray-800 dark:text-white">Chat</h1>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                            </button>
+                            <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <svg class="w-5 h-5 text-gray-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
+                    </header>
+                    <div id="chat-messages" class="flex-1 p-4 space-y-4 overflow-y-auto">
+                        <!-- Messages will be appended here by JS -->
+                    </div>
+                    <div class="p-2 bg-white dark:bg-gray-950 border-t border-gray-200 dark:border-gray-800">
+                        <div class="flex items-center space-x-2">
+                            <input id="chat-input" type="text" placeholder="Enter message..." class="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-dev-primary-500">
+                            <button id="chat-send-btn" class="bg-dev-primary-600 text-white rounded-lg p-2">
+                                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====================================================== -->
+                <!-- 7. Files Browser Screen -->
+                <!-- ====================================================== -->
+                <div id="files-browser-screen" class="w-full h-full flex flex-col bg-gray-100 dark:bg-gray-900 hidden">
+                    <header class="flex-shrink-0 bg-white dark:bg-gray-950/80 backdrop-blur-sm p-4 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
+                        <div class="flex items-center space-x-2">
+                           <button class="p-2 -ml-2 rounded-full" data-target="project-dashboard-screen">
+                                <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <h1 class="text-xl font-bold text-gray-800 dark:text-white">Files</h1>
+                        </div>
+                    </header>
+                    <div class="p-2 border-b border-gray-200 dark:border-gray-800 text-sm text-gray-500 dark:text-gray-400">
+                        <span class="font-mono">/src/components/</span>
+                    </div>
+                    <div class="flex-1 p-2 overflow-y-auto">
+                        <div class="flex items-center p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800">
+                            <svg class="w-5 h-5 text-gray-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10l1.13-3.39a2 2 0 011.87-1.35H18a2 2 0 012 2v1.39M9 10l-6 6"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                            <span class="flex-1 font-medium text-gray-700 dark:text-gray-300">..</span>
+                        </div>
+                        <div class="flex items-center p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800">
+                            <span class="w-5 text-center font-bold text-yellow-500 mr-3">M</span>
+                            <span class="flex-1 text-gray-700 dark:text-gray-300">Button.js</span>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">1.2 KB</span>
+                        </div>
+                        <div class="flex items-center p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800">
+                            <span class="w-5 text-center font-bold text-green-500 mr-3">A</span>
+                            <span class="flex-1 text-gray-700 dark:text-gray-300">Card.js</span>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">2.5 KB</span>
+                        </div>
+                        <div class="flex items-center p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800">
+                            <span class="w-5 text-center font-bold text-gray-500 mr-3"> </span>
+                            <span class="flex-1 text-gray-700 dark:text-gray-300">Checkbox.js</span>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">870 B</span>
+                        </div>
+                         <div class="flex items-center p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800">
+                            <span class="w-5 text-center font-bold text-red-500 mr-3">D</span>
+                            <span class="flex-1 text-gray-700 dark:text-gray-300">OldComponent.js</span>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">-</span>
+                        </div>
+                        <div class="flex items-center p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800">
+                            <span class="w-5 text-center font-bold text-blue-500 mr-3">?</span>
+                            <span class="flex-1 text-gray-700 dark:text-gray-300">config.tmp</span>
+                            <span class="text-sm text-gray-500 dark:text-gray-400">120 B</span>
+                        </div>
+                    </div>
+                    <!-- Bottom Nav -->
+                    <footer class="flex-shrink-0 bg-white dark:bg-gray-950 p-2 flex items-center justify-around border-t border-gray-200 dark:border-gray-800">
+                        <button class="flex flex-col items-center text-gray-500 dark:text-gray-400 w-1/4 py-1" data-target="project-dashboard-screen">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                            <span class="text-xs font-medium">Dashboard</span>
+                        </button>
+                        <button class="flex flex-col items-center text-gray-500 dark:text-gray-400 w-1/4 py-1" data-target="chat-screen">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                            <span class="text-xs font-medium">Chat</span>
+                        </button>
+                        <button class="flex flex-col items-center text-dev-primary-600 dark:text-dev-primary-400 w-1/4 py-1" data-target="files-browser-screen">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                            <span class="text-xs font-medium">Files</span>
+                        </button>
+                        <button class="flex flex-col items-center text-gray-500 dark:text-gray-400 w-1/4 py-1" data-target="project-settings-screen">
+                            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 16v-2m8-6h2M4 12H2m15.364 6.364l1.414 1.414M4.222 4.222l1.414 1.414m12.728 0l-1.414 1.414M5.636 18.364l-1.414 1.414M12 16a4 4 0 100-8 4 4 0 000 8z"></path></svg>
+                            <span class="text-xs font-medium">Settings</span>
+                        </button>
+                    </footer>
+                </div>
+                
+                <!-- Other screens like Project Settings, App Settings would go here -->
+                <div id="project-settings-screen" class="w-full h-full flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-gray-950 hidden">
+                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Project Settings</h1>
+                    <p class="text-gray-500 mt-2">This screen is a placeholder.</p>
+                    <button class="mt-4 text-dev-primary-500" data-target="project-dashboard-screen">Go Back</button>
+                </div>
+                <div id="app-settings-screen" class="w-full h-full flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-gray-950 hidden">
+                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">App Settings</h1>
+                    <p class="text-gray-500 mt-2">This screen is a placeholder.</p>
+                    <button class="mt-4 text-dev-primary-500" data-target="projects-list-screen">Go Back</p>
+                </div>
+
+                <!-- ====================================================== -->
+                <!-- Common Components (Overlays) -->
+                <!-- ====================================================== -->
+                <div id="permission-dialog-overlay" class="absolute inset-0 bg-black/60 flex items-center justify-center p-4 z-30 hidden">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6 animate-fade-in">
+                        <h3 class="text-lg font-bold text-gray-900 dark:text-white">Permission Request</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-300 mt-2">Claude wants to run the following command:</p>
+                        <div class="bg-gray-100 dark:bg-gray-900 p-3 rounded-md my-4 font-mono text-sm text-gray-800 dark:text-gray-200">
+                            /bin/bash scripts/deploy.sh
+                        </div>
+                        <p class="text-xs text-center text-gray-500 dark:text-gray-400">Auto-denies in <span id="permission-timer">30</span>s</p>
+                        <div class="flex justify-end space-x-3 mt-4">
+                            <button id="permission-deny" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">Deny</button>
+                            <button id="permission-allow" class="px-4 py-2 rounded-lg text-sm font-medium text-white bg-status-connected hover:bg-green-600">Allow</button>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE MANAGEMENT ---
+            const appState = {
+                projects: [],
+                isFirstLaunch: true,
+            };
+
+            // --- DOM ELEMENTS ---
+            const appContainer = document.getElementById('app-container');
+            const allScreens = appContainer.querySelectorAll('.w-full.h-full');
+            const projectsListContainer = document.getElementById('projects-list-container');
+            const projectsEmptyState = document.getElementById('projects-empty-state');
+            const createProjectBtn = document.getElementById('create-project-btn');
+            const chatMessages = document.getElementById('chat-messages');
+            const chatInput = document.getElementById('chat-input');
+            const chatSendBtn = document.getElementById('chat-send-btn');
+            const permissionDialog = document.getElementById('permission-dialog-overlay');
+            const permissionDenyBtn = document.getElementById('permission-deny');
+            const permissionAllowBtn = document.getElementById('permission-allow');
+            const permissionTimerEl = document.getElementById('permission-timer');
+
+            // --- NAVIGATION ---
+            function showScreen(screenId) {
+                allScreens.forEach(screen => {
+                    if (screen.id === screenId) {
+                        screen.classList.remove('hidden');
+                    } else {
+                        screen.classList.add('hidden');
+                    }
+                });
+                // Reset scroll for the new screen
+                appContainer.scrollTop = 0;
+            }
+
+            // Set up navigation for all buttons with data-target
+            document.querySelectorAll('[data-target]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetScreenId = button.getAttribute('data-target');
+                    showScreen(targetScreenId);
+                });
+            });
+
+            // --- RENDERING ---
+            function renderProjectsList() {
+                // Clear existing cards but not the empty state
+                const existingCards = projectsListContainer.querySelectorAll('.project-card');
+                existingCards.forEach(card => card.remove());
+
+                if (appState.projects.length === 0) {
+                    projectsEmptyState.classList.remove('hidden');
+                } else {
+                    projectsEmptyState.classList.add('hidden');
+                    appState.projects.forEach(project => {
+                        const card = document.createElement('div');
+                        card.className = 'bg-white dark:bg-gray-800 p-4 rounded-xl shadow project-card cursor-pointer hover:ring-2 hover:ring-dev-primary-500 transition';
+                        card.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-bold text-gray-800 dark:text-white">${project.name}</h3>
+                                    <p class="text-sm text-gray-500 dark:text-gray-400">${project.server}</p>
+                                </div>
+                                <div class="flex items-center space-x-2 text-sm text-status-${project.status}">
+                                    <span class="w-2.5 h-2.5 bg-current rounded-full"></span>
+                                    <span class="capitalize">${project.status}</span>
+                                </div>
+                            </div>
+                            <div class="mt-3 flex justify-between items-center">
+                                <p class="text-xs text-gray-400 dark:text-gray-500">Last activity: ${project.lastActivity}</p>
+                                ${project.status === 'disconnected' ? '<button class="text-sm font-medium text-dev-primary-600 bg-dev-primary-500/10 px-3 py-1 rounded-lg">Connect</button>' : ''}
+                            </div>
+                        `;
+                        card.addEventListener('click', () => showScreen('project-dashboard-screen'));
+                        projectsListContainer.appendChild(card);
+                    });
+                }
+            }
+            
+            // --- CHAT LOGIC ---
+            function addChatMessage(message, sender) {
+                const messageEl = document.createElement('div');
+                if (sender === 'user') {
+                    messageEl.className = 'flex justify-end';
+                    messageEl.innerHTML = `
+                        <div class="bg-dev-primary-600 text-white p-3 rounded-l-lg rounded-br-lg max-w-xs">
+                            ${message}
+                        </div>`;
+                } else if (sender === 'claude') {
+                    messageEl.className = 'flex justify-start';
+                    messageEl.innerHTML = `
+                        <div class="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-3 rounded-r-lg rounded-bl-lg max-w-xs shadow">
+                            ${message}
+                        </div>`;
+                } else if (sender === 'system') {
+                     messageEl.className = 'text-center text-xs text-gray-400 dark:text-gray-500 py-2';
+                     messageEl.innerHTML = message;
+                } else if (sender === 'typing') {
+                    messageEl.id = 'typing-indicator';
+                    messageEl.className = 'flex justify-start';
+                    messageEl.innerHTML = `
+                        <div class="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 p-3 rounded-r-lg rounded-bl-lg shadow">
+                            <div class="flex items-center space-x-1">
+                                <span class="w-2 h-2 bg-gray-300 dark:bg-gray-500 rounded-full animate-pulse" style="animation-delay: 0s;"></span>
+                                <span class="w-2 h-2 bg-gray-300 dark:bg-gray-500 rounded-full animate-pulse" style="animation-delay: 0.2s;"></span>
+                                <span class="w-2 h-2 bg-gray-300 dark:bg-gray-500 rounded-full animate-pulse" style="animation-delay: 0.4s;"></span>
+                            </div>
+                        </div>`;
+                }
+                chatMessages.appendChild(messageEl);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+
+            function handleSendMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
+
+                addChatMessage(message, 'user');
+                chatInput.value = '';
+
+                // Simulate Claude's response
+                addChatMessage('', 'typing');
+                setTimeout(() => {
+                    document.getElementById('typing-indicator')?.remove();
+                    
+                    if (message.toLowerCase().includes('deploy')) {
+                        addChatMessage('That seems like a sensitive action. I need your permission to run the deploy script.', 'claude');
+                        setTimeout(showPermissionDialog, 1000);
+                    } else {
+                        addChatMessage('Sure, here is the information you requested about `Button.js`. It was modified 2 days ago.', 'claude');
+                    }
+                }, 2000);
+            }
+
+            chatSendBtn.addEventListener('click', handleSendMessage);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSendMessage();
+            });
+
+            // --- PERMISSION DIALOG LOGIC ---
+            let permissionInterval;
+            function showPermissionDialog() {
+                permissionDialog.classList.remove('hidden');
+                let timeLeft = 30;
+                permissionTimerEl.textContent = timeLeft;
+                permissionInterval = setInterval(() => {
+                    timeLeft--;
+                    permissionTimerEl.textContent = timeLeft;
+                    if (timeLeft <= 0) {
+                        hidePermissionDialog('Denied automatically.');
+                    }
+                }, 1000);
+            }
+
+            function hidePermissionDialog(reason) {
+                clearInterval(permissionInterval);
+                permissionDialog.classList.add('hidden');
+                addChatMessage(reason, 'system');
+            }
+            
+            permissionDenyBtn.addEventListener('click', () => hidePermissionDialog('Permission denied by user.'));
+            permissionAllowBtn.addEventListener('click', () => {
+                hidePermissionDialog('Permission granted. Running script...');
+                addChatMessage('', 'typing');
+                setTimeout(() => {
+                    document.getElementById('typing-indicator')?.remove();
+                    addChatMessage('Deployment script executed successfully.', 'claude');
+                }, 2500);
+            });
+
+            // --- INITIALIZATION ---
+            function init() {
+                // Simulate first launch vs subsequent launch
+                setTimeout(() => {
+                    if (appState.isFirstLaunch) {
+                        showScreen('onboarding-welcome-screen');
+                        appState.isFirstLaunch = false;
+                    } else {
+                        showScreen('projects-list-screen');
+                    }
+                    renderProjectsList(); // Initial render
+                }, 2000); // Splash screen duration
+
+                // Event listener for creating a project
+                createProjectBtn.addEventListener('click', () => {
+                    appState.projects.push({
+                        name: 'Pocket Agent App',
+                        server: 'My Production Server',
+                        status: 'connected',
+                        lastActivity: 'just now'
+                    });
+                    renderProjectsList();
+                    showScreen('project-dashboard-screen');
+                });
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
