@@ -6,6 +6,22 @@
 2. [Architecture](#architecture)
 3. [Communication Protocol](#communication-protocol)
 4. [Sequence Diagrams](#sequence-diagrams)
+   - [Normal Operation Flow](#normal-operation-flow)
+   - [Disconnection & Recovery Flow](#disconnection--recovery-flow)
+   - [Permission Timeout Flow](#permission-timeout-flow)
+   - [Complete Connection Establishment Flow](#complete-connection-establishment-flow)
+   - [Voice Command Processing Flow](#voice-command-processing-flow)
+   - [Background Service Lifecycle Flow](#background-service-lifecycle-flow)
+   - [Security Authentication Flow](#security-authentication-flow)
+   - [Error Recovery and Resilience Flow](#error-recovery-and-resilience-flow)
+   - [Cross-Feature State Synchronization Flow](#cross-feature-state-synchronization-flow)
+   - [Permission Policy and Audit Flow](#permission-policy-and-audit-flow)
+   - [Project Setup and Repository Initialization Flow](#project-setup-and-repository-initialization-flow)
+   - [Database Migration and Sync Flow](#database-migration-and-sync-flow)
+   - [Sub-Agent Progress Monitoring Flow](#sub-agent-progress-monitoring-flow)
+   - [Notification Interaction and Deep Linking Flow](#notification-interaction-and-deep-linking-flow)
+   - [Battery Optimization and Performance Flow](#battery-optimization-and-performance-flow)
+   - [App Lifecycle and State Preservation Flow](#app-lifecycle-and-state-preservation-flow)
 5. [Resilience & Disconnection Handling](#resilience--disconnection-handling)
 6. [Unattended Operation](#unattended-operation)
 7. [Security Considerations](#security-considerations)
@@ -232,6 +248,427 @@ sequenceDiagram
     M->>W: Reconnect
     W->>M: permission_response (auto-applied)
     M->>M: Show notification: "Auto-approved file edit"
+```
+
+### Complete Connection Establishment Flow
+```mermaid
+sequenceDiagram
+    participant M as Mobile App
+    participant SSH as SSH Tunnel Manager
+    participant KS as Android Keystore
+    participant W as Wrapper Service
+    participant C as Claude Code
+    
+    Note over M: User taps "Connect" on project
+    M->>M: Check project SSH identity
+    M->>KS: Request biometric authentication
+    KS->>M: Show biometric prompt
+    M->>KS: User provides biometric
+    KS->>M: Authentication successful
+    
+    M->>SSH: Decrypt SSH private key
+    SSH->>KS: Retrieve encrypted key
+    KS->>SSH: Return decrypted key
+    
+    M->>SSH: Establish SSH tunnel
+    SSH->>SSH: Connect to server (hostname:port)
+    SSH->>SSH: Setup port forwarding (local:remote)
+    SSH->>M: Return local port
+    
+    M->>W: Connect WebSocket via tunnel
+    W->>M: Connection established
+    
+    M->>W: Send session_resume or new session
+    W->>C: Initialize Claude Code process
+    C->>W: Claude ready
+    W->>M: session_ready
+```
+
+### Voice Command Processing Flow
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant M as Mobile App
+    participant V as Voice Manager
+    participant A as Audio System
+    participant W as Wrapper Service
+    participant C as Claude Code
+    
+    U->>M: Press voice button / "Hey Claude"
+    M->>A: Request RECORD_AUDIO permission
+    A->>M: Permission granted
+    
+    M->>V: Start speech recognition
+    V->>A: Begin audio capture
+    A->>V: Audio data stream
+    V->>V: Process speech-to-text
+    V->>M: Partial transcription updates
+    
+    U->>U: Finish speaking
+    V->>V: Detect silence / timeout
+    V->>M: Final transcription result
+    
+    M->>W: Send command (transcribed text)
+    W->>C: Forward command to Claude
+    C->>W: Claude response
+    W->>M: claude_message
+    
+    M->>V: Convert response to speech
+    V->>A: Play TTS audio
+    A->>U: Audio response
+```
+
+### Background Service Lifecycle Flow
+```mermaid
+sequenceDiagram
+    participant A as Android System
+    participant M as Mobile App
+    participant BS as Background Service
+    participant N as Notification Manager
+    participant W as Wrapper Service
+    
+    Note over M: User connects to project
+    M->>BS: Start foreground service
+    BS->>N: Create persistent notification
+    N->>A: Show "Claude Code Active" notification
+    
+    BS->>BS: Start connection monitoring
+    BS->>W: Periodic health checks
+    W->>BS: Connection status
+    
+    Note over A: User backgrounds app
+    A->>M: App backgrounded
+    M->>M: UI lifecycle paused
+    Note over BS: Service continues running
+    
+    BS->>W: Health check fails
+    W--XBS: Connection lost
+    BS->>N: Update notification (reconnecting)
+    BS->>BS: Attempt reconnection
+    
+    BS->>W: Reconnection successful
+    W->>BS: Connection restored
+    BS->>N: Update notification (connected)
+    BS->>M: Sync missed messages (if app active)
+```
+
+### Security Authentication Flow
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant M as Mobile App
+    participant B as Biometric Prompt
+    participant KS as Android Keystore
+    participant TV as Token Vault
+    participant Git as Git Server
+    
+    Note over M: User needs to access git token
+    M->>TV: Request GitHub token
+    TV->>B: Trigger biometric authentication
+    B->>U: Show fingerprint/face prompt
+    U->>B: Provide biometric
+    B->>KS: Validate against stored biometric
+    KS->>B: Authentication successful
+    
+    B->>TV: Authentication confirmed
+    TV->>KS: Decrypt token using master key
+    KS->>TV: Return decrypted token
+    TV->>M: Provide git token
+    
+    M->>Git: Use token for repository access
+    Git->>M: Repository operation successful
+    
+    Note over M: Auto-lock after 5 minutes
+    M->>M: Start auto-lock timer
+    M->>M: Timer expires
+    M->>TV: Lock token vault
+    TV->>TV: Clear decrypted tokens from memory
+```
+
+### Error Recovery and Resilience Flow
+```mermaid
+sequenceDiagram
+    participant M as Mobile App
+    participant CM as Connection Manager
+    participant SSH as SSH Tunnel
+    participant W as Wrapper Service
+    participant BS as Background Service
+    participant N as Notification Manager
+    
+    Note over M,W: Normal operation
+    SSH--XW: SSH tunnel failure
+    CM->>CM: Detect connection loss
+    CM->>BS: Report connection failure
+    BS->>N: Show "Connection Lost" notification
+    
+    CM->>CM: Start exponential backoff
+    CM->>SSH: Attempt 1 (immediate)
+    SSH--XCM: Failed
+    
+    CM->>CM: Wait 2 seconds
+    CM->>SSH: Attempt 2
+    SSH--XCM: Failed
+    
+    CM->>CM: Wait 4 seconds
+    CM->>SSH: Attempt 3
+    SSH->>CM: Connection successful
+    
+    CM->>W: Re-establish WebSocket
+    W->>CM: WebSocket connected
+    CM->>BS: Report connection restored
+    BS->>N: Update notification (connected)
+    BS->>M: Sync missed messages
+```
+
+### Cross-Feature State Synchronization Flow
+```mermaid
+sequenceDiagram
+    participant V as Voice Manager
+    participant M as Mobile App UI
+    participant P as Project Repository
+    participant BS as Background Service
+    participant W as Wrapper Service
+    
+    Note over V: Voice command received
+    V->>M: "Start project deployment"
+    M->>P: Update project status (DEPLOYING)
+    P->>BS: Notify status change
+    BS->>BS: Update notification text
+    
+    M->>W: Send deployment command
+    W->>W: Execute deployment script
+    W->>BS: Progress update (50% complete)
+    BS->>M: Forward progress (if app active)
+    BS->>BS: Update notification progress
+    
+    W->>BS: Deployment complete
+    BS->>P: Update project status (ACTIVE)
+    P->>M: Notify status change (if app active)
+    BS->>BS: Update notification (success)
+    BS->>V: Trigger TTS announcement
+    V->>V: "Deployment completed successfully"
+```
+
+### Permission Policy and Audit Flow
+```mermaid
+sequenceDiagram
+    participant C as Claude Code
+    participant W as Wrapper Service
+    participant PP as Permission Policy
+    participant AL as Audit Logger
+    participant M as Mobile App
+    participant U as User
+    
+    C->>W: Request file edit permission
+    W->>PP: Check permission policy
+    PP->>PP: Evaluate file path (/src/auth.py)
+    PP->>AL: Log permission request
+    
+    alt Mobile connected
+        W->>M: Forward permission request
+        M->>U: Show permission dialog
+        U->>M: User approves
+        M->>W: Permission approved
+        W->>AL: Log user approval
+    else Mobile disconnected
+        PP->>PP: Apply default policy (allow /src/)
+        W->>AL: Log auto-approval
+        W->>W: Auto-approve based on policy
+    end
+    
+    W->>C: Continue with permission
+    C->>W: File edit completed
+    W->>AL: Log operation completion
+    AL->>AL: Store audit trail with timestamps
+```
+
+### Project Setup and Repository Initialization Flow
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant M as Mobile App
+    participant SSH as SSH Tunnel Manager
+    participant W as Wrapper Service
+    participant Git as Git Server
+    participant TV as Token Vault
+    
+    Note over U: User creates new project
+    U->>M: Provide GitHub repo URL
+    U->>M: Select server profile
+    M->>TV: Request GitHub token (biometric auth)
+    TV->>M: Return decrypted token
+    
+    M->>SSH: Establish tunnel to server
+    SSH->>M: Tunnel ready (local port)
+    M->>W: Connect to wrapper service
+    W->>M: Connection established
+    
+    M->>W: Initialize project (repo URL + token)
+    W->>Git: Clone repository to project path
+    Git->>W: Repository cloned
+    W->>W: Scan for scripts folder
+    W->>W: Initialize wrapper configuration
+    W->>M: Project initialized successfully
+    
+    M->>M: Save project to local database
+    M->>M: Navigate to project dashboard
+```
+
+### Database Migration and Sync Flow
+```mermaid
+sequenceDiagram
+    participant A as Android System
+    participant M as Mobile App
+    participant DB as Room Database
+    participant MIG as Migration Manager
+    participant REPO as Repositories
+    
+    Note over A: App update installed
+    A->>M: Launch updated app
+    M->>DB: Initialize database
+    DB->>MIG: Check schema version
+    MIG->>MIG: Compare versions (v1.0 -> v1.1)
+    
+    alt Migration needed
+        MIG->>DB: Backup current database
+        MIG->>DB: Execute migration SQL
+        DB->>MIG: Migration successful
+        MIG->>REPO: Refresh repository caches
+    else No migration needed
+        DB->>M: Database ready
+    end
+    
+    M->>REPO: Load projects and profiles
+    REPO->>M: Return cached entities
+    M->>M: Display projects list
+```
+
+### Sub-Agent Progress Monitoring Flow
+```mermaid
+sequenceDiagram
+    participant M as Mobile App
+    participant W as Wrapper Service
+    participant C as Claude Code
+    participant SA1 as Testing Agent
+    participant SA2 as Deploy Agent
+    participant PM as Progress Monitor
+    
+    M->>W: Send complex command ("deploy with tests")
+    W->>C: Forward command
+    C->>PM: Initialize progress tracking
+    PM->>M: Progress started (0%)
+    
+    C->>SA1: Spawn testing sub-agent
+    SA1->>PM: Testing agent started
+    PM->>M: Update progress (25% - testing started)
+    
+    SA1->>SA1: Run test suite
+    SA1->>PM: Tests completed (success)
+    PM->>M: Update progress (50% - tests passed)
+    
+    C->>SA2: Spawn deployment sub-agent
+    SA2->>PM: Deploy agent started
+    PM->>M: Update progress (75% - deployment started)
+    
+    SA2->>SA2: Execute deployment
+    SA2->>PM: Deployment completed
+    PM->>M: Update progress (100% - completed)
+    PM->>M: Final summary with sub-agent results
+```
+
+### Notification Interaction and Deep Linking Flow
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant A as Android System
+    participant N as Notification
+    participant M as Mobile App
+    participant P as Project Manager
+    participant W as Wrapper Service
+    
+    Note over W: Permission request while app backgrounded
+    W->>N: Create permission notification
+    N->>A: Show notification with actions
+    A->>U: Display notification
+    
+    U->>N: Tap "Approve" action
+    N->>M: Deep link to permission approval
+    M->>M: Launch app if not running
+    M->>P: Navigate to project context
+    P->>W: Send approval response
+    W->>W: Continue operation
+    
+    W->>N: Update notification (approved)
+    N->>A: Update notification content
+    
+    alt Alternative: Tap main notification
+        U->>N: Tap notification body
+        N->>M: Deep link to project dashboard
+        M->>M: Open project screen
+        M->>P: Show current operation status
+    end
+```
+
+### Battery Optimization and Performance Flow
+```mermaid
+sequenceDiagram
+    participant A as Android System
+    participant BM as Battery Manager
+    participant BS as Background Service
+    participant CM as Connection Manager
+    participant M as Mobile App
+    
+    A->>BM: Battery level changed (30%)
+    BM->>BS: Battery optimization trigger
+    BS->>BS: Switch to power-saving mode
+    
+    BS->>CM: Reduce polling frequency (15s -> 30s)
+    CM->>CM: Adjust health check intervals
+    BS->>M: Reduce UI update frequency (if active)
+    
+    Note over A: Battery level critical (15%)
+    A->>BM: Critical battery level
+    BM->>BS: Enter minimal mode
+    BS->>CM: Minimal polling (60s intervals)
+    BS->>M: Show battery warning dialog
+    
+    Note over A: Device starts charging
+    A->>BM: Charging detected
+    BM->>BS: Resume normal operation
+    BS->>CM: Restore normal polling (5s)
+    BS->>M: Dismiss battery warnings
+```
+
+### App Lifecycle and State Preservation Flow
+```mermaid
+sequenceDiagram
+    participant A as Android System
+    participant M as Mobile App
+    participant BS as Background Service
+    participant DB as Local Database
+    participant W as Wrapper Service
+    
+    Note over A: Low memory condition
+    A->>M: onTrimMemory(TRIM_MEMORY_MODERATE)
+    M->>M: Clear UI caches
+    M->>DB: Save current UI state
+    
+    Note over A: System needs more memory
+    A->>M: onTrimMemory(TRIM_MEMORY_COMPLETE)
+    M->>DB: Save all transient state
+    M->>BS: Notify of potential termination
+    BS->>W: Reduce message retention
+    
+    Note over A: System kills app process
+    A->>M: Process terminated
+    Note over BS: Service continues running
+    
+    Note over A: User returns to app
+    A->>M: Create new process
+    M->>DB: Restore saved state
+    M->>BS: Reconnect to background service
+    BS->>M: Sync missed updates
+    M->>M: Restore UI to previous state
 ```
 
 ---
