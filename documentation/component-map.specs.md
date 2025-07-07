@@ -74,14 +74,8 @@ App Root
         │   │   ├── UserMessageView[]
         │   │   └── MessageActionsMenu
         │   ├── MessageInputField
-        │   │   ├── VoiceInputButton
-        │   │   │   ├── SpeechRecognitionService
-        │   │   │   ├── PartialTranscriptionDisplay
-        │   │   │   └── VoiceWaveformVisualizer
         │   │   └── FileReferenceSelector
         │   ├── PermissionRequestDialog
-        │   ├── TextToSpeechController
-        │   ├── VoiceFeedbackIndicator
         │   ├── ExponentialBackoffManager
         │   ├── MessageQueueManager
         │   └── CompressionHandler
@@ -127,18 +121,17 @@ App Root
 
 ## Component Count Summary
 
-Total Components: **76**
+Total Components: **70**
 
 ### By Category:
 - **Screen Components**: 10
 - **Connection & Status Components**: 4
-- **Chat Interface Components**: 8
+- **Chat Interface Components**: 2
 - **Permission & Notification Components**: 6
 - **Quick Actions Components**: 6
 - **File Management Components**: 5
 - **Security Components**: 5
 - **Progress & Monitoring Components**: 5
-- **Voice Components**: 5
 - **Background Service Components**: 4
 - **Data Management Components**: 6
 - **Utility Components**: 6
@@ -150,7 +143,7 @@ Total Components: **76**
 - **Global/App Root**: 13
 - **ProjectsListScreen & Related**: 8
 - **DashboardScreen**: 11
-- **ChatScreen**: 16
+- **ChatScreen**: 10
 - **FilesScreen**: 5
 - **ProjectSettingsScreen**: 5
 - **Shared/Cross-Screen**: 18

@@ -10,7 +10,6 @@
    - [Disconnection & Recovery Flow](#disconnection--recovery-flow)
    - [Permission Timeout Flow](#permission-timeout-flow)
    - [Complete Connection Establishment Flow](#complete-connection-establishment-flow)
-   - [Voice Command Processing Flow](#voice-command-processing-flow)
    - [Background Service Lifecycle Flow](#background-service-lifecycle-flow)
    - [Security Authentication Flow](#security-authentication-flow)
    - [Error Recovery and Resilience Flow](#error-recovery-and-resilience-flow)
@@ -284,39 +283,6 @@ sequenceDiagram
     W->>M: session_ready
 ```
 
-### Voice Command Processing Flow
-```mermaid
-sequenceDiagram
-    participant U as User
-    participant M as Mobile App
-    participant V as Voice Manager
-    participant A as Audio System
-    participant W as Wrapper Service
-    participant C as Claude Code
-    
-    U->>M: Press voice button / "Hey Claude"
-    M->>A: Request RECORD_AUDIO permission
-    A->>M: Permission granted
-    
-    M->>V: Start speech recognition
-    V->>A: Begin audio capture
-    A->>V: Audio data stream
-    V->>V: Process speech-to-text
-    V->>M: Partial transcription updates
-    
-    U->>U: Finish speaking
-    V->>V: Detect silence / timeout
-    V->>M: Final transcription result
-    
-    M->>W: Send command (transcribed text)
-    W->>C: Forward command to Claude
-    C->>W: Claude response
-    W->>M: claude_message
-    
-    M->>V: Convert response to speech
-    V->>A: Play TTS audio
-    A->>U: Audio response
-```
 
 ### Background Service Lifecycle Flow
 ```mermaid
@@ -423,14 +389,14 @@ sequenceDiagram
 ### Cross-Feature State Synchronization Flow
 ```mermaid
 sequenceDiagram
-    participant V as Voice Manager
+    participant U as User
     participant M as Mobile App UI
     participant P as Project Repository
     participant BS as Background Service
     participant W as Wrapper Service
     
-    Note over V: Voice command received
-    V->>M: "Start project deployment"
+    Note over U: User taps deployment action
+    U->>M: "Start project deployment"
     M->>P: Update project status (DEPLOYING)
     P->>BS: Notify status change
     BS->>BS: Update notification text
@@ -445,8 +411,6 @@ sequenceDiagram
     BS->>P: Update project status (ACTIVE)
     P->>M: Notify status change (if app active)
     BS->>BS: Update notification (success)
-    BS->>V: Trigger TTS announcement
-    V->>V: "Deployment completed successfully"
 ```
 
 ### Permission Policy and Audit Flow

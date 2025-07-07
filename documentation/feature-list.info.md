@@ -9,7 +9,7 @@ The following feature specifications are available for implementation:
 - **[Communication Layer](./communication-layer.feat.md)** - Complete specification for SSH tunnels, WebSocket communication, message protocol, and connection management (✅ Ready for implementation)
 - **[UI Navigation & Foundation](./ui-navigation-foundation.feat.md)** - Complete specification for navigation framework, Material Design 3 theme, base UI components, and screen scaffolding (✅ Ready for implementation)
 - **[Background Services](./background-services.feat.md)** - Complete specification for foreground service, notifications, WorkManager integration, battery optimization, and background monitoring (✅ Ready for implementation)
-- **[Voice Integration](./voice-integration.feat.md)** - Complete specification for speech-to-text, text-to-speech, voice commands, audio permissions, and voice UI components (✅ Ready for implementation)
+- **[Voice Integration](./voice-integration.feat.md)** - Complete specification for speech-to-text, text-to-speech, voice commands, audio permissions, and voice UI components (⚠️ Future Release - Deferred due to complexity)
 - **[Screen Design & UI](./screen-design.feat.md)** - Complete specification for all screens, user flows, visual design system, and interaction patterns (✅ Ready for implementation)
 
 For creating new feature specifications, use the [Feature Documentation Template](./feature-document-structure.template.md).
@@ -63,13 +63,13 @@ Based on the frontend specification analysis, here are the **key functional area
 - Default permission policies
 - Wake lock management
 
-### 6. **Voice Integration** ✅ **[Full Specification Available](./voice-integration.feat.md)**
-**Independent Implementation Area**
-- Speech-to-text implementation
-- Text-to-speech integration
-- Audio permission handling
-- Voice UI components
-- Audio feedback systems
+### 6. **Voice Integration** ⚠️ **[Future Release - Deferred](./voice-integration.feat.md)**
+**Deferred Implementation Area**
+- Speech-to-text implementation (Future Release)
+- Text-to-speech integration (Future Release)
+- Audio permission handling (Future Release)
+- Voice UI components (Future Release)
+- Audio feedback systems (Future Release)
 
 ## Recommended Concurrent Development Strategy
 
@@ -86,10 +86,10 @@ Based on the frontend specification analysis, here are the **key functional area
 4. **Track D**: Background services + Notifications
 
 ### **Phase 3: Advanced Features**
-1. Voice integration
-2. Progress tracking
-3. Performance optimization
-4. Accessibility features
+1. Progress tracking
+2. Performance optimization
+3. Accessibility features
+4. Voice integration (Future Release)
 
 ## Key Benefits of This Approach
 

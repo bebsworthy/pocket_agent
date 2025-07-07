@@ -1,6 +1,11 @@
 # Voice Integration Feature Specification
 **For Android Mobile Application**
 
+> **⚠️ FUTURE RELEASE FEATURE**  
+> This feature has been deferred from the initial release due to complexity.  
+> Voice integration will be considered for a future version after core functionality is stable.  
+> This specification is maintained for future reference.
+
 ## Table of Contents
 1. [Overview](#overview)
 2. [Architecture](#architecture)

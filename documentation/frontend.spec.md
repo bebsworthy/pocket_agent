@@ -31,7 +31,6 @@ Pocket Agent - a remote coding agent mobile interface enables developers to remo
 - Real-time Claude Code interaction through chat interface
 - Secure credential storage with biometric authentication
 - Background monitoring with intelligent notifications
-- Voice input integration for natural language prompts
 - File browsing and git status monitoring
 - Quick action automation with project script integration
 - Progress tracking with sub-agent monitoring
@@ -49,7 +48,6 @@ Pocket Agent - a remote coding agent mobile interface enables developers to remo
 - **Database**: Room for local data persistence
 - **Dependency Injection**: Hilt
 - **Background Processing**: WorkManager + Foreground Services
-- **Voice**: Android Speech Recognition API
 
 ### Application Architecture
 
@@ -330,36 +328,7 @@ While the WebSocket provides real-time communication, the background service per
 - Estimated completion time
 - Percentage complete indicator
 
-### 5. Voice Integration
-
-#### Speech-to-Text Input
-Voice integration provides a natural way to interact with Claude:
-
-- **Simple Transcription**: Convert speech to text and send as Claude prompt
-- **No Command Parsing**: Whatever is spoken is sent directly to Claude
-- **Partial Results**: Show real-time transcription as user speaks
-- **Error Handling**: Clear feedback for recognition failures
-
-#### Text-to-Speech Output
-Enhanced voice feedback for Claude responses:
-
-- **Response Reading**: Read Claude messages aloud with optional summarization
-- **Smart Summarization**: For long Claude responses, send additional prompt:
-  ```
-  "Please provide a short summary of your previous response suitable for text-to-speech, 
-  focusing on the key actions taken and results. Keep it under 50 words and surround 
-  with <speak></speak> tags."
-  ```
-- **Action Confirmation**: Speak confirmation when actions execute
-- **Error Announcements**: Audio alerts for critical issues
-- **User Control**: Per-message voice control and global voice settings
-
-#### Voice UI Components
-- **Voice Input Button**: Large, accessible button for triggering speech recognition
-- **Visual Feedback**: Real-time transcription display during recording
-- **Audio Indicators**: Visual waveform or level meters during recording
-
-### 6. Progress Tracking
+### 5. Progress Tracking
 
 #### Task Progress Monitoring
 Track multi-step operations with detailed progress information:
@@ -491,9 +460,9 @@ Project-specific overview showing:
 **Chat Screen**
 Real-time conversation interface with:
 - Message history with Claude responses
-- Input field with voice button
+- Input field for text commands
 - File reference tools for mentioning specific files/lines
-- Message actions (copy, share, read aloud)
+- Message actions (copy, share)
 
 **Files Screen**
 Project file navigation featuring:
@@ -667,7 +636,7 @@ graph TB
 ### Screen Reader Support
 - **Semantic Markup**: Proper content descriptions for all UI elements
 - **Navigation Hints**: Clear instructions for screen reader users
-- **State Announcements**: Audio feedback for connection and operation status
+- **State Announcements**: Screen reader announcements for connection and operation status
 - **Action Descriptions**: Detailed descriptions of what each button does
 
 ### Visual Accessibility
@@ -678,7 +647,6 @@ graph TB
 
 ### Motor Accessibility
 - **Large Touch Targets**: Minimum 44dp touch targets for all interactive elements
-- **Voice Alternative**: Voice input as alternative to typing
 - **Gesture Alternatives**: Multiple ways to perform each action
 - **Timeout Extensions**: Extended timeouts for users who need more time
 
@@ -724,8 +692,7 @@ graph TB
 - Reliable connection management
 
 ### Phase 3: Advanced Features (4 weeks)
-**Voice, Security & Project Scripts**
-- Voice input integration with speech-to-text
+**Security & Project Scripts**
 - Token vault with biometric authentication
 - Project script discovery and integration
 - Progress tracking and smart suggestions
@@ -733,7 +700,6 @@ graph TB
 - Custom action creation and management
 
 **Deliverables:**
-- Voice input for natural interaction
 - Secure credential storage
 - Dynamic quick actions from project scripts
 - Progress tracking for multi-step operations
@@ -768,14 +734,13 @@ This frontend specification provides a comprehensive blueprint for building a pr
 - **Jetpack Compose**: Modern, reactive UI development with Material Design 3
 - **Android Keystore**: Hardware-backed security for credentials and SSH keys
 - **Modular Architecture**: Clean separation of concerns for maintainability
-- **Voice Integration**: Natural language interaction through speech-to-text
 - **Script Integration**: Self-extending quick actions through project script discovery
 - **Entity Separation**: Clear distinction between SSH identities, servers, and projects
 
 ### Success Criteria
 The mobile app will be considered successful when it enables developers to:
 - Manage multiple Claude Code sessions across different servers and projects
-- Interact naturally with Claude Code through chat and voice
+- Interact naturally with Claude Code through chat interface
 - Execute common development tasks with single taps
 - Monitor long-running operations and sub-agent activities while mobile
 - Maintain security without sacrificing usability

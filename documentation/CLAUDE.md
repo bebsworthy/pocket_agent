@@ -46,9 +46,9 @@ This document provides a comprehensive table of contents for all documentation a
   - Navigation structure and routing specifications
   - User interface navigation patterns
 
-- **[voice-integration.feat.md](./voice-integration.feat.md)** - Voice integration feature
-  - Voice command and speech recognition specifications
-  - Audio processing and voice interaction design
+- **[voice-integration.feat.md](./voice-integration.feat.md)** - Voice integration feature ⚠️ **Future Release**
+  - Voice command and speech recognition specifications (deferred)
+  - Audio processing and voice interaction design (deferred)
 
 ### Information Files
 
