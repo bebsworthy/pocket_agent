@@ -52,9 +52,9 @@ The Claude Code Mobile Remote Control system enables developers to operate Claud
 
 ### Component Overview
 ```
-┌─────────────────┐    SSH Tunnel    ┌──────────────────────────────────┐
-│   Mobile App    │◄─────────────────►│      Development Machine         │
-│   (Android)     │   Port Forward    │                                  │
+┌─────────────────┐    Direct WSS     ┌──────────────────────────────────┐
+│   Mobile App    │◄─────────────────►│      Claude Manager Server       │
+│   (Android)     │  SSH Key Auth     │                                  │
 └─────────────────┘                   │  ┌─────────────┐  ┌─────────────┐│
                                       │  │   Wrapper   │  │ Claude Code ││
                                       │  │  Service    │◄─┤   Process   ││
@@ -82,8 +82,8 @@ The Claude Code Mobile Remote Control system enables developers to operate Claud
 
 #### Mobile App (Android)
 - **Platform**: Native Android with Kotlin
-- **WebSocket Client**: OkHttp3
-- **SSH Client**: JSch
+- **WebSocket Client**: OkHttp3 with SSH key authentication
+- **SSH Key Management**: Bouncy Castle for key operations
 - **UI Framework**: Jetpack Compose
 - **Local Storage**: Room Database + SharedPreferences
 
@@ -172,8 +172,12 @@ sequenceDiagram
     participant W as Wrapper Service
     participant C as Claude Code
     
-    M->>W: Connect WebSocket
-    W->>M: Connection established
+    M->>W: Connect WSS
+    W->>M: auth_challenge {nonce, timestamp}
+    M->>M: Sign challenge with SSH key
+    M->>W: auth_response {publicKey, signature}
+    W->>W: Verify signature
+    W->>M: auth_success {sessionId}
     
     M->>W: Send command ("implement auth")
     W->>C: Start claude-code with command
@@ -216,7 +220,11 @@ sequenceDiagram
     W->>S: Store claude messages
     
     Note over M: Mobile reconnects
-    M->>W: Reconnect WebSocket
+    M->>W: Reconnect WSS
+    W->>M: auth_challenge {nonce, timestamp}
+    M->>W: auth_response {sessionId, signature}
+    W->>W: Verify session & signature
+    W->>M: auth_success
     W->>S: Retrieve session state
     W->>M: session_resume with missed messages
     W->>M: pending_permissions (if any)
@@ -647,6 +655,7 @@ class ConnectionManager {
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 10
     private val baseBackoffDelay = 1000L // 1 second
+    private var lastSessionId: String? = null
     
     fun handleDisconnection() {
         when {
@@ -659,6 +668,11 @@ class ConnectionManager {
     private fun exponentialBackoff() {
         val delay = baseBackoffDelay * (2.0.pow(reconnectAttempts)).toLong()
         scheduleReconnect(delay.coerceAtMost(30000L)) // Max 30s
+    }
+    
+    suspend fun authenticate(sshKey: SshKey): String {
+        // Handle SSH key authentication during connection
+        return performSshKeyAuth(sshKey)
     }
 }
 ```
@@ -793,11 +807,12 @@ interface ExecutionProgress {
 
 ## Security Considerations
 
-### SSH Tunnel Security
-- **Key-based authentication**: No password authentication allowed
-- **Port binding**: WebSocket only binds to localhost interface
-- **Ephemeral ports**: Use dynamic port allocation when possible
-- **Connection limits**: Maximum concurrent connections per user
+### WebSocket Security
+- **SSH Key Authentication**: Challenge-response authentication using SSH keys
+- **TLS Enforcement**: All connections must use WSS (TLS 1.3+)
+- **Session Management**: Secure session tokens with expiration
+- **Rate Limiting**: Authentication attempt limits per IP
+- **Certificate Pinning**: Optional certificate pinning for known servers
 
 ### Permission Validation
 - **Scope enforcement**: Operations restricted to project directories
@@ -806,8 +821,9 @@ interface ExecutionProgress {
 - **User confirmation**: Critical operations require mobile confirmation
 
 ### Data Protection
-- **No persistent secrets**: SSH keys managed by mobile app
-- **Session encryption**: All WebSocket communication over SSH tunnel
+- **No persistent secrets**: SSH keys managed by mobile app with biometric protection
+- **Transport encryption**: All WebSocket communication over TLS
+- **Authentication**: SSH key signatures for authentication
 - **Local storage**: Session data encrypted at rest
 - **Memory safety**: Clear sensitive data from memory after use
 
@@ -816,10 +832,10 @@ interface ExecutionProgress {
 ## Implementation Details
 
 ### Startup Sequence
-1. **Wrapper Service**: Start WebSocket server on random port
+1. **Wrapper Service**: Start WebSocket server with TLS on configured port
 2. **MCP Server**: Initialize permission handling server
-3. **Mobile App**: Establish SSH tunnel with port forwarding
-4. **WebSocket**: Connect mobile app to wrapper via tunnel
+3. **Mobile App**: Connect to WSS endpoint
+4. **Authentication**: Perform SSH key challenge-response
 5. **Session**: Resume existing session or create new one
 
 ### Error Recovery
@@ -845,8 +861,8 @@ class ErrorRecovery {
 
 ### Performance Optimizations
 - **Message batching**: Combine multiple Claude messages when mobile is disconnected
-- **Compression**: gzip WebSocket messages over SSH
-- **Connection pooling**: Reuse SSH connections when possible
+- **Compression**: WebSocket per-message deflate compression
+- **Connection reuse**: Maintain persistent WebSocket connections
 - **Memory management**: Cleanup old sessions and message history
 
 ### Configuration Management

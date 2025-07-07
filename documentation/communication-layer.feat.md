@@ -7,8 +7,8 @@
    - [Technology Stack](#technology-stack-android-specific)
    - [Key Components](#key-components)
 3. [Components Architecture](#components-architecture)
-   - [SSH Tunnel Manager](#ssh-tunnel-manager)
-   - [WebSocket Client](#websocket-client)
+   - [SSH Key Authenticator](#ssh-key-authenticator)
+   - [SSH Auth WebSocket Client](#ssh-auth-websocket-client)
    - [Message Protocol](#message-protocol)
    - [Connection State Manager](#connection-state-manager)
    - [Message Queue Manager](#message-queue-manager)
@@ -31,7 +31,7 @@
 
 ## Overview
 
-The Communication Layer feature provides the core networking infrastructure for **Pocket Agent - a remote coding agent mobile interface**. This feature implements SSH tunnel establishment, WebSocket communication over the tunnel, message protocol handling, and robust connection management to enable real-time interaction with remote Claude Code instances.
+The Communication Layer feature provides the core networking infrastructure for **Pocket Agent - a remote coding agent mobile interface**. This feature implements direct WebSocket communication with SSH key authentication, message protocol handling, and robust connection management to enable real-time interaction with remote Claude Code instances.
 
 **Target Platform**: Native Android Application (API 26+)
 **Development Environment**: Android Studio with Kotlin
@@ -44,8 +44,8 @@ This feature implements the communication requirements defined in the [Frontend 
 
 ### Technology Stack (Android-Specific)
 
-- **SSH Client**: JSch (mwiede/jsch fork) for SSH tunnel management
-- **WebSocket**: OkHttp3 WebSocket implementation for real-time communication
+- **SSH Key Operations**: Bouncy Castle for SSH key signing and verification
+- **WebSocket**: OkHttp3 WebSocket implementation with custom authentication
 - **Serialization**: Kotlinx.serialization for JSON message handling
 - **Coroutines**: Kotlin Coroutines + Flow for async operations
 - **Network Detection**: Android ConnectivityManager for network state
@@ -55,8 +55,8 @@ This feature implements the communication requirements defined in the [Frontend 
 
 ### Key Components
 
-- **SshTunnelManager**: Establishes and manages SSH tunnels with port forwarding
-- **WebSocketClient**: Manages WebSocket connections over SSH tunnels
+- **SshAuthWebSocketClient**: Manages WebSocket connections with SSH key authentication
+- **SshKeyAuthenticator**: Handles SSH key challenge-response authentication
 - **MessageProtocol**: Defines and handles message types and serialization
 - **ConnectionStateManager**: Tracks and manages connection lifecycle
 - **MessageQueueManager**: Queues messages during disconnections
@@ -66,141 +66,102 @@ This feature implements the communication requirements defined in the [Frontend 
 
 ## Components Architecture
 
-### SSH Tunnel Manager
+### SSH Key Authenticator
 
-**Purpose**: Manages SSH tunnel lifecycle including establishment, port forwarding, and health monitoring. Handles SSH key decryption, session configuration, and automatic keepalive to maintain stable tunnels.
+**Purpose**: Handles SSH key authentication for WebSocket connections. Manages challenge-response authentication flow, SSH key signing operations, and authentication state management.
 
 ```kotlin
-import com.jcraft.jsch.*
+import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters
+import org.bouncycastle.crypto.signers.RSADigestSigner
+import org.bouncycastle.crypto.util.PrivateKeyFactory
+import org.bouncycastle.openssl.PEMKeyPair
+import org.bouncycastle.openssl.PEMParser
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter
 import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
-import java.io.IOException
-import java.net.ServerSocket
-import java.util.Properties
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.security.*
+import java.security.spec.PKCS8EncodedKeySpec
+import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class SshTunnelManager @Inject constructor(
+class SshKeyAuthenticator @Inject constructor(
     private val sshKeyImportManager: SshKeyImportManager,
-    private val securityAuditLogger: SecurityAuditLogger,
-    private val scope: CoroutineScope
+    private val securityAuditLogger: SecurityAuditLogger
 ) {
     
-    companion object {
-        private const val SSH_CONNECT_TIMEOUT = 30000 // 30 seconds
-        private const val SSH_KEEPALIVE_INTERVAL = 10000 // 10 seconds
-        private const val LOCAL_PORT_START = 10000
-        private const val LOCAL_PORT_END = 20000
-    }
-    
-    private val activeTunnels = mutableMapOf<String, SshTunnel>()
-    private val _tunnelState = MutableStateFlow<Map<String, TunnelState>>(emptyMap())
-    val tunnelState: StateFlow<Map<String, TunnelState>> = _tunnelState.asStateFlow()
-    
-    data class SshTunnel(
-        val session: Session,
-        val localPort: Int,
-        val remoteHost: String,
-        val remotePort: Int,
-        val projectId: String
+    @Serializable
+    data class AuthChallenge(
+        val type: String = "auth_challenge",
+        val nonce: String,
+        val timestamp: Long,
+        val serverVersion: String
     )
     
-    sealed class TunnelState {
-        object Disconnected : TunnelState()
-        object Connecting : TunnelState()
-        data class Connected(val localPort: Int) : TunnelState()
-        data class Error(val message: String) : TunnelState()
-    }
+    @Serializable
+    data class AuthResponse(
+        val type: String = "auth_response",
+        val publicKey: String,
+        val signature: String,
+        val clientVersion: String,
+        val sessionId: String? = null // For session resumption
+    )
+    
+    @Serializable
+    data class AuthSuccess(
+        val type: String = "auth_success",
+        val sessionId: String,
+        val expiresAt: Long
+    )
+    
+    @Serializable
+    data class AuthError(
+        val type: String = "auth_error",
+        val code: String,
+        val message: String
+    )
     
     /**
-     * Establish SSH tunnel for a project
+     * Sign authentication challenge with SSH private key
      */
-    suspend fun establishTunnel(
-        serverProfile: ServerProfileEntity,
+    suspend fun signChallenge(
+        challenge: AuthChallenge,
         sshIdentity: SshIdentityEntity,
-        remoteHost: String = "localhost",
-        remotePort: Int,
-        projectId: String
-    ): Result<Int> = withContext(Dispatchers.IO) {
+        activity: FragmentActivity
+    ): Result<AuthResponse> = withContext(Dispatchers.IO) {
         try {
-            updateTunnelState(projectId, TunnelState.Connecting)
-            
-            // Get decrypted SSH key
-            val privateKey = sshKeyImportManager.decryptSshPrivateKey(
-                activity = getCurrentActivity(), // Injected or passed
+            // Get decrypted SSH private key
+            val privateKeyBytes = sshKeyImportManager.decryptSshPrivateKey(
+                activity = activity,
                 encryptedPrivateKey = sshIdentity.encryptedPrivateKey,
                 keyAlias = sshIdentity.keyAlias
             )
             
-            val jsch = JSch()
+            // Parse private key
+            val privateKey = parsePrivateKey(privateKeyBytes)
             
-            // Add identity
-            val identity = object : Identity {
-                override fun getName(): String = sshIdentity.name
-                override fun getAlgName(): String = "ssh-rsa"
-                override fun decrypt(): Boolean = true
-                override fun getPublicKeyBlob(): ByteArray = ByteArray(0)
-                override fun getSignature(data: ByteArray?): ByteArray = ByteArray(0)
-                override fun isEncrypted(): Boolean = false
-                override fun setPassphrase(passphrase: ByteArray?): Boolean = true
-                override fun clear() {
-                    privateKey.fill(0)
-                }
-            }
+            // Create data to sign: nonce + timestamp
+            val dataToSign = "${challenge.nonce}${challenge.timestamp}"
             
-            jsch.addIdentity(identity, privateKey, null, null)
+            // Sign the data
+            val signature = signData(privateKey, dataToSign.toByteArray())
             
-            // Create session
-            val session = jsch.getSession(
-                serverProfile.username,
-                serverProfile.hostname,
-                serverProfile.port
+            // Create auth response
+            val authResponse = AuthResponse(
+                publicKey = sshIdentity.publicKey,
+                signature = Base64.getEncoder().encodeToString(signature),
+                clientVersion = BuildConfig.VERSION_NAME,
+                sessionId = null // New connection, no session to resume
             )
             
-            // Configure session
-            val config = Properties().apply {
-                put("StrictHostKeyChecking", "no") // In production, implement proper host key verification
-                put("PreferredAuthentications", "publickey")
-                put("ServerAliveInterval", "${SSH_KEEPALIVE_INTERVAL / 1000}")
-                put("ServerAliveCountMax", "3")
-            }
-            session.setConfig(config)
-            session.timeout = SSH_CONNECT_TIMEOUT
+            // Clear sensitive data
+            privateKeyBytes.fill(0)
             
-            // Connect
-            session.connect()
-            
-            // Setup port forwarding
-            val localPort = findAvailablePort()
-            session.setPortForwardingL(localPort, remoteHost, remotePort)
-            
-            // Store tunnel info
-            val tunnel = SshTunnel(
-                session = session,
-                localPort = localPort,
-                remoteHost = remoteHost,
-                remotePort = remotePort,
-                projectId = projectId
-            )
-            activeTunnels[projectId] = tunnel
-            
-            updateTunnelState(projectId, TunnelState.Connected(localPort))
-            
-            // Start keepalive monitoring
-            launchKeepaliveMonitor(projectId, session)
-            
-            // Log successful connection
-            securityAuditLogger.logSshConnection(
-                serverProfile.hostname,
-                success = true
-            )
-            
-            Result.success(localPort)
+            Result.success(authResponse)
         } catch (e: Exception) {
-            updateTunnelState(projectId, TunnelState.Error(e.message ?: "Unknown error"))
-            securityAuditLogger.logSshConnection(
-                serverProfile.hostname,
+            securityAuditLogger.logAuthenticationAttempt(
                 success = false,
                 error = e.message
             )
@@ -209,115 +170,116 @@ class SshTunnelManager @Inject constructor(
     }
     
     /**
-     * Close SSH tunnel
+     * Sign data for session resumption
      */
-    suspend fun closeTunnel(projectId: String) = withContext(Dispatchers.IO) {
-        activeTunnels[projectId]?.let { tunnel ->
-            try {
-                tunnel.session.delPortForwardingL(tunnel.localPort)
-                tunnel.session.disconnect()
-                activeTunnels.remove(projectId)
-                updateTunnelState(projectId, TunnelState.Disconnected)
-            } catch (e: Exception) {
-                // Log but don't throw - tunnel might already be closed
-                updateTunnelState(projectId, TunnelState.Error(e.message ?: "Error closing tunnel"))
-            }
-        }
-    }
-    
-    /**
-     * Check if tunnel is active
-     */
-    fun isTunnelActive(projectId: String): Boolean {
-        return activeTunnels[projectId]?.session?.isConnected == true
-    }
-    
-    /**
-     * Get local port for active tunnel
-     */
-    fun getLocalPort(projectId: String): Int? {
-        return activeTunnels[projectId]?.localPort
-    }
-    
-    /**
-     * Get SSH session for a project
-     */
-    fun getSession(projectId: String): Session? {
-        return activeTunnels[projectId]?.session
-    }
-    
-    /**
-     * Update port forwarding for existing tunnel
-     */
-    suspend fun updatePortForwarding(
-        projectId: String,
-        remotePort: Int
-    ): Result<Int> = withContext(Dispatchers.IO) {
+    suspend fun signSessionResumption(
+        sessionId: String,
+        nonce: String,
+        sshIdentity: SshIdentityEntity,
+        activity: FragmentActivity
+    ): Result<String> = withContext(Dispatchers.IO) {
         try {
-            val tunnel = activeTunnels[projectId]
-                ?: return@withContext Result.failure(Exception("No active tunnel"))
-            
-            // Remove old forwarding if exists
-            tunnel.session.delPortForwardingL(tunnel.localPort)
-            
-            // Setup new forwarding
-            val newLocalPort = findAvailablePort()
-            tunnel.session.setPortForwardingL(newLocalPort, tunnel.remoteHost, remotePort)
-            
-            // Update tunnel info
-            val updatedTunnel = tunnel.copy(
-                localPort = newLocalPort,
-                remotePort = remotePort
+            val privateKeyBytes = sshKeyImportManager.decryptSshPrivateKey(
+                activity = activity,
+                encryptedPrivateKey = sshIdentity.encryptedPrivateKey,
+                keyAlias = sshIdentity.keyAlias
             )
-            activeTunnels[projectId] = updatedTunnel
             
-            updateTunnelState(projectId, TunnelState.Connected(newLocalPort))
+            val privateKey = parsePrivateKey(privateKeyBytes)
+            val dataToSign = "$sessionId$nonce"
+            val signature = signData(privateKey, dataToSign.toByteArray())
             
-            Result.success(newLocalPort)
+            privateKeyBytes.fill(0)
+            
+            Result.success(Base64.getEncoder().encodeToString(signature))
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
     
-    private fun findAvailablePort(): Int {
-        for (port in LOCAL_PORT_START..LOCAL_PORT_END) {
-            try {
-                ServerSocket(port).use { 
-                    return port
+    /**
+     * Parse SSH private key from bytes
+     */
+    private fun parsePrivateKey(keyBytes: ByteArray): PrivateKey {
+        return try {
+            // Try PKCS8 format first
+            val keySpec = PKCS8EncodedKeySpec(keyBytes)
+            val keyFactory = KeyFactory.getInstance("RSA")
+            keyFactory.generatePrivate(keySpec)
+        } catch (e: Exception) {
+            // Try PEM format
+            val keyString = String(keyBytes)
+            val pemParser = PEMParser(keyString.reader())
+            val pemObject = pemParser.readObject()
+            
+            when (pemObject) {
+                is PEMKeyPair -> {
+                    val converter = JcaPEMKeyConverter()
+                    converter.getPrivateKey(pemObject.privateKeyInfo)
                 }
-            } catch (e: Exception) {
-                // Port in use, try next
+                is PrivateKeyInfo -> {
+                    val converter = JcaPEMKeyConverter()
+                    converter.getPrivateKey(pemObject)
+                }
+                else -> throw IllegalArgumentException("Unsupported key format")
             }
         }
-        throw IOException("No available ports in range $LOCAL_PORT_START-$LOCAL_PORT_END")
     }
     
-    private fun updateTunnelState(projectId: String, state: TunnelState) {
-        _tunnelState.update { current ->
-            current + (projectId to state)
+    /**
+     * Sign data with RSA private key (SSH-compatible)
+     */
+    private fun signData(privateKey: PrivateKey, data: ByteArray): ByteArray {
+        return when (privateKey.algorithm) {
+            "RSA" -> {
+                val signature = Signature.getInstance("SHA256withRSA")
+                signature.initSign(privateKey)
+                signature.update(data)
+                signature.sign()
+            }
+            "EC" -> {
+                val signature = Signature.getInstance("SHA256withECDSA")
+                signature.initSign(privateKey)
+                signature.update(data)
+                signature.sign()
+            }
+            "Ed25519" -> {
+                val signature = Signature.getInstance("Ed25519")
+                signature.initSign(privateKey)
+                signature.update(data)
+                signature.sign()
+            }
+            else -> throw IllegalArgumentException("Unsupported key algorithm: ${privateKey.algorithm}")
         }
     }
     
-    private fun launchKeepaliveMonitor(projectId: String, session: Session) {
-        scope.launch {
-            while (isActive && session.isConnected) {
-                delay(SSH_KEEPALIVE_INTERVAL.toLong())
-                try {
-                    session.sendKeepAliveMsg()
-                } catch (e: Exception) {
-                    // Connection lost
-                    updateTunnelState(projectId, TunnelState.Error("Keepalive failed"))
-                    break
-                }
-            }
+    /**
+     * Verify server response signature (optional, for mutual auth)
+     */
+    fun verifyServerSignature(
+        publicKey: String,
+        signature: String,
+        data: String
+    ): Boolean {
+        return try {
+            // Parse server's public key
+            val keyBytes = Base64.getDecoder().decode(
+                publicKey.replace("ssh-rsa ", "").split(" ")[0]
+            )
+            
+            // Verify signature
+            // Implementation depends on server's signing method
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 }
 ```
 
-### WebSocket Client
+### SSH Auth WebSocket Client
 
-**Purpose**: Handles WebSocket connections over SSH tunnels for real-time bidirectional communication. Manages connection lifecycle, message sending/receiving, ping/pong health checks, and automatic message queuing during connection issues.
+**Purpose**: Handles WebSocket connections with SSH key authentication for real-time bidirectional communication. Manages authentication flow, connection lifecycle, message sending/receiving, and automatic reconnection with authentication.
 
 ```kotlin
 import okhttp3.*
@@ -330,38 +292,267 @@ import javax.inject.Singleton
 import java.util.concurrent.TimeUnit
 
 @Singleton
-class WebSocketClient @Inject constructor(
+class SshAuthWebSocketClient @Inject constructor(
     private val okHttpClient: OkHttpClient,
+    private val sshKeyAuthenticator: SshKeyAuthenticator,
     private val messageProtocol: MessageProtocol,
     private val connectionStateManager: ConnectionStateManager,
     private val messageQueueManager: MessageQueueManager,
-    private val certificateValidator: CertificateValidator
+    private val certificateValidator: CertificateValidator,
+    private val securityAuditLogger: SecurityAuditLogger
 ) {
     
     companion object {
         private const val NORMAL_CLOSURE_STATUS = 1000
         private const val PING_INTERVAL_MS = 30000L // 30 seconds
         private const val PONG_TIMEOUT_MS = 10000L // 10 seconds
+        private const val AUTH_TIMEOUT_MS = 60000L // 60 seconds for auth
     }
     
     private var webSocket: WebSocket? = null
     private var pingJob: Job? = null
     private var projectId: String? = null
+    private var sessionId: String? = null
+    private var isAuthenticated = false
     
     private val _incomingMessages = MutableSharedFlow<MessageProtocol.Message>()
     val incomingMessages: SharedFlow<MessageProtocol.Message> = _incomingMessages.asSharedFlow()
     
+    private val _authState = MutableStateFlow<AuthState>(AuthState.NotAuthenticated)
+    val authState: StateFlow<AuthState> = _authState.asStateFlow()
+    
     private val messageChannel = Channel<String>(Channel.UNLIMITED)
+    private val authChannel = Channel<String>(1)
+    
+    sealed class AuthState {
+        object NotAuthenticated : AuthState()
+        object Authenticating : AuthState()
+        data class Authenticated(val sessionId: String) : AuthState()
+        data class AuthenticationFailed(val error: String) : AuthState()
+    }
     
     /**
-     * Connect to WebSocket server through SSH tunnel
+     * Connect to WebSocket server with SSH key authentication
      */
     suspend fun connect(
         projectId: String,
-        localPort: Int,
-        path: String = "/ws"
+        serverUrl: String,
+        sshIdentity: SshIdentityEntity,
+        activity: FragmentActivity
     ) = withContext(Dispatchers.IO) {
-        this@WebSocketClient.projectId = projectId
+        this@SshAuthWebSocketClient.projectId = projectId
+        _authState.value = AuthState.NotAuthenticated
+        
+        connectionStateManager.updateState(projectId, ConnectionState.CONNECTING)
+        
+        try {
+            // Build WebSocket request
+            val request = Request.Builder()
+                .url(serverUrl)
+                .build()
+            
+            // Create custom OkHttpClient with certificate validation
+            val client = if (certificateValidator.shouldPinCertificate(serverUrl)) {
+                okHttpClient.newBuilder()
+                    .certificatePinner(certificateValidator.getCertificatePinner(serverUrl))
+                    .build()
+            } else {
+                okHttpClient
+            }
+            
+            webSocket = client.newWebSocket(request, createAuthWebSocketListener(projectId, sshIdentity, activity))
+            
+            // Wait for authentication to complete
+            val authResult = withTimeout(AUTH_TIMEOUT_MS) {
+                authState.first { it !is AuthState.Authenticating }
+            }
+            
+            when (authResult) {
+                is AuthState.Authenticated -> {
+                    sessionId = authResult.sessionId
+                    isAuthenticated = true
+                    connectionStateManager.updateState(projectId, ConnectionState.CONNECTED)
+                    startPingMonitoring()
+                    launchMessageSender()
+                    
+                    // Send queued messages
+                    scope.launch {
+                        messageQueueManager.drainQueue(projectId).collect { message ->
+                            sendMessage(message)
+                        }
+                    }
+                    
+                    securityAuditLogger.logWebSocketConnection(
+                        serverUrl = serverUrl,
+                        authenticated = true
+                    )
+                }
+                is AuthState.AuthenticationFailed -> {
+                    disconnect()
+                    throw SecurityException("Authentication failed: ${authResult.error}")
+                }
+                else -> {
+                    disconnect()
+                    throw IllegalStateException("Unexpected auth state: $authResult")
+                }
+            }
+        } catch (e: Exception) {
+            connectionStateManager.updateState(
+                projectId, 
+                ConnectionState.ERROR("WebSocket connection failed: ${e.message}")
+            )
+            securityAuditLogger.logWebSocketConnection(
+                serverUrl = serverUrl,
+                authenticated = false,
+                error = e.message
+            )
+            throw e
+        }
+    }
+    
+    /**
+     * Resume existing session with authentication
+     */
+    suspend fun resumeSession(
+        projectId: String,
+        serverUrl: String,
+        sessionId: String,
+        sshIdentity: SshIdentityEntity,
+        activity: FragmentActivity
+    ) = withContext(Dispatchers.IO) {
+        this@SshAuthWebSocketClient.projectId = projectId
+        this@SshAuthWebSocketClient.sessionId = sessionId
+        // Similar to connect but with session resumption logic
+    }
+    
+    /**
+     * Send message through authenticated WebSocket
+     */
+    suspend fun sendMessage(message: MessageProtocol.Message) {
+        if (!isAuthenticated) {
+            throw SecurityException("Cannot send message: not authenticated")
+        }
+        
+        when (val state = connectionStateManager.getState(projectId ?: "")) {
+            is ConnectionState.CONNECTED -> {
+                val json = messageProtocol.encodeMessage(message)
+                messageChannel.send(json)
+            }
+            is ConnectionState.CONNECTING -> {
+                // Queue message
+                messageQueueManager.enqueueMessage(projectId ?: "", message)
+            }
+            else -> {
+                throw IllegalStateException("Cannot send message in state: $state")
+            }
+        }
+    }
+    
+    /**
+     * Disconnect WebSocket
+     */
+    fun disconnect() {
+        pingJob?.cancel()
+        webSocket?.close(NORMAL_CLOSURE_STATUS, "Client disconnect")
+        webSocket = null
+        isAuthenticated = false
+        sessionId = null
+        _authState.value = AuthState.NotAuthenticated
+        projectId?.let {
+            connectionStateManager.updateState(it, ConnectionState.DISCONNECTED)
+        }
+    }
+    
+    private fun createAuthWebSocketListener(
+        projectId: String,
+        sshIdentity: SshIdentityEntity,
+        activity: FragmentActivity
+    ) = object : WebSocketListener() {
+        
+        override fun onOpen(webSocket: WebSocket, response: Response) {
+            // Connection opened, wait for auth challenge
+            _authState.value = AuthState.Authenticating
+        }
+        
+        override fun onMessage(webSocket: WebSocket, text: String) {
+            scope.launch {
+                try {
+                    val json = Json.parseToJsonElement(text)
+                    val messageType = json.jsonObject["type"]?.jsonPrimitive?.content
+                    
+                    when (messageType) {
+                        "auth_challenge" -> handleAuthChallenge(json, sshIdentity, activity)
+                        "auth_success" -> handleAuthSuccess(json)
+                        "auth_error" -> handleAuthError(json)
+                        else -> {
+                            if (isAuthenticated) {
+                                val message = messageProtocol.decodeMessage(text)
+                                _incomingMessages.emit(message)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Log malformed message
+                }
+            }
+        }
+        
+        override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+            webSocket.close(NORMAL_CLOSURE_STATUS, null)
+            connectionStateManager.updateState(
+                projectId, 
+                ConnectionState.DISCONNECTING("Server closing: $reason")
+            )
+        }
+        
+        override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+            connectionStateManager.updateState(projectId, ConnectionState.DISCONNECTED)
+            pingJob?.cancel()
+            isAuthenticated = false
+        }
+        
+        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+            connectionStateManager.updateState(
+                projectId,
+                ConnectionState.ERROR("WebSocket failure: ${t.message}")
+            )
+            pingJob?.cancel()
+            _authState.value = AuthState.AuthenticationFailed(t.message ?: "Unknown error")
+        }
+    }
+    
+    private suspend fun handleAuthChallenge(
+        json: JsonElement,
+        sshIdentity: SshIdentityEntity,
+        activity: FragmentActivity
+    ) {
+        val challenge = Json.decodeFromJsonElement<SshKeyAuthenticator.AuthChallenge>(json)
+        
+        val authResult = sshKeyAuthenticator.signChallenge(challenge, sshIdentity, activity)
+        
+        authResult.fold(
+            onSuccess = { authResponse ->
+                val responseJson = Json.encodeToString(authResponse)
+                authChannel.send(responseJson)
+                webSocket?.send(responseJson)
+            },
+            onFailure = { error ->
+                _authState.value = AuthState.AuthenticationFailed(error.message ?: "Signing failed")
+                disconnect()
+            }
+        )
+    }
+    
+    private fun handleAuthSuccess(json: JsonElement) {
+        val authSuccess = Json.decodeFromJsonElement<SshKeyAuthenticator.AuthSuccess>(json)
+        sessionId = authSuccess.sessionId
+        _authState.value = AuthState.Authenticated(authSuccess.sessionId)
+    }
+    
+    private fun handleAuthError(json: JsonElement) {
+        val authError = Json.decodeFromJsonElement<SshKeyAuthenticator.AuthError>(json)
+        _authState.value = AuthState.AuthenticationFailed("${authError.code}: ${authError.message}")
+    }
         connectionStateManager.updateState(projectId, ConnectionState.CONNECTING)
         
         try {
@@ -507,7 +698,7 @@ class WebSocketClient @Inject constructor(
 
 ### WebSocket Manager
 
-**Purpose**: High-level manager that coordinates multiple WebSocket connections for different projects. Provides a unified interface for background services to interact with WebSocket connections, handle health checks, and manage permission responses across all active connections.
+**Purpose**: High-level manager that coordinates multiple authenticated WebSocket connections for different projects. Provides a unified interface for background services to interact with WebSocket connections, handle authentication, and manage permission responses across all active connections.
 
 ```kotlin
 import kotlinx.coroutines.*
@@ -519,7 +710,7 @@ import javax.inject.Singleton
 
 @Singleton
 class WebSocketManager @Inject constructor(
-    private val webSocketClient: WebSocketClient,
+    private val sshAuthWebSocketClient: SshAuthWebSocketClient,
     private val messageProtocol: MessageProtocol,
     private val connectionStateManager: ConnectionStateManager,
     private val scope: CoroutineScope
@@ -529,43 +720,52 @@ class WebSocketManager @Inject constructor(
     
     data class WebSocketConnection(
         val projectId: String,
-        val webSocket: WebSocket,
-        val client: WebSocketClient
+        val serverUrl: String,
+        val sessionId: String?,
+        val client: SshAuthWebSocketClient
     )
     
     /**
      * Get WebSocket connection for a specific project
      */
-    fun getConnection(projectId: String): WebSocket? {
-        return activeConnections[projectId]?.webSocket
+    fun getConnection(projectId: String): WebSocketConnection? {
+        return activeConnections[projectId]
     }
     
     /**
-     * Create and manage a new WebSocket connection for a project
+     * Create and manage a new authenticated WebSocket connection
      */
     suspend fun createConnection(
         projectId: String,
-        localPort: Int,
-        path: String = "/ws"
+        serverProfile: ServerProfileEntity,
+        sshIdentity: SshIdentityEntity,
+        activity: FragmentActivity
     ): Result<WebSocketConnection> {
         return try {
+            // Build WebSocket URL from server profile
+            val serverUrl = "wss://${serverProfile.hostname}:${serverProfile.websocketPort}/ws"
+            
             // Create new client instance for this connection
-            val client = WebSocketClient(
-                okHttpClient = webSocketClient.okHttpClient,
+            val client = SshAuthWebSocketClient(
+                okHttpClient = sshAuthWebSocketClient.okHttpClient,
+                sshKeyAuthenticator = sshAuthWebSocketClient.sshKeyAuthenticator,
                 messageProtocol = messageProtocol,
                 connectionStateManager = connectionStateManager,
-                messageQueueManager = webSocketClient.messageQueueManager
+                messageQueueManager = sshAuthWebSocketClient.messageQueueManager,
+                certificateValidator = sshAuthWebSocketClient.certificateValidator,
+                securityAuditLogger = sshAuthWebSocketClient.securityAuditLogger
             )
             
-            // Connect
-            client.connect(projectId, localPort, path)
+            // Connect with authentication
+            client.connect(projectId, serverUrl, sshIdentity, activity)
             
-            // Get the WebSocket instance
-            client.getWebSocket()?.let { webSocket ->
-                val connection = WebSocketConnection(projectId, webSocket, client)
-                activeConnections[projectId] = connection
-                Result.success(connection)
-            } ?: Result.failure(IllegalStateException("Failed to get WebSocket after connection"))
+            // Wait for authentication
+            val authState = client.authState.first { it is SshAuthWebSocketClient.AuthState.Authenticated }
+            val sessionId = (authState as SshAuthWebSocketClient.AuthState.Authenticated).sessionId
+            
+            val connection = WebSocketConnection(projectId, serverUrl, sessionId, client)
+            activeConnections[projectId] = connection
+            Result.success(connection)
             
         } catch (e: Exception) {
             Result.failure(e)

@@ -16,6 +16,7 @@
    - [Auto Lock Manager](#auto-lock-manager)
    - [Security Audit Logger](#security-audit-logger)
    - [Certificate Validator](#certificate-validator)
+   - [WebSocket Authentication](#websocket-authentication)
    - [UI Components](#ui-components)
    - [Error Handling](#error-handling)
    - [Dependency Injection](#dependency-injection)
@@ -462,6 +463,75 @@ class SshKeyImportManager @Inject constructor(
         keyPair.dispose()
         
         return@withContext String(publicKeyBytes).trim()
+    }
+    
+    /**
+     * Sign data with SSH private key for WebSocket authentication
+     * Requires biometric authentication
+     */
+    suspend fun signDataForAuth(
+        activity: FragmentActivity,
+        dataToSign: ByteArray,
+        encryptedPrivateKey: String,
+        keyAlias: String
+    ): ByteArray = withContext(Dispatchers.IO) {
+        // Decrypt the private key with biometric authentication
+        val privateKeyBytes = decryptSshPrivateKey(
+            activity = activity,
+            encryptedPrivateKey = encryptedPrivateKey,
+            keyAlias = keyAlias
+        )
+        
+        try {
+            // Parse the private key
+            val jsch = JSch()
+            val keyPair = KeyPair.load(jsch, privateKeyBytes, null)
+            
+            // Create signature
+            val signature = when (keyPair.getKeyType()) {
+                KeyPair.RSA -> createRsaSignature(keyPair, dataToSign)
+                else -> throw SecurityException("Unsupported key type for signing")
+            }
+            
+            // Clean up
+            keyPair.dispose()
+            
+            return@withContext signature
+        } finally {
+            // Clear sensitive data
+            privateKeyBytes.fill(0)
+        }
+    }
+    
+    /**
+     * Create RSA signature for authentication
+     */
+    private fun createRsaSignature(keyPair: KeyPair, data: ByteArray): ByteArray {
+        // Use JSch's internal signing capability
+        val signatureBytes = ByteArrayOutputStream().use { baos ->
+            // This is a simplified version - actual implementation would use
+            // proper RSA signing with SHA256
+            keyPair.getSignature(data)
+        }
+        return signatureBytes
+    }
+    
+    /**
+     * Verify SSH key ownership by signing a challenge
+     */
+    suspend fun verifySshKeyOwnership(
+        activity: FragmentActivity,
+        challenge: String,
+        encryptedPrivateKey: String,
+        keyAlias: String
+    ): String = withContext(Dispatchers.IO) {
+        val signature = signDataForAuth(
+            activity = activity,
+            dataToSign = challenge.toByteArray(),
+            encryptedPrivateKey = encryptedPrivateKey,
+            keyAlias = keyAlias
+        )
+        return@withContext signature.toBase64()
     }
 }
 
@@ -1388,6 +1458,238 @@ class CertificateValidator @Inject constructor(
         object Valid : CertificateValidationResult()
         data class Invalid(val reason: String) : CertificateValidationResult()
         data class RequiresUserApproval(val certificate: X509Certificate) : CertificateValidationResult()
+    }
+}
+```
+
+### WebSocket Authentication
+
+**Purpose**: Provides secure authentication for direct WebSocket connections using SSH key signatures. Implements challenge-response authentication flow that verifies SSH key ownership without transmitting private keys.
+
+```kotlin
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.security.SecureRandom
+import java.util.Base64
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class WebSocketAuthenticationManager @Inject constructor(
+    private val sshKeyImportManager: SshKeyImportManager,
+    private val securityAuditLogger: SecurityAuditLogger,
+    private val encryptedStorageManager: EncryptedStorageManager
+) {
+    
+    companion object {
+        private const val CHALLENGE_SIZE = 32 // bytes
+        private const val SESSION_DURATION_MS = 24 * 60 * 60 * 1000L // 24 hours
+        private const val MAX_AUTH_ATTEMPTS = 3
+        private const val AUTH_ATTEMPT_WINDOW_MS = 60 * 1000L // 1 minute
+    }
+    
+    private val secureRandom = SecureRandom()
+    private val authAttempts = mutableMapOf<String, MutableList<Long>>()
+    
+    @Serializable
+    data class AuthSession(
+        val sessionId: String,
+        val publicKeyFingerprint: String,
+        val createdAt: Long,
+        val expiresAt: Long,
+        val serverUrl: String
+    )
+    
+    /**
+     * Generate authentication challenge for WebSocket connection
+     */
+    fun generateChallenge(): Pair<String, Long> {
+        val nonce = ByteArray(CHALLENGE_SIZE)
+        secureRandom.nextBytes(nonce)
+        val nonceBase64 = Base64.getEncoder().encodeToString(nonce)
+        val timestamp = System.currentTimeMillis()
+        return Pair(nonceBase64, timestamp)
+    }
+    
+    /**
+     * Sign authentication challenge for WebSocket
+     */
+    suspend fun signAuthChallenge(
+        activity: FragmentActivity,
+        nonce: String,
+        timestamp: Long,
+        sshIdentity: SshIdentityEntity
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            // Check rate limiting
+            if (!checkRateLimit(sshIdentity.publicKeyFingerprint)) {
+                return@withContext Result.failure(
+                    SecurityException("Too many authentication attempts")
+                )
+            }
+            
+            // Create data to sign: nonce + timestamp
+            val dataToSign = "$nonce$timestamp".toByteArray()
+            
+            // Sign with SSH key (requires biometric auth)
+            val signature = sshKeyImportManager.signDataForAuth(
+                activity = activity,
+                dataToSign = dataToSign,
+                encryptedPrivateKey = sshIdentity.encryptedPrivateKey,
+                keyAlias = sshIdentity.keyAlias
+            )
+            
+            // Record attempt
+            recordAuthAttempt(sshIdentity.publicKeyFingerprint)
+            
+            Result.success(Base64.getEncoder().encodeToString(signature))
+        } catch (e: Exception) {
+            securityAuditLogger.logAuthenticationAttempt(
+                success = false,
+                error = e.message
+            )
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Create and store authenticated session
+     */
+    suspend fun createAuthSession(
+        sessionId: String,
+        publicKeyFingerprint: String,
+        serverUrl: String
+    ): AuthSession {
+        val now = System.currentTimeMillis()
+        val session = AuthSession(
+            sessionId = sessionId,
+            publicKeyFingerprint = publicKeyFingerprint,
+            createdAt = now,
+            expiresAt = now + SESSION_DURATION_MS,
+            serverUrl = serverUrl
+        )
+        
+        // Store session securely
+        val sessionJson = Json.encodeToString(AuthSession.serializer(), session)
+        encryptedStorageManager.putString("ws_session_$sessionId", sessionJson)
+        
+        // Log successful authentication
+        securityAuditLogger.logWebSocketAuth(
+            serverUrl = serverUrl,
+            success = true
+        )
+        
+        return session
+    }
+    
+    /**
+     * Retrieve existing session
+     */
+    suspend fun getSession(sessionId: String): AuthSession? {
+        val sessionJson = encryptedStorageManager.getString("ws_session_$sessionId") ?: return null
+        val session = Json.decodeFromString(AuthSession.serializer(), sessionJson)
+        
+        // Check if session is still valid
+        if (System.currentTimeMillis() > session.expiresAt) {
+            deleteSession(sessionId)
+            return null
+        }
+        
+        return session
+    }
+    
+    /**
+     * Sign data for session resumption
+     */
+    suspend fun signSessionResumption(
+        activity: FragmentActivity,
+        sessionId: String,
+        nonce: String,
+        sshIdentity: SshIdentityEntity
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            // Verify session exists and is valid
+            val session = getSession(sessionId)
+                ?: return@withContext Result.failure(SecurityException("Invalid session"))
+            
+            // Verify the SSH key matches the session
+            if (session.publicKeyFingerprint != sshIdentity.publicKeyFingerprint) {
+                return@withContext Result.failure(SecurityException("Key mismatch for session"))
+            }
+            
+            // Sign session ID + nonce
+            val dataToSign = "$sessionId$nonce".toByteArray()
+            val signature = sshKeyImportManager.signDataForAuth(
+                activity = activity,
+                dataToSign = dataToSign,
+                encryptedPrivateKey = sshIdentity.encryptedPrivateKey,
+                keyAlias = sshIdentity.keyAlias
+            )
+            
+            Result.success(Base64.getEncoder().encodeToString(signature))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Delete session
+     */
+    suspend fun deleteSession(sessionId: String) {
+        encryptedStorageManager.remove("ws_session_$sessionId")
+    }
+    
+    /**
+     * Delete all sessions for a server
+     */
+    suspend fun deleteServerSessions(serverUrl: String) {
+        // In production, implement proper session management with server URL indexing
+        encryptedStorageManager.getAllKeys()
+            .filter { it.startsWith("ws_session_") }
+            .forEach { key ->
+                val sessionJson = encryptedStorageManager.getString(key)
+                if (sessionJson != null) {
+                    try {
+                        val session = Json.decodeFromString(AuthSession.serializer(), sessionJson)
+                        if (session.serverUrl == serverUrl) {
+                            encryptedStorageManager.remove(key)
+                        }
+                    } catch (e: Exception) {
+                        // Invalid session data, remove it
+                        encryptedStorageManager.remove(key)
+                    }
+                }
+            }
+    }
+    
+    /**
+     * Check rate limiting for authentication attempts
+     */
+    private fun checkRateLimit(publicKeyFingerprint: String): Boolean {
+        val now = System.currentTimeMillis()
+        val attempts = authAttempts.getOrPut(publicKeyFingerprint) { mutableListOf() }
+        
+        // Remove old attempts
+        attempts.removeAll { it < now - AUTH_ATTEMPT_WINDOW_MS }
+        
+        return attempts.size < MAX_AUTH_ATTEMPTS
+    }
+    
+    /**
+     * Record authentication attempt
+     */
+    private fun recordAuthAttempt(publicKeyFingerprint: String) {
+        val attempts = authAttempts.getOrPut(publicKeyFingerprint) { mutableListOf() }
+        attempts.add(System.currentTimeMillis())
+    }
+    
+    /**
+     * Clear authentication rate limit for a key
+     */
+    fun clearRateLimit(publicKeyFingerprint: String) {
+        authAttempts.remove(publicKeyFingerprint)
     }
 }
 ```
