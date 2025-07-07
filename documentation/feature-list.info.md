@@ -6,7 +6,7 @@ The following feature specifications are available for implementation:
 
 - **[Data Layer & Entity Management](./data-layer-entity-management.feat.md)** - Complete specification for database, entities, and repositories (✅ Ready for implementation)
 - **[Security & Authentication](./security-authentication.feat.md)** - Complete specification for biometric auth, SSH key import, token vault, and secure storage (✅ Ready for implementation)
-- **[Communication Layer](./communication-layer.feat.md)** - Complete specification for SSH tunnels, WebSocket communication, message protocol, and connection management (✅ Ready for implementation)
+- **[Communication Layer](./communication-layer.feat.md)** - Complete specification for direct WebSocket connections with SSH key authentication, message protocol, and connection management (✅ Ready for implementation)
 - **[UI Navigation & Foundation](./ui-navigation-foundation.feat.md)** - Complete specification for navigation framework, Material Design 3 theme, base UI components, and screen scaffolding (✅ Ready for implementation)
 - **[Background Services](./background-services.feat.md)** - Complete specification for foreground service, notifications, WorkManager integration, battery optimization, and background monitoring (✅ Ready for implementation)
 - **[Voice Integration](./voice-integration.feat.md)** - Complete specification for speech-to-text, text-to-speech, voice commands, audio permissions, and voice UI components (⚠️ Future Release - Deferred due to complexity)
@@ -23,8 +23,8 @@ Based on the frontend specification analysis, here are the **key functional area
 - SSH Identity management (key import and secure storage)
 - Server Profile CRUD operations  
 - Project configuration management
-- Room database schema and DAOs
-- Repository pattern implementation
+- Encrypted JSON storage implementation
+- Thread-safe data access patterns
 
 ### 2. **Security & Authentication** ✅ **[Full Specification Available](./security-authentication.feat.md)**
 **Independent Implementation Area**
@@ -38,10 +38,11 @@ Based on the frontend specification analysis, here are the **key functional area
 ### 3. **Communication Layer** ✅ **[Full Specification Available](./communication-layer.feat.md)**
 **Independent Implementation Area** 
 - WebSocket client implementation (OkHttp3)
-- SSH tunnel management (JSch)
+- SSH key authentication (challenge-response)
 - Message protocol handling
 - Connection state management
 - Reconnection logic with exponential backoff
+- Authentication session management
 
 ### 4. **UI Navigation & Foundation** ✅ **[Full Specification Available](./ui-navigation-foundation.feat.md)**
 **Independent Implementation Area**

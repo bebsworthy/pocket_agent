@@ -58,13 +58,26 @@ This feature implements the security requirements defined in the [Frontend Techn
 
 - **KeystoreManager**: Manages cryptographic keys in Android Keystore
 - **BiometricAuthManager**: Handles biometric authentication flows
+- **AppLaunchAuthManager**: Single authentication on app launch
 - **SshKeyImportManager**: Imports and securely stores SSH private keys
 - **TokenVault**: Secure storage for API tokens and credentials
 - **EncryptionService**: Provides encryption/decryption operations
 - **SecurityValidator**: Validates security state and requirements
-- **AutoLockManager**: Handles app auto-lock after inactivity
 - **SecurityAuditLogger**: Logs security events for compliance
 - **CertificateValidator**: Validates server certificates with pinning
+
+### Single Authentication Flow
+
+Pocket Agent uses a single biometric authentication when the app launches:
+
+1. **App Launch**: User opens the app
+2. **Biometric Prompt**: Single authentication prompt appears
+3. **Data Unlock**: Successful auth unlocks the encrypted data file
+4. **Session Active**: All SSH keys and tokens accessible for the session
+5. **Background Lock**: App locks when going to background
+6. **Resume**: Re-authentication required when returning to foreground
+
+This approach provides better UX while maintaining security - users authenticate once to unlock all their data, rather than being prompted repeatedly for each operation.
 
 ## Components Architecture
 
@@ -412,15 +425,15 @@ class SshKeyImportManager @Inject constructor(
     
     /**
      * Decrypt SSH private key for use
-     * Requires biometric authentication
+     * Uses already authenticated session from app launch
      */
     suspend fun decryptSshPrivateKey(
-        activity: FragmentActivity,
         encryptedPrivateKey: String,
         keyAlias: String
     ): ByteArray {
-        return encryptionService.decryptWithBiometric(
-            activity = activity,
+        // App should already be authenticated at launch
+        // This just decrypts using the unlocked key
+        return encryptionService.decrypt(
             encryptedData = encryptedPrivateKey.fromBase64(),
             keyAlias = "$SSH_KEY_ALIAS_PREFIX$keyAlias"
         )
@@ -467,17 +480,15 @@ class SshKeyImportManager @Inject constructor(
     
     /**
      * Sign data with SSH private key for WebSocket authentication
-     * Requires biometric authentication
+     * Uses already authenticated session from app launch
      */
     suspend fun signDataForAuth(
-        activity: FragmentActivity,
         dataToSign: ByteArray,
         encryptedPrivateKey: String,
         keyAlias: String
     ): ByteArray = withContext(Dispatchers.IO) {
-        // Decrypt the private key with biometric authentication
+        // Decrypt the private key using authenticated session
         val privateKeyBytes = decryptSshPrivateKey(
-            activity = activity,
             encryptedPrivateKey = encryptedPrivateKey,
             keyAlias = keyAlias
         )
@@ -520,13 +531,11 @@ class SshKeyImportManager @Inject constructor(
      * Verify SSH key ownership by signing a challenge
      */
     suspend fun verifySshKeyOwnership(
-        activity: FragmentActivity,
         challenge: String,
         encryptedPrivateKey: String,
         keyAlias: String
     ): String = withContext(Dispatchers.IO) {
         val signature = signDataForAuth(
-            activity = activity,
             dataToSign = challenge.toByteArray(),
             encryptedPrivateKey = encryptedPrivateKey,
             keyAlias = keyAlias
@@ -609,10 +618,9 @@ class TokenVault @Inject constructor(
     
     /**
      * Retrieve a token
-     * Requires biometric authentication
+     * Uses already authenticated session from app launch
      */
     suspend fun getToken(
-        activity: FragmentActivity,
         service: TokenService,
         customServiceName: String? = null
     ): Token? {
@@ -625,9 +633,8 @@ class TokenVault @Inject constructor(
             
         return encryptedTokenBase64?.let { base64 ->
             try {
-                // Biometric authentication will be triggered by the encryption service
-                val decryptedBytes = encryptionService.decryptWithBiometric(
-                    activity = activity,
+                // Use authenticated session from app launch
+                val decryptedBytes = encryptionService.decrypt(
                     encryptedData = base64.fromBase64(),
                     keyAlias = "$TOKEN_KEY_PREFIX$serviceName"
                 )
@@ -995,33 +1002,27 @@ class EncryptionService @Inject constructor(
     }
     
     /**
-     * Decrypt with biometric authentication
+     * Unlock the app data encryption key with biometric
+     * Called once at app launch
      */
-    suspend fun decryptWithBiometric(
-        activity: FragmentActivity,
-        encryptedData: ByteArray,
-        keyAlias: String
-    ): ByteArray {
-        val secretKey = keystoreManager.keyStore.getKey(keyAlias, null) as SecretKey
-        
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        val iv = encryptedData.sliceArray(0 until IV_SIZE)
-        val spec = GCMParameterSpec(TAG_SIZE, iv)
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, spec)
-        
-        // Authenticate and get cipher
-        val result = biometricAuthManager.authenticate(
-            activity = activity,
-            title = "Authenticate to access secure data",
-            subtitle = "Use your biometric credential",
-            cipher = cipher
-        )
-        
-        val authenticatedCipher = result.cryptoObject?.cipher
-            ?: throw SecurityException("Failed to get authenticated cipher")
-        
-        val ciphertext = encryptedData.sliceArray(IV_SIZE until encryptedData.size)
-        return authenticatedCipher.doFinal(ciphertext)
+    suspend fun unlockDataKey(
+        activity: FragmentActivity
+    ): Boolean {
+        return try {
+            // Create or get the app data key
+            val appDataKey = keystoreManager.getOrCreateMasterKey()
+            
+            // Verify biometric to unlock the keystore
+            biometricAuthManager.authenticate(
+                activity = activity,
+                title = "Unlock Pocket Agent",
+                subtitle = "Authenticate to access your data"
+            )
+            
+            true
+        } catch (e: Exception) {
+            false
+        }
     }
     
     fun deleteKey(alias: String) {
@@ -1030,7 +1031,7 @@ class EncryptionService @Inject constructor(
 }
 ```
 
-### Auto Lock Manager
+### App Launch Authentication Manager
 
 ```kotlin
 import kotlinx.coroutines.flow.Flow
@@ -1039,85 +1040,111 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class AutoLockManager @Inject constructor(
+class AppLaunchAuthManager @Inject constructor(
     private val encryptedStorageManager: EncryptedStorageManager,
-    private val securityAuditLogger: SecurityAuditLogger
+    private val securityAuditLogger: SecurityAuditLogger,
+    private val biometricAuthManager: BiometricAuthManager,
+    private val secureDataRepository: SecureDataRepository
 ) {
     
     companion object {
-        private const val KEY_LAST_ACTIVITY = "last_activity_time"
-        private const val KEY_LOCK_STATE = "app_lock_state"
-        private const val LOCK_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+        private const val KEY_AUTHENTICATED_SESSION = "authenticated_session_time"
+        private const val KEY_APP_LOCKED = "app_is_locked"
+        private const val SESSION_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
+        private const val APP_DATA_KEY_ALIAS = "app_data_key"
     }
     
-    private val _lockState = MutableStateFlow(LockState.UNLOCKED)
-    val lockState: Flow<LockState> = _lockState
+    private val _authState = MutableStateFlow(AuthState.LOCKED)
+    val authState: Flow<AuthState> = _authState
     
-    enum class LockState {
-        LOCKED,
-        UNLOCKED,
-        REQUIRES_AUTHENTICATION
+    enum class AuthState {
+        LOCKED,                // App is locked, needs biometric
+        AUTHENTICATED,         // User authenticated, data unlocked
+        AUTHENTICATION_FAILED  // Auth failed, retry needed
     }
     
     /**
-     * Record user activity to reset the inactivity timer
+     * Authenticate user on app launch with biometric
+     * This unlocks the encrypted data file for the session
      */
-    fun recordActivity() {
-        encryptedStorageManager.putLong(KEY_LAST_ACTIVITY, System.currentTimeMillis())
+    suspend fun authenticateOnLaunch(
+        activity: FragmentActivity
+    ): Result<Unit> {
+        return try {
+            // Check if we have a valid session
+            if (hasValidSession()) {
+                _authState.value = AuthState.AUTHENTICATED
+                return Result.success(Unit)
+            }
+            
+            // Show biometric prompt
+            val result = biometricAuthManager.authenticate(
+                activity = activity,
+                title = "Unlock Pocket Agent",
+                subtitle = "Authenticate to access your projects"
+            )
+            
+            // Create app data encryption key if needed
+            if (!keystoreManager.keyExists(APP_DATA_KEY_ALIAS)) {
+                keystoreManager.createBiometricKey(APP_DATA_KEY_ALIAS)
+            }
+            
+            // Initialize secure data repository
+            secureDataRepository.initialize()
+            
+            // Mark session as authenticated
+            encryptedStorageManager.putLong(KEY_AUTHENTICATED_SESSION, System.currentTimeMillis())
+            encryptedStorageManager.putBoolean(KEY_APP_LOCKED, false)
+            
+            _authState.value = AuthState.AUTHENTICATED
+            securityAuditLogger.logBiometricAuth(success = true)
+            
+            Result.success(Unit)
+        } catch (e: BiometricAuthException) {
+            _authState.value = AuthState.AUTHENTICATION_FAILED
+            securityAuditLogger.logBiometricAuth(success = false, error = e.message)
+            Result.failure(e)
+        }
     }
     
     /**
-     * Check if the app should be locked due to inactivity
+     * Check if current session is still valid
      */
-    fun shouldAutoLock(): Boolean {
-        val lastActivity = encryptedStorageManager.getLong(KEY_LAST_ACTIVITY, System.currentTimeMillis())
-        val inactiveTime = System.currentTimeMillis() - lastActivity
-        return inactiveTime > LOCK_TIMEOUT_MS
+    private fun hasValidSession(): Boolean {
+        val lastAuth = encryptedStorageManager.getLong(KEY_AUTHENTICATED_SESSION, 0L)
+        val isLocked = encryptedStorageManager.getBoolean(KEY_APP_LOCKED, true)
+        
+        return !isLocked && (System.currentTimeMillis() - lastAuth) < SESSION_TIMEOUT_MS
     }
     
     /**
-     * Lock the app and clear sensitive data from memory
+     * Lock the app when going to background
      */
     fun lockApp() {
-        _lockState.value = LockState.LOCKED
-        encryptedStorageManager.putString(KEY_LOCK_STATE, LockState.LOCKED.name)
+        _authState.value = AuthState.LOCKED
+        encryptedStorageManager.putBoolean(KEY_APP_LOCKED, true)
         
-        // Clear sensitive in-memory data
-        TokenCache.clear()
-        DecryptedKeyCache.clear()
+        // Clear cached data
+        secureDataRepository.clearCache()
         
-        // Log the lock event
-        securityAuditLogger.logAppLocked(reason = "Inactivity timeout")
+        securityAuditLogger.logAppLocked()
     }
     
     /**
-     * Unlock the app after successful authentication
+     * Check if app needs authentication
      */
-    fun unlockApp() {
-        _lockState.value = LockState.UNLOCKED
-        encryptedStorageManager.putString(KEY_LOCK_STATE, LockState.UNLOCKED.name)
-        recordActivity()
-        
-        // Log the unlock event
-        securityAuditLogger.logAppUnlocked()
+    fun needsAuthentication(): Boolean {
+        return _authState.value != AuthState.AUTHENTICATED || !hasValidSession()
     }
     
     /**
-     * Check lock state on app resume
+     * Clear authentication session
      */
-    fun checkLockState() {
-        val storedState = encryptedStorageManager.getString(KEY_LOCK_STATE)
-        when {
-            storedState == LockState.LOCKED.name -> {
-                _lockState.value = LockState.LOCKED
-            }
-            shouldAutoLock() -> {
-                lockApp()
-            }
-            else -> {
-                recordActivity()
-            }
-        }
+    fun clearSession() {
+        encryptedStorageManager.remove(KEY_AUTHENTICATED_SESSION)
+        encryptedStorageManager.putBoolean(KEY_APP_LOCKED, true)
+        _authState.value = AuthState.LOCKED
+        secureDataRepository.clearCache()
     }
 }
 
@@ -1163,13 +1190,10 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Audit log entity for Room database
-@Entity(
-    tableName = "security_audit_logs",
-    indices = [Index(value = ["timestamp"]), Index(value = ["eventType"])]
-)
+// Audit log model for encrypted JSON storage
+@Serializable
 data class SecurityAuditLog(
-    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    val id: String = UUID.randomUUID().toString(),
     val eventType: SecurityEventType,
     val eventDetails: String, // JSON string with event-specific data
     val success: Boolean,
@@ -1708,6 +1732,112 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import java.time.LocalDate
+
+/**
+ * App Launch Authentication Screen
+ * Shows on app startup to unlock data with biometric
+ */
+@Composable
+fun AppLaunchAuthScreen(
+    authManager: AppLaunchAuthManager,
+    onAuthenticated: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val authState by authManager.authState.collectAsState(AuthState.LOCKED)
+    val context = LocalContext.current
+    val activity = context as? FragmentActivity
+    
+    LaunchedEffect(Unit) {
+        // Automatically trigger biometric on launch
+        activity?.let {
+            authManager.authenticateOnLaunch(it).onSuccess {
+                onAuthenticated()
+            }
+        }
+    }
+    
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .padding(16.dp),
+            elevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Fingerprint,
+                    contentDescription = "Biometric",
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colors.primary
+                )
+                
+                Text(
+                    text = "Welcome to Pocket Agent",
+                    style = MaterialTheme.typography.h5
+                )
+                
+                Text(
+                    text = when (authState) {
+                        AuthState.LOCKED -> "Authenticate to access your projects"
+                        AuthState.AUTHENTICATION_FAILED -> "Authentication failed. Please try again."
+                        AuthState.AUTHENTICATED -> "Successfully authenticated!"
+                    },
+                    style = MaterialTheme.typography.body1,
+                    color = when (authState) {
+                        AuthState.AUTHENTICATION_FAILED -> MaterialTheme.colors.error
+                        else -> MaterialTheme.colors.onSurface
+                    }
+                )
+                
+                if (authState != AuthState.AUTHENTICATED) {
+                    Button(
+                        onClick = {
+                            activity?.let {
+                                lifecycleScope.launch {
+                                    authManager.authenticateOnLaunch(it).onSuccess {
+                                        onAuthenticated()
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Fingerprint,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Authenticate with Biometric")
+                    }
+                    
+                    // Fallback to device credentials
+                    TextButton(
+                        onClick = {
+                            // Use device credentials as fallback
+                            activity?.let {
+                                lifecycleScope.launch {
+                                    authManager.authenticateWithDeviceCredentials(it).onSuccess {
+                                        onAuthenticated()
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Use PIN/Pattern Instead")
+                    }
+                }
+            }
+        }
+    }
+}
 
 /**
  * Dialog for adding new tokens

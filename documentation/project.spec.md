@@ -37,7 +37,7 @@ The Claude Code Mobile Remote Control system enables developers to operate Claud
 - **Mobile-First Communication**: Structured data exchange instead of terminal UI parsing
 - **Disconnection Resilience**: Handle frequent mobile network interruptions
 - **Unattended Operation**: Continue Claude Code execution during mobile disconnections
-- **Security**: Leverage existing SSH infrastructure without new attack vectors
+- **Security**: SSH key authentication for WebSocket connections
 - **Session Persistence**: Maintain conversation context across app lifecycle events
 
 ### Core Problems Solved
@@ -52,8 +52,8 @@ The Claude Code Mobile Remote Control system enables developers to operate Claud
 
 ### Component Overview
 ```
-┌─────────────────┐    Direct WSS     ┌──────────────────────────────────┐
-│   Mobile App    │◄─────────────────►│      Claude Manager Server       │
+┌─────────────────┐     Direct WSS    ┌──────────────────────────────────┐
+│   Mobile App    │◄─────────────────►│      Development Server          │
 │   (Android)     │  SSH Key Auth     │                                  │
 └─────────────────┘                   │  ┌─────────────┐  ┌─────────────┐│
                                       │  │   Wrapper   │  │ Claude Code ││
@@ -77,7 +77,7 @@ The Claude Code Mobile Remote Control system enables developers to operate Claud
 - **Runtime**: Node.js with TypeScript
 - **Claude Integration**: `@anthropic/claude-code` SDK
 - **Permission Handling**: `@modelcontextprotocol/server`
-- **Mobile Communication**: `ws` WebSocket library
+- **Mobile Communication**: `ws` WebSocket library (WSS/TLS)
 - **Session Storage**: File-based persistence
 
 #### Mobile App (Android)
@@ -85,7 +85,36 @@ The Claude Code Mobile Remote Control system enables developers to operate Claud
 - **WebSocket Client**: OkHttp3 with SSH key authentication
 - **SSH Key Management**: Bouncy Castle for key operations
 - **UI Framework**: Jetpack Compose
-- **Local Storage**: Room Database + SharedPreferences
+- **Local Storage**: Encrypted JSON file with Android Keystore
+
+---
+
+## Entity Relationships
+
+The mobile app manages three core entity types with clear hierarchical relationships:
+
+### SSH Identity → Server Profile → Project
+
+```
+SSH Identity (1) ──────► (N) Server Profile ──────► (N) Project
+     │                            │                        │
+     ├─ id: String               ├─ id: String            ├─ id: String
+     ├─ name: String             ├─ name: String          ├─ name: String
+     ├─ keyAlias: String         ├─ hostname: String      ├─ serverProfileId: String
+     ├─ publicKey: String        ├─ port: Int             ├─ projectPath: String
+     └─ created: Instant         ├─ username: String      ├─ scriptsFolder: String
+                                 ├─ sshIdentityId: String ├─ claudeSessionId: String?
+                                 └─ lastConnected: Instant └─ lastActive: Instant
+```
+
+### Key Relationships:
+- **SSH Identity**: Represents an imported SSH private key, encrypted and stored securely
+- **Server Profile**: Connection details for a development server, references which SSH key to use
+- **Project**: Individual Claude Code session on a specific server with its own working directory
+
+### Example Usage:
+- "Work SSH Key" → "Main Dev Server" → ["API Project", "Frontend Project"]
+- "Personal SSH Key" → "Home Server" → ["Personal Website", "Side Project"]
 
 ---
 
@@ -93,65 +122,124 @@ The Claude Code Mobile Remote Control system enables developers to operate Claud
 
 ### Message Types
 
-#### Mobile → Wrapper
+#### Authentication Messages
+```json
+// Server → Mobile: Authentication challenge
+{
+  "type": "auth_challenge",
+  "nonce": "random_string",
+  "timestamp": 1234567890,
+  "serverVersion": "1.0.0"
+}
+
+// Mobile → Server: Authentication response  
+{
+  "type": "auth_response",
+  "publicKey": "ssh-rsa AAAAB3...",
+  "signature": "base64_signature",
+  "clientVersion": "1.0.0",
+  "sessionId": null // or existing session ID for resumption
+}
+
+// Server → Mobile: Authentication result
+{
+  "type": "auth_success",
+  "sessionId": "session_uuid",
+  "expiresAt": 1234567890
+}
+```
+
+#### Command Messages (Mobile → Wrapper)
 ```json
 {
   "type": "command",
   "id": "cmd_uuid",
-  "content": "implement user authentication",
-  "session_id": "session_uuid",
-  "timestamp": "2025-07-06T14:32:00Z"
+  "timestamp": 1234567890,
+  "command": "implement user authentication",
+  "isShellCommand": false // true for shell commands like "git status"
 }
 
 {
-  "type": "permission_response",
-  "id": "perm_uuid", 
-  "approved": true,
-  "timestamp": "2025-07-06T14:32:00Z"
-}
-
-{
-  "type": "session_resume",
-  "session_id": "session_uuid",
-  "last_message_id": "msg_uuid"
+  "type": "project_init",
+  "projectPath": "/home/user/new-project",
+  "repositoryUrl": "https://github.com/user/repo.git", // optional
+  "accessToken": "ghp_..." // optional for private repos
 }
 ```
 
-#### Wrapper → Mobile
+#### Response Messages (Wrapper → Mobile)
 ```json
 {
-  "type": "claude_message",
+  "type": "claude_response",
   "id": "msg_uuid",
-  "session_id": "session_uuid",
+  "timestamp": 1234567890,
   "content": "I'll implement the authentication system...",
+  "isPartial": false,
+  "conversationId": "conv_uuid",
   "metadata": {
-    "turn_number": 1,
-    "timestamp": "2025-07-06T14:32:05Z"
+    "turnNumber": "1",
+    "model": "claude-3.5-sonnet"
   }
 }
 
+{
+  "type": "progress_update",
+  "id": "prog_uuid",
+  "timestamp": 1234567890,
+  "operation": "Running tests",
+  "progress": 75,
+  "subOperations": [
+    {"name": "Unit tests", "status": "completed"},
+    {"name": "Integration tests", "status": "running"}
+  ]
+}
+```
+
+#### Permission Messages
+```json
+// Wrapper → Mobile: Permission request
 {
   "type": "permission_request",
   "id": "perm_uuid",
-  "session_id": "session_uuid", 
+  "timestamp": 1234567890,
   "tool": "Editor",
-  "context": {
+  "action": "create",
+  "details": {
     "file": "src/auth.py",
-    "action": "create",
-    "preview": "// Authentication module implementation..."
+    "preview": "# Authentication module\n..."
   },
-  "timeout": 300,
-  "timestamp": "2025-07-06T14:32:10Z"
+  "timeout": 300
 }
 
+// Mobile → Wrapper: Permission response
+{
+  "type": "permission_response",
+  "id": "resp_uuid",
+  "timestamp": 1234567890,
+  "requestId": "perm_uuid",
+  "approved": true,
+  "remember": false // for future auto-approval
+}
+```
+
+#### Session Management
+```json
+// Mobile → Wrapper: Resume session
+{
+  "type": "session_resume",
+  "sessionId": "session_uuid",
+  "lastMessageId": "msg_uuid",
+  "lastMessageTimestamp": 1234567890
+}
+
+// Wrapper → Mobile: Session status
 {
   "type": "session_status",
-  "session_id": "session_uuid",
-  "status": "running|completed|error",
-  "stats": {
-    "total_turns": 3,
-    "execution_time": 45.2
-  }
+  "sessionId": "session_uuid",
+  "status": "running", // or "completed", "error"
+  "totalTurns": 3,
+  "executionTime": 45.2,
+  "error": null // or error details
 }
 ```
 

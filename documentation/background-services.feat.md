@@ -122,7 +122,7 @@ class ClaudeBackgroundService : LifecycleService() {
     @Inject lateinit var connectionMonitor: ConnectionHealthMonitor
     @Inject lateinit var sessionStateManager: SessionStateManager
     @Inject lateinit var batteryManager: BatteryOptimizationManager
-    @Inject lateinit var projectRepository: ProjectRepository
+    @Inject lateinit var secureDataRepository: SecureDataRepository
     @Inject lateinit var connectionManager: ConnectionManager
     
     private val activeProjects = ConcurrentHashMap<String, MonitoringSession>()
@@ -161,7 +161,7 @@ class ClaudeBackgroundService : LifecycleService() {
         }
         
         lifecycleScope.launch {
-            val project = projectRepository.getProject(projectId).firstOrNull()
+            val project = secureDataRepository.getProject(projectId)
             if (project != null) {
                 val session = MonitoringSession(
                     projectId = projectId,
@@ -313,7 +313,7 @@ class ClaudeBackgroundService : LifecycleService() {
     private fun updateProjectMonitoring(projectId: String) {
         activeProjects[projectId]?.let { session ->
             lifecycleScope.launch {
-                val updatedProject = projectRepository.getProject(projectId).firstOrNull()
+                val updatedProject = secureDataRepository.getProject(projectId)
                 if (updatedProject != null) {
                     session.project = updatedProject
                     updateNotification()
@@ -380,6 +380,7 @@ class PocketAgentNotificationManager @Inject constructor(
         const val CHANNEL_TASKS = "tasks"
         const val CHANNEL_ERRORS = "errors"
         const val CHANNEL_PROGRESS = "progress"
+        const val CHANNEL_ALERTS = "alerts"
         
         // Action keys
         const val ACTION_APPROVE = "com.pocketagent.action.APPROVE"
@@ -387,6 +388,7 @@ class PocketAgentNotificationManager @Inject constructor(
         const val ACTION_OPEN_PROJECT = "com.pocketagent.action.OPEN_PROJECT"
         const val ACTION_DISCONNECT = "com.pocketagent.action.DISCONNECT"
         const val ACTION_RETRY = "com.pocketagent.action.RETRY"
+        const val ACTION_AUTHENTICATE = "com.pocketagent.action.AUTHENTICATE"
         
         // Remote input keys
         const val KEY_PERMISSION_RESPONSE = "permission_response"
@@ -442,6 +444,15 @@ class PocketAgentNotificationManager @Inject constructor(
                 ).apply {
                     description = "Shows progress of ongoing operations"
                     setShowBadge(false)
+                },
+                NotificationChannel(
+                    CHANNEL_ALERTS,
+                    "Security Alerts",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Security and authentication alerts"
+                    setShowBadge(true)
+                    enableVibration(true)
                 }
             )
             
@@ -702,6 +713,43 @@ class PocketAgentNotificationManager @Inject constructor(
     fun dismissProgressNotification(projectName: String) {
         val notificationId = PROGRESS_NOTIFICATION_ID_BASE + projectName.hashCode()
         notificationManager.cancel(notificationId)
+    }
+    
+    fun showAuthenticationRequiredNotification(
+        projectName: String,
+        message: String
+    ) {
+        val notificationId = AUTH_NOTIFICATION_ID_BASE + projectName.hashCode()
+        
+        val authIntent = Intent(context, MainActivity::class.java).apply {
+            action = ACTION_AUTHENTICATE
+            putExtra("project_name", projectName)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            notificationId,
+            authIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val notification = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setContentTitle("Authentication Required")
+            .setContentText("$projectName: $message")
+            .setSmallIcon(R.drawable.ic_lock)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ERROR)
+            .addAction(
+                R.drawable.ic_fingerprint,
+                "Authenticate",
+                pendingIntent
+            )
+            .build()
+        
+        notificationManager.notify(notificationId, notification)
     }
     
     fun showConnectionNotification(
@@ -1312,7 +1360,7 @@ data class TaskConstraints(
 
 ### Connection Health Monitor
 
-**Purpose**: Periodically monitors the health of active SSH tunnels and WebSocket connections, detecting connection failures and triggering reconnection attempts. Implements adaptive polling based on battery state and connection stability.
+**Purpose**: Periodically monitors the health of active WebSocket connections and Claude Code processes, detecting connection failures and triggering reconnection attempts. Implements adaptive polling based on battery state and connection stability.
 
 ```kotlin
 import kotlinx.coroutines.*
@@ -1323,7 +1371,6 @@ import javax.inject.Singleton
 
 @Singleton
 class ConnectionHealthMonitor @Inject constructor(
-    private val sshTunnelManager: SshTunnelManager,
     private val webSocketManager: WebSocketManager,
     private val connectionManager: ConnectionManager,
     private val batteryOptimizationManager: BatteryOptimizationManager,
@@ -1332,9 +1379,9 @@ class ConnectionHealthMonitor @Inject constructor(
     
     companion object {
         // Health check timeouts
-        const val SSH_KEEPALIVE_TIMEOUT_MS = 5_000L
         const val WEBSOCKET_PING_TIMEOUT_MS = 5_000L
         const val PROCESS_HEALTH_TIMEOUT_MS = 10_000L
+        const val AUTH_CHECK_TIMEOUT_MS = 3_000L
         
         // Health criteria thresholds
         const val MAX_ACCEPTABLE_LATENCY_MS = 15_000L
@@ -1397,11 +1444,9 @@ class ConnectionHealthMonitor @Inject constructor(
     private suspend fun performHealthCheck(projectId: String) {
         val startTime = System.currentTimeMillis()
         
-        // Check SSH tunnel
-        val sshHealthy = checkSshTunnelHealth(projectId)
-        
-        // Check WebSocket connection
+        // Check WebSocket connection and authentication status
         val wsHealthy = checkWebSocketHealth(projectId)
+        val authValid = checkAuthenticationStatus(projectId)
         
         // Check Claude process (via wrapper)
         val processHealthy = checkClaudeProcessHealth(projectId)
@@ -1409,8 +1454,8 @@ class ConnectionHealthMonitor @Inject constructor(
         val result = HealthCheckResult(
             projectId = projectId,
             timestamp = startTime,
-            sshTunnelHealthy = sshHealthy,
             webSocketHealthy = wsHealthy,
+            authenticationValid = authValid,
             processHealthy = processHealthy,
             latency = System.currentTimeMillis() - startTime
         )
@@ -1427,13 +1472,15 @@ class ConnectionHealthMonitor @Inject constructor(
         }
     }
     
-    private suspend fun checkSshTunnelHealth(projectId: String): Boolean {
+    private suspend fun checkAuthenticationStatus(projectId: String): Boolean {
         return try {
-            val tunnel = sshTunnelManager.getTunnel(projectId)
-            tunnel?.let {
-                // Send SSH keepalive
-                it.session.sendKeepAliveMsg()
-                it.session.isConnected
+            val connection = webSocketManager.getConnection(projectId)
+            connection?.let {
+                // Check if authentication is still valid
+                val authStatus = withTimeoutOrNull(AUTH_CHECK_TIMEOUT_MS) {
+                    it.checkAuthenticationStatus()
+                }
+                authStatus == AuthenticationStatus.AUTHENTICATED
             } ?: false
         } catch (e: Exception) {
             false
@@ -1469,8 +1516,8 @@ class ConnectionHealthMonitor @Inject constructor(
     
     private fun updateConnectionStatus(result: HealthCheckResult) {
         val newStatus = when {
-            !result.sshTunnelHealthy -> ConnectionStatus.ERROR
             !result.webSocketHealthy -> ConnectionStatus.ERROR
+            !result.authenticationValid -> ConnectionStatus.AUTHENTICATION_REQUIRED
             !result.processHealthy -> ConnectionStatus.ERROR
             else -> ConnectionStatus.CONNECTED
         }
@@ -1482,18 +1529,22 @@ class ConnectionHealthMonitor @Inject constructor(
         val projectName = connectionManager.getProjectName(result.projectId)
         
         when {
-            !result.sshTunnelHealthy -> {
+            !result.webSocketHealthy -> {
                 notificationManager.showErrorNotification(
                     projectName = projectName,
-                    error = "SSH connection lost",
+                    error = "Server connection lost",
                     canRetry = true
                 )
-                // Attempt to reconnect SSH tunnel
-                connectionManager.reconnectSshTunnel(result.projectId)
-            }
-            !result.webSocketHealthy -> {
                 // Attempt to reconnect WebSocket
                 connectionManager.reconnectWebSocket(result.projectId)
+            }
+            !result.authenticationValid -> {
+                notificationManager.showAuthenticationRequiredNotification(
+                    projectName = projectName,
+                    message = "Authentication expired. Please re-authenticate."
+                )
+                // Trigger re-authentication flow
+                connectionManager.requestAuthentication(result.projectId)
             }
             !result.processHealthy -> {
                 notificationManager.showErrorNotification(
@@ -1578,12 +1629,12 @@ class ConnectionHealthMonitor @Inject constructor(
 data class HealthCheckResult(
     val projectId: String,
     val timestamp: Long,
-    val sshTunnelHealthy: Boolean,
     val webSocketHealthy: Boolean,
+    val authenticationValid: Boolean,
     val processHealthy: Boolean,
     val latency: Long
 ) {
-    fun isHealthy(): Boolean = sshTunnelHealthy && webSocketHealthy && processHealthy
+    fun isHealthy(): Boolean = webSocketHealthy && authenticationValid && processHealthy
 }
 
 enum class MonitoringState {
@@ -4191,7 +4242,7 @@ class WorkManagerSchedulerTest {
 @RunWith(AndroidJUnit4::class)
 class ConnectionHealthMonitorTest {
     
-    @Mock private lateinit var mockSshTunnelManager: SshTunnelManager
+    @Mock private lateinit var mockSshAuthWebSocketClient: SshAuthWebSocketClient
     @Mock private lateinit var mockWebSocketManager: WebSocketManager
     @Mock private lateinit var mockConnectionManager: ConnectionManager
     @Mock private lateinit var mockBatteryOptimizationManager: BatteryOptimizationManager
@@ -4205,7 +4256,7 @@ class ConnectionHealthMonitorTest {
         MockitoAnnotations.openMocks(this)
         
         healthMonitor = ConnectionHealthMonitor(
-            mockSshTunnelManager,
+            mockSshAuthWebSocketClient,
             mockWebSocketManager,
             mockConnectionManager,
             mockBatteryOptimizationManager,
@@ -4220,7 +4271,7 @@ class ConnectionHealthMonitorTest {
         val projectId = "test_project"
         
         // Mock healthy connections
-        whenever(mockSshTunnelManager.getTunnel(projectId)).thenReturn(mock())
+        whenever(mockSshAuthWebSocketClient.isAuthenticated(projectId)).thenReturn(true)
         whenever(mockWebSocketManager.getConnection(projectId)).thenReturn(mock())
         whenever(mockWebSocketManager.sendHealthCheck(projectId)).thenReturn("ok")
         
@@ -4238,10 +4289,12 @@ class ConnectionHealthMonitorTest {
     @Test
     fun testUnhealthyConnectionHandling() = testScope.runTest {
         val projectId = "test_project"
+        val projectName = "Test Project"
         
-        // Mock SSH failure
-        whenever(mockSshTunnelManager.getTunnel(projectId)).thenReturn(null)
-        whenever(mockConnectionManager.getProjectName(projectId)).thenReturn("Test Project")
+        whenever(mockConnectionManager.getProjectName(projectId)).thenReturn(projectName)
+        
+        // Mock WebSocket failure
+        whenever(mockWebSocketManager.getConnection(projectId)).thenReturn(null)
         
         healthMonitor.startMonitoring(projectId, 1000L)
         
@@ -4250,11 +4303,39 @@ class ConnectionHealthMonitorTest {
         
         // Verify error notification and reconnection attempt
         verify(mockNotificationManager).showErrorNotification(
-            eq("Test Project"),
-            eq("SSH connection lost"),
+            eq(projectName),
+            eq("Server connection lost"),
             eq(true)
         )
-        verify(mockConnectionManager).reconnectSshTunnel(projectId)
+        verify(mockConnectionManager).reconnectWebSocket(projectId)
+        
+        healthMonitor.stopMonitoring(projectId)
+    }
+    
+    @Test
+    fun testAuthenticationExpiredHandling() = testScope.runTest {
+        val projectId = "test_project"
+        val projectName = "Test Project"
+        
+        whenever(mockConnectionManager.getProjectName(projectId)).thenReturn(projectName)
+        
+        // Mock authentication failure
+        val mockConnection = mock<WebSocketConnection> {
+            on { checkAuthenticationStatus() } doReturn AuthenticationStatus.EXPIRED
+        }
+        whenever(mockWebSocketManager.getConnection(projectId)).thenReturn(mockConnection)
+        whenever(mockWebSocketManager.sendHealthCheck(projectId)).thenReturn("ok")
+        
+        healthMonitor.startMonitoring(projectId, 1000L)
+        
+        testScheduler.advanceTimeBy(1500L)
+        
+        // Verify authentication notification
+        verify(mockNotificationManager).showAuthenticationRequiredNotification(
+            eq(projectName),
+            eq("Authentication expired. Please re-authenticate.")
+        )
+        verify(mockConnectionManager).requestAuthentication(projectId)
         
         healthMonitor.stopMonitoring(projectId)
     }

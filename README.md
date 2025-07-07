@@ -21,7 +21,7 @@ The project follows Clean Architecture principles with clear separation between:
 
 - **Presentation Layer**: Jetpack Compose UI with Material Design 3
 - **Domain Layer**: Use cases and business logic
-- **Data Layer**: Local database (Room), remote APIs, and security management
+- **Data Layer**: Encrypted JSON storage, remote APIs, and security management
 
 ## Documentation
 
@@ -36,7 +36,7 @@ Comprehensive documentation is available in the `/documentation` directory:
 
 - [`data-layer-entity-management.feat.md`](./documentation/data-layer-entity-management.feat.md) - Database and entity management
 - [`security-authentication.feat.md`](./documentation/security-authentication.feat.md) - Security and authentication features
-- [`communication-layer.feat.md`](./documentation/communication-layer.feat.md) - SSH tunnels and WebSocket communication
+- [`communication-layer.feat.md`](./documentation/communication-layer.feat.md) - Direct WebSocket communication with SSH key authentication
 - [`ui-navigation-foundation.feat.md`](./documentation/ui-navigation-foundation.feat.md) - Navigation and UI foundation
 
 ## Technology Stack
@@ -45,8 +45,8 @@ Comprehensive documentation is available in the `/documentation` directory:
 - **Language**: Kotlin
 - **UI Framework**: Jetpack Compose with Material Design 3
 - **Architecture**: MVVM with Clean Architecture
-- **Networking**: OkHttp3 (WebSocket), JSch (SSH)
-- **Database**: Room
+- **Networking**: OkHttp3 (WebSocket), Bouncy Castle (SSH key operations)
+- **Data Storage**: Encrypted JSON
 - **DI**: Hilt
 - **Security**: Android Keystore + BiometricPrompt
 
@@ -59,9 +59,9 @@ Comprehensive documentation is available in the `/documentation` directory:
 ## Requirements
 
 - Android 8.0+ (API level 26+)
-- Development server with SSH access
+- Development server with WebSocket endpoint
 - Claude Code installed on the development server
-- Wrapper service installed on the development server
+- Wrapper service installed on the development server with SSH public key authentication configured
 
 ## Development Setup
 
@@ -75,8 +75,9 @@ Comprehensive documentation is available in the `/documentation` directory:
 
 - All SSH keys are stored encrypted using Android Keystore
 - Biometric authentication required for sensitive operations
-- Communication secured through SSH tunnels
+- Communication secured through TLS/WSS with SSH key authentication
 - No passwords or tokens stored in plain text
+- Time-limited authentication sessions with secure renewal
 
 ## Contributing
 

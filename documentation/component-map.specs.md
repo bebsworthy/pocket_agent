@@ -20,11 +20,8 @@ App Root
 │   └── EncryptedPreferencesManager
 │
 ├── Data Layer (Shared Across Screens)
-│   ├── RoomDatabase
-│   ├── SessionRepository
-│   ├── ProjectRepository
-│   ├── ServerProfileRepository
-│   ├── SSHIdentityRepository
+│   ├── SecureDataRepository
+│   ├── EncryptedJsonStorage
 │   └── MessageHistoryCache
 │
 └── Navigation Root
@@ -50,9 +47,9 @@ App Root
     └── Project View (Selected Project Context)
         ├── ConnectionStateIndicator (Always Visible)
         ├── ConnectionControlButtons (Always Visible)
-        │   ├── SSHTunnelStatusView
+        │   ├── AuthenticationStatusView
         │   ├── WebSocketStatusIndicator
-        │   └── WrapperInstallationDialog
+        │   └── AuthenticationErrorDialog
         │
         ├── DashboardScreen (Tab 1)
         │   ├── QuickActionsGrid

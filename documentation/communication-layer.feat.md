@@ -128,13 +128,11 @@ class SshKeyAuthenticator @Inject constructor(
      */
     suspend fun signChallenge(
         challenge: AuthChallenge,
-        sshIdentity: SshIdentityEntity,
-        activity: FragmentActivity
+        sshIdentity: SshIdentityEntity
     ): Result<AuthResponse> = withContext(Dispatchers.IO) {
         try {
-            // Get decrypted SSH private key
+            // Get decrypted SSH private key (already unlocked at app launch)
             val privateKeyBytes = sshKeyImportManager.decryptSshPrivateKey(
-                activity = activity,
                 encryptedPrivateKey = sshIdentity.encryptedPrivateKey,
                 keyAlias = sshIdentity.keyAlias
             )
@@ -175,12 +173,10 @@ class SshKeyAuthenticator @Inject constructor(
     suspend fun signSessionResumption(
         sessionId: String,
         nonce: String,
-        sshIdentity: SshIdentityEntity,
-        activity: FragmentActivity
+        sshIdentity: SshIdentityEntity
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val privateKeyBytes = sshKeyImportManager.decryptSshPrivateKey(
-                activity = activity,
                 encryptedPrivateKey = sshIdentity.encryptedPrivateKey,
                 keyAlias = sshIdentity.keyAlias
             )
@@ -337,8 +333,7 @@ class SshAuthWebSocketClient @Inject constructor(
     suspend fun connect(
         projectId: String,
         serverUrl: String,
-        sshIdentity: SshIdentityEntity,
-        activity: FragmentActivity
+        sshIdentity: SshIdentityEntity
     ) = withContext(Dispatchers.IO) {
         this@SshAuthWebSocketClient.projectId = projectId
         _authState.value = AuthState.NotAuthenticated
@@ -360,7 +355,7 @@ class SshAuthWebSocketClient @Inject constructor(
                 okHttpClient
             }
             
-            webSocket = client.newWebSocket(request, createAuthWebSocketListener(projectId, sshIdentity, activity))
+            webSocket = client.newWebSocket(request, createAuthWebSocketListener(projectId, sshIdentity))
             
             // Wait for authentication to complete
             val authResult = withTimeout(AUTH_TIMEOUT_MS) {
@@ -417,8 +412,7 @@ class SshAuthWebSocketClient @Inject constructor(
         projectId: String,
         serverUrl: String,
         sessionId: String,
-        sshIdentity: SshIdentityEntity,
-        activity: FragmentActivity
+        sshIdentity: SshIdentityEntity
     ) = withContext(Dispatchers.IO) {
         this@SshAuthWebSocketClient.projectId = projectId
         this@SshAuthWebSocketClient.sessionId = sessionId
@@ -465,8 +459,7 @@ class SshAuthWebSocketClient @Inject constructor(
     
     private fun createAuthWebSocketListener(
         projectId: String,
-        sshIdentity: SshIdentityEntity,
-        activity: FragmentActivity
+        sshIdentity: SshIdentityEntity
     ) = object : WebSocketListener() {
         
         override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -481,7 +474,7 @@ class SshAuthWebSocketClient @Inject constructor(
                     val messageType = json.jsonObject["type"]?.jsonPrimitive?.content
                     
                     when (messageType) {
-                        "auth_challenge" -> handleAuthChallenge(json, sshIdentity, activity)
+                        "auth_challenge" -> handleAuthChallenge(json, sshIdentity)
                         "auth_success" -> handleAuthSuccess(json)
                         "auth_error" -> handleAuthError(json)
                         else -> {
@@ -523,12 +516,11 @@ class SshAuthWebSocketClient @Inject constructor(
     
     private suspend fun handleAuthChallenge(
         json: JsonElement,
-        sshIdentity: SshIdentityEntity,
-        activity: FragmentActivity
+        sshIdentity: SshIdentityEntity
     ) {
         val challenge = Json.decodeFromJsonElement<SshKeyAuthenticator.AuthChallenge>(json)
         
-        val authResult = sshKeyAuthenticator.signChallenge(challenge, sshIdentity, activity)
+        val authResult = sshKeyAuthenticator.signChallenge(challenge, sshIdentity)
         
         authResult.fold(
             onSuccess = { authResponse ->
@@ -757,7 +749,7 @@ class WebSocketManager @Inject constructor(
             )
             
             // Connect with authentication
-            client.connect(projectId, serverUrl, sshIdentity, activity)
+            client.connect(projectId, serverUrl, sshIdentity)
             
             // Wait for authentication
             val authState = client.authState.first { it is SshAuthWebSocketClient.AuthState.Authenticated }
@@ -1785,7 +1777,7 @@ class ReconnectionManager @Inject constructor(
 
 ### Connection Health Monitor
 
-**Purpose**: Continuously monitors health of SSH tunnels and WebSocket connections. Performs periodic health checks, measures latency, detects connection degradation, and triggers reconnection when unhealthy. Provides real-time health metrics for UI display.
+**Purpose**: Continuously monitors health of authentication sessions and WebSocket connections. Performs periodic health checks, measures latency, detects connection degradation, and triggers reconnection when unhealthy. Provides real-time health metrics for UI display.
 
 ```kotlin
 import kotlinx.coroutines.*
@@ -1795,7 +1787,6 @@ import javax.inject.Singleton
 
 @Singleton
 class ConnectionHealthMonitor @Inject constructor(
-    private val sshTunnelManager: SshTunnelManager,
     private val webSocketClient: WebSocketClient,
     private val connectionStateManager: ConnectionStateManager,
     private val scope: CoroutineScope
@@ -1803,7 +1794,7 @@ class ConnectionHealthMonitor @Inject constructor(
     
     companion object {
         private const val HEALTH_CHECK_INTERVAL_MS = 5000L // 5 seconds
-        private const val SSH_CHECK_TIMEOUT_MS = 3000L
+        private const val AUTH_CHECK_TIMEOUT_MS = 3000L
         private const val WS_CHECK_TIMEOUT_MS = 2000L
     }
     
@@ -1812,12 +1803,12 @@ class ConnectionHealthMonitor @Inject constructor(
     val healthStatus: StateFlow<Map<String, HealthStatus>> = _healthStatus.asStateFlow()
     
     data class HealthStatus(
-        val sshTunnelHealthy: Boolean,
+        val authenticationHealthy: Boolean,
         val webSocketHealthy: Boolean,
         val lastCheckTime: Long,
         val latencyMs: Long? = null
     ) {
-        val isHealthy: Boolean get() = sshTunnelHealthy && webSocketHealthy
+        val isHealthy: Boolean get() = authenticationHealthy && webSocketHealthy
     }
     
     /**
@@ -1855,9 +1846,9 @@ class ConnectionHealthMonitor @Inject constructor(
     private suspend fun checkHealth(projectId: String): HealthStatus {
         val startTime = System.currentTimeMillis()
         
-        // Check SSH tunnel
-        val sshHealthy = withTimeoutOrNull(SSH_CHECK_TIMEOUT_MS) {
-            sshTunnelManager.isTunnelActive(projectId)
+        // Check authentication status
+        val authHealthy = withTimeoutOrNull(AUTH_CHECK_TIMEOUT_MS) {
+            webSocketClient.isAuthenticated(projectId)
         } ?: false
         
         // Check WebSocket
@@ -1868,7 +1859,7 @@ class ConnectionHealthMonitor @Inject constructor(
         val latency = System.currentTimeMillis() - startTime
         
         return HealthStatus(
-            sshTunnelHealthy = sshHealthy,
+            authenticationHealthy = authHealthy,
             webSocketHealthy = wsHealthy,
             lastCheckTime = System.currentTimeMillis(),
             latencyMs = latency
@@ -2976,7 +2967,7 @@ suspend fun SecurityAuditLogger.logPermissionDecision(requestId: String, approve
 
 ### Connection Manager
 
-**Purpose**: High-level connection orchestrator that manages the complete connection lifecycle for projects. Coordinates SSH tunnel establishment, WebSocket connections, and provides a unified interface for other features to interact with connections.
+**Purpose**: High-level connection orchestrator that manages the complete connection lifecycle for projects. Coordinates WebSocket connections with SSH key authentication, and provides a unified interface for other features to interact with connections.
 
 ```kotlin
 import kotlinx.coroutines.*
@@ -2986,11 +2977,11 @@ import javax.inject.Singleton
 
 @Singleton
 class ConnectionManager @Inject constructor(
-    private val sshTunnelManager: SshTunnelManager,
     private val webSocketManager: WebSocketManager,
     private val connectionStateManager: ConnectionStateManager,
     private val reconnectionManager: ReconnectionManager,
-    private val projectRepository: ProjectRepository,
+    private val secureDataRepository: SecureDataRepository,
+    private val sshAuthWebSocketClient: SshAuthWebSocketClient,
     private val scope: CoroutineScope
 ) {
     
@@ -2999,23 +2990,18 @@ class ConnectionManager @Inject constructor(
      */
     suspend fun connect(projectId: String): Result<Unit> {
         return try {
-            val project = projectRepository.getProject(projectId).firstOrNull()
+            val project = secureDataRepository.getProject(projectId)
                 ?: return Result.failure(IllegalArgumentException("Project not found"))
             
             // Update state
             connectionStateManager.updateState(projectId, ConnectionStateManager.ConnectionState.CONNECTING)
             
-            // 1. Create SSH tunnel
-            val tunnel = sshTunnelManager.createTunnel(
-                projectId = projectId,
-                serverProfile = project.serverProfile
-            ).getOrThrow()
-            
-            // 2. Create WebSocket connection
+            // 1. Create authenticated WebSocket connection
             val connection = webSocketManager.createConnection(
                 projectId = projectId,
-                localPort = tunnel.localPort,
-                path = "/ws"
+                serverProfile = project.serverProfile,
+                sshIdentity = project.serverProfile.sshIdentity,
+                activity = getCurrentActivity() // Injected or passed
             ).getOrThrow()
             
             // 3. Start reconnection monitoring
@@ -3047,7 +3033,6 @@ class ConnectionManager @Inject constructor(
         
         reconnectionManager.stopMonitoring(projectId)
         webSocketManager.disconnect(projectId)
-        sshTunnelManager.closeTunnel(projectId)
         
         connectionStateManager.updateState(
             projectId,
@@ -3056,17 +3041,14 @@ class ConnectionManager @Inject constructor(
     }
     
     /**
-     * Reconnect SSH tunnel
+     * Request re-authentication
      */
-    suspend fun reconnectSshTunnel(projectId: String): Result<Unit> {
+    suspend fun requestAuthentication(projectId: String): Result<Unit> {
         val project = projectRepository.getProject(projectId).firstOrNull()
             ?: return Result.failure(IllegalArgumentException("Project not found"))
         
-        // Close existing tunnel
-        sshTunnelManager.closeTunnel(projectId)
-        
-        // Create new tunnel
-        return sshTunnelManager.createTunnel(
+        // Trigger re-authentication flow
+        return webSocketManager.reauthenticate(
             projectId = projectId,
             serverProfile = project.serverProfile
         ).map { Unit }
@@ -3076,13 +3058,9 @@ class ConnectionManager @Inject constructor(
      * Reconnect WebSocket
      */
     suspend fun reconnectWebSocket(projectId: String): Result<Unit> {
-        val tunnel = sshTunnelManager.getTunnel(projectId)
-            ?: return Result.failure(IllegalStateException("No SSH tunnel found"))
-        
-        return webSocketManager.createConnection(
-            projectId = projectId,
-            localPort = tunnel.localPort,
-            path = "/ws"
+            serverProfile = project.serverProfile,
+            sshIdentity = project.serverProfile.sshIdentity,
+            activity = getCurrentActivity()
         ).map { Unit }
     }
     
@@ -3392,18 +3370,18 @@ class NotificationBuilder @Inject constructor(
 
 ### Error Handling
 
-**Purpose**: Comprehensive error handling for all communication scenarios. Defines specific exception types for different failure modes (SSH, WebSocket, network). Includes network state observer for Android that monitors connectivity changes and provides reactive network state updates.
+**Purpose**: Comprehensive error handling for all communication scenarios. Defines specific exception types for different failure modes (authentication, WebSocket, network). Includes network state observer for Android that monitors connectivity changes and provides reactive network state updates.
 
 ```kotlin
 sealed class CommunicationException(message: String, cause: Throwable? = null) : Exception(message, cause) {
-    class SshConnectionException(message: String, cause: Throwable? = null) : CommunicationException(message, cause)
-    class SshAuthenticationException(message: String) : CommunicationException(message)
-    class TunnelCreationException(message: String, cause: Throwable? = null) : CommunicationException(message, cause)
+    class AuthenticationException(message: String, cause: Throwable? = null) : CommunicationException(message, cause)
+    class SshKeyAuthenticationException(message: String) : CommunicationException(message)
     class WebSocketConnectionException(message: String, cause: Throwable? = null) : CommunicationException(message, cause)
     class MessageEncodingException(message: String, cause: Throwable? = null) : CommunicationException(message, cause)
     class MessageDecodingException(message: String, cause: Throwable? = null) : CommunicationException(message, cause)
     class NetworkUnavailableException : CommunicationException("Network is not available")
     class ConnectionTimeoutException(message: String) : CommunicationException(message)
+    class SessionExpiredException(message: String) : CommunicationException(message)
 }
 
 /**
@@ -3501,12 +3479,11 @@ object CommunicationModule {
     
     @Provides
     @Singleton
-    fun provideSshTunnelManager(
+    fun provideSshKeyAuthenticator(
         sshKeyImportManager: SshKeyImportManager,
-        securityAuditLogger: SecurityAuditLogger,
-        scope: CoroutineScope
-    ): SshTunnelManager {
-        return SshTunnelManager(sshKeyImportManager, securityAuditLogger, scope)
+        securityAuditLogger: SecurityAuditLogger
+    ): SshKeyAuthenticator {
+        return SshKeyAuthenticator(sshKeyImportManager, securityAuditLogger)
     }
     
     @Provides
@@ -3550,22 +3527,20 @@ object CommunicationModule {
     @Provides
     @Singleton
     fun provideConnectionManager(
-        sshTunnelManager: SshTunnelManager,
-        webSocketClient: WebSocketClient,
+        webSocketManager: WebSocketManager,
         connectionStateManager: ConnectionStateManager,
         reconnectionManager: ReconnectionManager,
-        connectionHealthMonitor: ConnectionHealthMonitor,
-        wrapperServiceProtocol: WrapperServiceProtocol,
-        sessionManager: SessionManager
+        secureDataRepository: SecureDataRepository,
+        sshAuthWebSocketClient: SshAuthWebSocketClient,
+        scope: CoroutineScope
     ): ConnectionManager {
         return ConnectionManager(
-            sshTunnelManager,
-            webSocketClient,
+            webSocketManager,
             connectionStateManager,
             reconnectionManager,
-            connectionHealthMonitor,
-            wrapperServiceProtocol,
-            sessionManager
+            secureDataRepository,
+            sshAuthWebSocketClient,
+            scope
         )
     }
     
@@ -3768,10 +3743,10 @@ interface EncryptionService {
 ```kotlin
 /**
  * Connection Testing Checklist:
- * 1. [ ] Test SSH tunnel establishment with valid credentials
- * 2. [ ] Test SSH authentication failure handling
- * 3. [ ] Test port forwarding setup and teardown
- * 4. [ ] Test WebSocket connection over SSH tunnel
+ * 1. [ ] Test WebSocket connection with SSH key authentication
+ * 2. [ ] Test SSH key authentication failure handling
+ * 3. [ ] Test authentication session management
+ * 4. [ ] Test WebSocket reconnection with re-authentication
  * 5. [ ] Test message encoding/decoding for all types
  * 6. [ ] Test connection state transitions
  * 7. [ ] Test automatic reconnection with exponential backoff
@@ -3980,9 +3955,9 @@ import javax.inject.Singleton
  * Connection lifecycle for a project:
  * 
  * 1. User initiates connection
- * 2. Establish SSH tunnel to server
- * 3. Get local port from tunnel
- * 4. Connect WebSocket through tunnel
+ * 2. Connect WebSocket to server endpoint
+ * 3. Perform SSH key authentication
+ * 4. Establish authenticated session
  * 5. Exchange initial handshake
  * 6. Start health monitoring
  * 7. Process messages bidirectionally
@@ -3992,7 +3967,7 @@ import javax.inject.Singleton
 
 @Singleton
 class ConnectionManager @Inject constructor(
-    private val sshTunnelManager: SshTunnelManager,
+    private val sshAuthWebSocketClient: SshAuthWebSocketClient,
     private val webSocketClient: WebSocketClient,
     private val connectionStateManager: ConnectionStateManager,
     private val reconnectionManager: ReconnectionManager,
@@ -4008,41 +3983,32 @@ class ConnectionManager @Inject constructor(
         projectPath: String
     ): Result<Unit> {
         return try {
-            // 1. Establish SSH tunnel
-            val tunnelResult = sshTunnelManager.establishTunnel(
-                serverProfile = serverProfile,
+            // 1. Build WebSocket endpoint URL
+            val wsEndpoint = "wss://${serverProfile.hostname}:${serverProfile.wrapperPort}/ws"
+            
+            // 2. Connect and authenticate with SSH key
+            val authResult = sshAuthWebSocketClient.connectWithAuth(
+                endpoint = wsEndpoint,
                 sshIdentity = sshIdentity,
-                remotePort = 0, // Let wrapper choose port
+                serverProfile = serverProfile,
                 projectId = projectId
             )
             
-            val sshSession = sshTunnelManager.getSession(projectId)
-                ?: return Result.failure(Exception("SSH session not found"))
-            
-            // 2. Check wrapper status
-            val wrapperInfo = wrapperServiceProtocol.checkWrapperStatus(sshSession)
-            
-            // 3. Install/start wrapper if needed
-            val websocketPort = if (!wrapperInfo.running) {
-                if (!wrapperInfo.installed) {
-                    wrapperServiceProtocol.installWrapper(sshSession).getOrThrow()
-                }
-                wrapperServiceProtocol.startWrapper(sshSession, projectPath).getOrThrow()
-            } else {
-                wrapperInfo.websocketPort ?: wrapperServiceProtocol.discoverWebSocketPort(sshSession)
-                    ?: return Result.failure(Exception("Could not discover WebSocket port"))
+            if (authResult.isFailure) {
+                return Result.failure(authResult.exceptionOrNull() ?: Exception("Authentication failed"))
             }
             
-            // 4. Update tunnel with correct port
-            val localPort = sshTunnelManager.updatePortForwarding(
-                projectId = projectId,
-                remotePort = websocketPort
-            ).getOrThrow()
+            val sessionId = authResult.getOrThrow()
             
-            // 5. Connect WebSocket
-            webSocketClient.connect(projectId, localPort)
+            // 3. Initialize project session
+            val initMessage = MessageProtocol.ProjectInitMessage(
+                projectPath = projectPath,
+                sessionId = sessionId
+            )
             
-            // 6. Wait for handshake
+            webSocketClient.sendMessage(initMessage)
+            
+            // 4. Wait for handshake
             val handshakeResult = wrapperServiceProtocol.performHandshake(
                 webSocket = webSocketClient.getWebSocket(),
                 projectId = projectId
@@ -4052,16 +4018,16 @@ class ConnectionManager @Inject constructor(
                 return Result.failure(Exception("Handshake failed"))
             }
             
-            // 7. Resume session if exists
+            // 5. Resume session if exists
             sessionManager.resumeSession(
-                sessionId = handshakeResult.sessionId!!,
+                sessionId = sessionId,
                 projectId = projectId
             )
             
-            // 8. Start health monitoring
+            // 6. Start health monitoring
             connectionHealthMonitor.startMonitoring(projectId)
             
-            // 9. Setup auto-reconnection
+            // 7. Setup auto-reconnection
             reconnectionManager.startMonitoring(
                 ReconnectionManager.ReconnectionConfig(
                     projectId = projectId,
@@ -4085,8 +4051,8 @@ class ConnectionManager @Inject constructor(
         // Disconnect WebSocket
         webSocketClient.disconnect()
         
-        // Close SSH tunnel
-        sshTunnelManager.closeTunnel(projectId)
+        // Close authenticated session
+        sshAuthWebSocketClient.closeSession(projectId)
         
         // Clear state
         connectionStateManager.clearState(projectId)
@@ -4100,7 +4066,7 @@ class ConnectionManager @Inject constructor(
     ): Result<Unit> {
         // Close existing connections
         webSocketClient.disconnect()
-        sshTunnelManager.closeTunnel(projectId)
+        sshAuthWebSocketClient.closeSession(projectId)
         
         // Re-establish connection
         return connect(projectId, serverProfile, sshIdentity, projectPath)
@@ -4175,10 +4141,10 @@ class OptimizedWebSocketClient : WebSocketClient() {
 
 ```
 communication/
-├── ssh/
-│   ├── SshTunnelManager.kt
-│   ├── SshConfig.kt
-│   └── PortForwardingManager.kt
+├── auth/
+│   ├── SshKeyAuthenticator.kt
+│   ├── SshAuthWebSocketClient.kt
+│   └── AuthSessionManager.kt
 ├── websocket/
 │   ├── WebSocketClient.kt
 │   ├── WebSocketConfig.kt
@@ -4218,7 +4184,7 @@ communication/
 
 - **Multi-Protocol Support**: Add support for alternative protocols (gRPC, MQTT)
 - **Compression Algorithms**: Implement adaptive compression based on content
-- **Connection Multiplexing**: Share SSH tunnels between multiple WebSockets
+- **Connection Multiplexing**: Share authentication sessions between multiple WebSockets
 - **Offline Mode**: Enhanced offline queueing with persistence
 - **P2P Communication**: Direct device-to-device communication
 - **Push Notifications**: FCM integration for wake-up events

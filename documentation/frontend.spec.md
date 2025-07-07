@@ -42,10 +42,10 @@ Pocket Agent - a remote coding agent mobile interface enables developers to remo
 ### Core Technology Stack
 - **Platform**: Native Android with Kotlin
 - **UI Framework**: Jetpack Compose with Material Design 3
-- **Networking**: OkHttp3 for WebSocket communication
-- **SSH Client**: JSch (mwiede/jsch fork) for secure tunneling
+- **Networking**: OkHttp3 for WebSocket (WSS) communication
+- **SSH Key Operations**: Bouncy Castle for SSH key authentication
 - **Security**: Android Keystore + BiometricPrompt + EncryptedSharedPreferences
-- **Database**: Room for local data persistence
+- **Data Storage**: Encrypted JSON file with Kotlinx.serialization
 - **Dependency Injection**: Hilt
 - **Background Processing**: WorkManager + Foreground Services
 
@@ -66,8 +66,8 @@ graph TB
     end
     
     subgraph "Data Layer"
-        LOCAL[Local Database<br/>Room]
-        REMOTE[Remote APIs<br/>WebSocket]
+        LOCAL[Encrypted JSON<br/>Storage]
+        REMOTE[Remote APIs<br/>WebSocket (WSS)]
         SEC[Security Manager<br/>Keystore]
     end
     
@@ -84,7 +84,7 @@ graph TB
 app/
 ├── presentation/     # UI, ViewModels, Navigation
 ├── domain/          # Use Cases, Repository Interfaces, Models
-├── data/            # Local DB, Remote APIs, Security
+├── data/            # JSON Storage, Remote APIs, Security
 └── di/              # Dependency Injection
 ```
 
@@ -187,14 +187,11 @@ Each project maintains independent connection states:
 
 #### User Operations
 **Connect**: 
-- Establish SSH tunnel to project's server
-- Check wrapper service installation and version
-- If wrapper is missing or outdated, prompt user to install/update:
-  - Display installation dialog with version information
-  - Execute installation command (fetch install script from git repository)
-  - Typical command: `curl -sSL https://install.claude-wrapper.dev | sh`
-  - Show installation progress and handle potential errors
-- Start or connect to existing wrapper service for the project
+- Connect to WebSocket (WSS) endpoint on project's server
+- Perform SSH key authentication using challenge-response
+- Verify wrapper service is running and accessible
+- If authentication fails, show error with troubleshooting steps
+- Initialize project session with project path
 - Resume Claude Code session or start new conversation
 
 **Disconnect**: 
@@ -204,7 +201,7 @@ Each project maintains independent connection states:
 **Shutdown**: 
 - Stop Claude Code processes, wrapper service, and MCP server
 - Clean termination of all remote processes
-- Close SSH connection
+- Close WebSocket (WSS) connection and clear authentication session
 
 #### Project Initialization Workflow
 When creating a new project:
@@ -289,7 +286,7 @@ While the WebSocket provides real-time communication, the background service per
 
 **What Gets Polled**:
 - WebSocket connection health (ping/pong)
-- SSH tunnel stability
+- Authentication session validity
 - Remote wrapper service status
 - Claude Code process monitoring
 - System resource usage on remote server
@@ -301,10 +298,11 @@ While the WebSocket provides real-time communication, the background service per
 - **Minimal frequency (30s)**: Battery below 15%
 
 **Why Polling is Needed**:
-- SSH tunnels can silently fail without WebSocket notification
-- Network changes (WiFi to cellular) may require tunnel re-establishment
+- WebSocket connections may fail without immediate notification
+- Network changes (WiFi to cellular) may require re-authentication
 - Remote processes may crash without sending WebSocket messages
 - Battery optimization may kill background connections
+- Authentication sessions expire and need renewal
 
 #### Notification Categories
 
@@ -509,13 +507,13 @@ Project-specific configuration:
 ```mermaid
 sequenceDiagram
     participant M as Mobile App
-    participant S as SSH Tunnel
     participant W as Wrapper Service
     participant C as Claude Code
     
-    M->>S: Establish SSH tunnel with port forwarding
-    M->>W: Connect WebSocket via tunnel
-    W->>M: Connection confirmed
+    M->>W: Connect WebSocket (WSS)
+    W->>M: Authentication challenge
+    M->>W: SSH key signature response
+    W->>M: Authentication success + session ID
     
     M->>W: Send command/prompt
     W->>C: Forward to Claude Code
@@ -534,13 +532,44 @@ sequenceDiagram
 - **Command Messages**: Claude prompts or shell commands to execute
 - **Permission Responses**: Approval/denial of Claude's permission requests
 - **Session Control**: Resume, pause, or terminate operations
+- **Project Initialization**: Initialize new project with path and optional repository URL
 - **Heartbeat**: Keep-alive messages for connection monitoring
 
 #### Wrapper to Mobile
 - **Claude Messages**: Responses and status updates from Claude
 - **Permission Requests**: Claude asking for tool/action approval
 - **Session Status**: Operation progress and completion notifications
+- **Project Init Status**: Repository clone progress and initialization results
 - **Error Reports**: Connection issues or execution failures
+
+### Project Initialization Protocol
+
+When creating a new project with optional repository cloning:
+
+```mermaid
+sequenceDiagram
+    participant M as Mobile App
+    participant W as Wrapper Service
+    participant G as Git Repository
+    
+    M->>W: ProjectInitMessage {path, repoUrl?, token?}
+    W->>W: Create project directory
+    
+    alt Repository URL provided
+        W->>G: Clone repository
+        W->>M: CloneProgress {percentage, status}
+        W->>M: CloneProgress {percentage, status}
+        W->>G: Complete clone
+    end
+    
+    W->>W: Initialize Claude session
+    W->>M: ProjectInitComplete {success, sessionId}
+```
+
+Message format:
+- **ProjectInitMessage**: `{projectPath: string, repositoryUrl?: string, accessToken?: string}`
+- **CloneProgress**: `{percentage: number, status: string, error?: string}`
+- **ProjectInitComplete**: `{success: boolean, sessionId: string, error?: string}`
 
 ### Connection Recovery
 The app handles network interruptions gracefully:
@@ -565,8 +594,8 @@ graph TB
     end
     
     subgraph "Transport Security"
-        SSH[SSH Tunnel]
-        WS[WebSocket over SSH]
+        AUTH[SSH Key Authentication]
+        WS[WebSocket over TLS/WSS]
         CERT[Certificate Validation]
     end
     
@@ -578,7 +607,7 @@ graph TB
     
     BIO --> KEY
     KEY --> ENC
-    SSH --> WS
+    AUTH --> WS
     WS --> PERM
     PERM --> AUDIT
 ```
@@ -598,8 +627,9 @@ graph TB
 ### Data Protection
 - **Memory Safety**: Clear sensitive data from memory after use
 - **No Persistent Secrets**: SSH keys and tokens managed by secure storage only
-- **Session Encryption**: All communication encrypted over SSH tunnel
+- **Transport Encryption**: All communication encrypted over TLS/WSS
 - **Local Encryption**: Database and preferences encrypted at rest
+- **Session Security**: Time-limited authentication sessions with secure renewal
 
 ---
 
@@ -612,10 +642,11 @@ graph TB
 - **Memory Monitoring**: Track and limit memory usage per component
 
 ### Network Optimization
-- **Connection Pooling**: Reuse SSH connections when possible
+- **Connection Reuse**: Maintain persistent WebSocket connections
 - **Message Batching**: Combine multiple updates during disconnection
-- **Compression**: Enable gzip compression over SSH tunnel
+- **Compression**: Enable WebSocket per-message deflate compression
 - **Bandwidth Awareness**: Adapt update frequency based on connection quality
+- **Certificate Pinning**: Cache and pin certificates for known services
 
 ### Battery Optimization
 - **Intelligent Polling**: Adjust monitoring frequency based on battery level (user preference, enabled by default)
@@ -664,9 +695,9 @@ graph TB
 **Foundation & Basic Connectivity**
 - Project setup with dependency configuration
 - Basic UI navigation structure with bottom tabs
-- SSH connection management and tunnel establishment
+- WebSocket connection management and SSH key authentication
 - WebSocket communication layer with message handling
-- Local database setup with Room
+- Encrypted JSON data storage setup
 - Basic server profile creation and management
 
 **Deliverables:**

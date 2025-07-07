@@ -229,11 +229,10 @@ class FeatureIntegrationTest {
     @Before
     fun setup() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        database = Room.inMemoryDatabaseBuilder(context, TestDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
+        // Initialize test data repository
+        dataRepository = TestDataRepository(context)
         
-        component = FeatureComponent(database)
+        component = FeatureComponent(dataRepository)
     }
     
     @After

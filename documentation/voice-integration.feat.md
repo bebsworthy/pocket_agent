@@ -622,7 +622,7 @@ import javax.inject.Singleton
 @Singleton
 class VoiceCommandProcessor @Inject constructor(
     private val navigationManager: NavigationManager,
-    private val projectRepository: ProjectRepository,
+    private val secureDataRepository: SecureDataRepository,
     private val connectionManager: ConnectionManager,
     private val chatManager: ChatManager
 ) {
@@ -2088,7 +2088,7 @@ import kotlin.test.assertTrue
 class VoiceCommandProcessorTest {
     
     @Mock private lateinit var mockNavigationManager: NavigationManager
-    @Mock private lateinit var mockProjectRepository: ProjectRepository
+    @Mock private lateinit var mockSecureDataRepository: SecureDataRepository
     @Mock private lateinit var mockConnectionManager: ConnectionManager
     @Mock private lateinit var mockChatManager: ChatManager
     
@@ -2100,7 +2100,7 @@ class VoiceCommandProcessorTest {
         MockitoAnnotations.openMocks(this)
         processor = VoiceCommandProcessor(
             mockNavigationManager,
-            mockProjectRepository,
+            mockSecureDataRepository,
             mockConnectionManager,
             mockChatManager
         )

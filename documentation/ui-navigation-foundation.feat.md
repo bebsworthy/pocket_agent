@@ -1188,7 +1188,7 @@ fun <T1, T2, R> combineStates(
 // Example view model implementation
 @HiltViewModel
 class ProjectsListViewModel @Inject constructor(
-    private val projectRepository: ProjectRepository,
+    private val secureDataRepository: SecureDataRepository,
     private val connectionManager: ConnectionManager
 ) : BaseViewModel<ProjectsListState>() {
     
@@ -1202,7 +1202,7 @@ class ProjectsListViewModel @Inject constructor(
     
     private fun loadProjects() {
         combine(
-            projectRepository.getProjects(),
+            secureDataRepository.getAllProjects(),
             connectionManager.connectionStates
         ) { projects, connectionStates ->
             ProjectsListState(
@@ -2539,16 +2539,6 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// Project repository interface
-interface ProjectRepository {
-    fun getProjects(): Flow<List<Project>>
-    fun getProject(projectId: String): Flow<Project?>
-    suspend fun createProject(project: Project): Result<Project>
-    suspend fun updateProject(project: Project): Result<Unit>
-    suspend fun deleteProject(projectId: String): Result<Unit>
-    suspend fun getRecentProjects(limit: Int = 5): List<Project>
-}
-
 // Connection manager interface
 interface ConnectionManager {
     val connectionStates: Flow<Map<String, ConnectionStatus>>
@@ -2601,7 +2591,7 @@ class NavigationManager @Inject constructor() {
 // View model implementation
 @HiltViewModel
 class ProjectsListViewModel @Inject constructor(
-    private val projectRepository: ProjectRepository,
+    private val secureDataRepository: SecureDataRepository,
     private val connectionManager: ConnectionManager
 ) : BaseViewModel<ProjectsListState>() {
     
@@ -2615,7 +2605,7 @@ class ProjectsListViewModel @Inject constructor(
     
     private fun loadProjects() {
         combine(
-            projectRepository.getProjects(),
+            secureDataRepository.getAllProjects(),
             connectionManager.connectionStates
         ) { projects, connectionStates ->
             ProjectsListState(
@@ -2678,13 +2668,13 @@ data class ProjectWithStatus(
 @HiltViewModel
 class ProjectDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val projectRepository: ProjectRepository,
+    private val secureDataRepository: SecureDataRepository,
     private val connectionManager: ConnectionManager
 ) : ViewModel() {
     
     private val projectId: String = savedStateHandle.get<String>("projectId") ?: ""
     
-    val project = projectRepository.getProject(projectId)
+    val project = secureDataRepository.getProject(projectId)
     val connectionStatus = connectionManager.connectionStates.map { states ->
         states[projectId] ?: ConnectionStatus.DISCONNECTED
     }
