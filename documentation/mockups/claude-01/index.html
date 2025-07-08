@@ -399,9 +399,9 @@
         .project-stats {
             display: flex;
             gap: 12px;
-            margin-top: 6px;
             font-size: 12px;
             opacity: 0.7;
+            margin-left: -6px;
         }
         
         .project-stat {
@@ -502,6 +502,17 @@
         .button-outlined:hover {
             border-color: var(--primary);
             color: var(--primary);
+        }
+        
+        .button-danger {
+            background-color: #E57373;
+            color: white;
+        }
+        
+        .button-danger:hover {
+            background-color: #F44336;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(244, 67, 54, 0.4);
         }
         
         /* FAB */
@@ -1258,40 +1269,81 @@ Time:        2.451s</pre>
                     <div class="tab-content" id="monitorTab" style="display: none;">
                         <div style="padding: 16px;">
                             <div class="card">
+                                <h3 style="margin-bottom: 16px;">Git Status</h3>
+                                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+                                    <i class="ti ti-git-branch" style="font-size: 20px; color: var(--primary);"></i>
+                                    <span style="font-size: 16px; font-weight: 500;">main</span>
+                                    <span style="font-size: 12px; opacity: 0.6;">• Last commit 2 hours ago</span>
+                                </div>
+                                <div style="display: grid; gap: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <i class="ti ti-file-plus" style="color: #15be88;"></i>
+                                        <span style="font-size: 14px;">3 files added</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <i class="ti ti-file-diff" style="color: #FFB74D;"></i>
+                                        <span style="font-size: 14px;">5 files modified</span>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <i class="ti ti-file-minus" style="color: #E57373;"></i>
+                                        <span style="font-size: 14px;">1 file deleted</span>
+                                    </div>
+                                </div>
+                                <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--surface-variant);">
+                                    <div style="font-size: 12px; opacity: 0.6;">Ahead of origin/main by 2 commits</div>
+                                </div>
+                            </div>
+                            
+                            <div class="card" style="margin-top: 16px;">
                                 <h3 style="margin-bottom: 12px;">Active Processes</h3>
                                 <div class="progress-item">
                                     <div style="display: flex; justify-content: space-between;">
                                         <span>Claude Code Agent</span>
-                                        <span style="color: #4CAF50; font-size: 12px;">Running</span>
+                                        <span style="color: #15be88; font-size: 12px;">Running</span>
                                     </div>
                                     <div style="font-size: 12px; opacity: 0.6; margin-top: 4px;">
-                                        CPU: 12% • Memory: 256MB
+                                        Session Duration: 45 minutes
                                     </div>
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" style="width: 12%;"></div>
+                                </div>
+                                <div class="progress-item" style="margin-top: 12px;">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Node.js Server</span>
+                                        <span style="color: #15be88; font-size: 12px;">Running</span>
+                                    </div>
+                                    <div style="font-size: 12px; opacity: 0.6; margin-top: 4px;">
+                                        Port 3000 • PID 12345
                                     </div>
                                 </div>
                             </div>
                             
                             <div class="card" style="margin-top: 16px;">
-                                <h3 style="margin-bottom: 12px;">Recent Activities</h3>
-                                <div style="font-size: 14px;">
-                                    <div style="padding: 8px 0; border-bottom: 1px solid var(--surface-variant);">
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span>Fixed failing tests</span>
-                                            <span style="font-size: 12px; opacity: 0.5;">2m ago</span>
+                                <h3 style="margin-bottom: 16px;">Server Resources</h3>
+                                <div style="display: grid; gap: 16px;">
+                                    <div class="stat-item">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                            <span style="font-weight: 500;">CPU Usage</span>
+                                            <span style="font-size: 14px; color: #15be88;">24%</span>
+                                        </div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 24%; background-color: #15be88;"></div>
                                         </div>
                                     </div>
-                                    <div style="padding: 8px 0; border-bottom: 1px solid var(--surface-variant);">
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span>Running test suite</span>
-                                            <span style="font-size: 12px; opacity: 0.5;">5m ago</span>
+                                    <div class="stat-item">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                            <span style="font-weight: 500;">Memory</span>
+                                            <span style="font-size: 14px; color: #15be88;">8.2 GB / 16 GB</span>
+                                        </div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 51%; background-color: #15be88;"></div>
                                         </div>
                                     </div>
-                                    <div style="padding: 8px 0;">
-                                        <div style="display: flex; justify-content: space-between;">
-                                            <span>Analyzing code</span>
-                                            <span style="font-size: 12px; opacity: 0.5;">10m ago</span>
+                                    <div class="stat-item">
+                                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                            <span style="font-weight: 500;">Disk Space</span>
+                                            <span style="font-size: 14px; color: #FFB74D;">142 GB / 256 GB</span>
+                                        </div>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 55%; background-color: #FFB74D;"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -1342,6 +1394,13 @@ Time:        2.451s</pre>
                                     <span>Claude version</span>
                                     <span style="opacity: 0.6; font-size: 14px;">3.5.2</span>
                                 </div>
+                            </div>
+                            
+                            <div style="margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--surface-variant);">
+                                <button class="button button-danger" style="width: 100%;" onclick="removeProject()">
+                                    <i class="ti ti-trash" style="margin-right: 8px;"></i>
+                                    Remove Project
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1644,6 +1703,22 @@ Time:        2.451s</pre>
         function navigateToPath(path) {
             console.log('Navigate to:', path);
             // In a real app, this would update the file listing
+        }
+        
+        // Remove project
+        function removeProject() {
+            if (confirm('Are you sure you want to remove this project? This action cannot be undone.')) {
+                // In a real app, this would remove the project and return to projects list
+                alert('Project removed');
+                // Go back to projects list
+                currentProject = null;
+                document.getElementById('projectsScreen').classList.add('active');
+                document.getElementById('projectScreen').classList.remove('active');
+                document.querySelector('.top-app-bar h1').textContent = 'Pocket Agent';
+                document.getElementById('navIcon').className = 'ti ti-menu-2';
+                document.getElementById('projectSegments').style.display = 'none';
+                document.getElementById('mainContent').classList.remove('with-segments');
+            }
         }
         
         // Mobile keyboard handling
