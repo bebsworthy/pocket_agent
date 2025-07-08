@@ -32,7 +32,7 @@ class MessageProtocol @Inject constructor() {
     
     enum class ProtocolMessageType {
         COMMAND,
-        CLAUDE_RESPONSE,
+        AGENT_RESPONSE,
         PERMISSION_REQUEST,
         PERMISSION_RESPONSE,
         SESSION_STATUS,
@@ -91,11 +91,11 @@ class MessageProtocol @Inject constructor() {
     // Incoming messages (Wrapper → Mobile)
     
     @Serializable
-    @SerialName("claude_response")
-    data class ClaudeResponse(
+    @SerialName("agent_response")
+    data class AgentResponse(
         override val id: String,
         override val timestamp: Long,
-        override val type: ProtocolMessageType = ProtocolMessageType.CLAUDE_RESPONSE,
+        override val type: ProtocolMessageType = ProtocolMessageType.AGENT_RESPONSE,
         val content: String,
         val isPartial: Boolean = false,
         val conversationId: String?,
@@ -172,12 +172,12 @@ class MessageProtocol @Inject constructor() {
         override val timestamp: Long,
         override val type: ProtocolMessageType = ProtocolMessageType.WRAPPER_STATUS,
         val version: String,
-        val claudeCodeStatus: ClaudeCodeStatus,
+        val agentStatus: AgentStatus,
         val resourceUsage: ResourceUsage
     ) : Message() {
         
         @Serializable
-        data class ClaudeCodeStatus(
+        data class AgentStatus(
             val running: Boolean,
             val pid: Int?,
             val uptime: Long? // seconds
@@ -239,7 +239,7 @@ class MessageProtocol @Inject constructor() {
         val requestId: String,
         val healthy: Boolean,
         val wrapperVersion: String,
-        val claudeStatus: String
+        val agentStatus: String
     ) : Message()
     
     @Serializable
@@ -305,7 +305,7 @@ class MessageProtocol @Inject constructor() {
             subclass(PermissionResponse::class, PermissionResponse.serializer())
             subclass(HeartbeatMessage::class, HeartbeatMessage.serializer())
             subclass(SessionResumeMessage::class, SessionResumeMessage.serializer())
-            subclass(ClaudeResponse::class, ClaudeResponse.serializer())
+            subclass(AgentResponse::class, AgentResponse.serializer())
             subclass(PermissionRequest::class, PermissionRequest.serializer())
             subclass(SessionStatus::class, SessionStatus.serializer())
             subclass(ErrorMessage::class, ErrorMessage.serializer())
@@ -331,11 +331,11 @@ enum class ConnectionStatus {
     CONNECTED,         // Active connection
     ERROR,            // Connection error
     DISCONNECTING,    // Closing connection
-    SHUTDOWN          // Claude Code shutdown
+    SHUTDOWN          // Agent shutdown
 }
 
-// Claude message representation with detailed chat message types
-data class ClaudeMessage(
+// Chat message representation with detailed message types
+data class ChatMessage(
     val id: String,
     val content: String,
     val timestamp: Long,
@@ -347,44 +347,28 @@ data class ClaudeMessage(
 ) {
     enum class ChatMessageType {
         USER_INPUT,             // User text input
-        CLAUDE_RESPONSE,        // Claude's response
+        AGENT_MESSAGE,          // Agent's response
         SYSTEM_MESSAGE,         // System notifications
         ERROR_MESSAGE,          // Error notifications
-        STATUS_UPDATE,          // Connection/session status
+        STATUS_UPDATE,          // General status updates
         PERMISSION_REQUEST,     // Interactive permission card
-        PROGRESS_UPDATE,        // Task progress with percentage
         CODE_BLOCK,            // Code snippet with syntax highlighting
-        SUB_AGENT_STATUS,      // Sub-agent activity update
         TASK_COMPLETION,       // Task summary with results
-        TYPING_INDICATOR,      // Claude is thinking
+        TYPING_INDICATOR,      // Agent is thinking
         FILE_REFERENCE,        // File path with preview
-        COMMAND_EXECUTION,     // Shell command result
-        VOICE_INPUT,           // Voice transcription
-        CONNECTION_STATUS,     // Connection metrics card
-        QUICK_ACTION_RESULT    // Quick action execution result
+        COMMAND_EXECUTION      // Shell command or quick action result
     }
     
     // Additional UI data for rich message rendering
     data class MessageUIData(
-        val alignment: MessageAlignment = MessageAlignment.LEFT,
         val backgroundColor: String? = null,
         val icon: String? = null,
         val actions: List<MessageAction> = emptyList(),
-        val progress: ProgressData? = null,
         val codeData: CodeBlockData? = null,
         val commandData: CommandExecutionData? = null,
         val permissionData: PermissionRequestData? = null,
-        val fileReferenceData: FileReferenceData? = null,
-        val voiceData: VoiceInputData? = null,
-        val quickActionData: QuickActionData? = null,
-        val connectionData: ConnectionStatusData? = null
+        val fileReferenceData: FileReferenceData? = null
     )
-    
-    enum class MessageAlignment {
-        LEFT,    // Claude, system messages
-        RIGHT,   // User messages
-        CENTER   // System notifications
-    }
     
     data class MessageAction(
         val id: String,
@@ -399,13 +383,6 @@ data class ClaudeMessage(
         DANGER,     // Delete, Stop
         TEXT        // Copy, View More
     }
-    
-    data class ProgressData(
-        val percentage: Float,
-        val currentStep: String,
-        val totalSteps: Int?,
-        val estimatedTimeRemaining: Long?
-    )
     
     data class CodeBlockData(
         val language: String,
@@ -454,53 +431,6 @@ data class ClaudeMessage(
         UNCHANGED
     }
     
-    data class VoiceInputData(
-        val transcription: String,
-        val confidence: Float,
-        val duration: Long,
-        val language: String
-    )
-    
-    data class QuickActionData(
-        val actionName: String,
-        val actionType: QuickActionType,
-        val executionTime: Long,
-        val status: QuickActionStatus,
-        val result: String? = null
-    )
-    
-    enum class QuickActionType {
-        CLAUDE_PROMPT,
-        SHELL_COMMAND,
-        PROJECT_SCRIPT
-    }
-    
-    enum class QuickActionStatus {
-        RUNNING,
-        SUCCESS,
-        FAILED,
-        CANCELLED
-    }
-    
-    data class ConnectionStatusData(
-        val sshStatus: ConnectionState,
-        val websocketStatus: ConnectionState,
-        val latencyMs: Long,
-        val dataTransferred: DataTransferStats,
-        val uptime: Long
-    )
-    
-    data class ConnectionState(
-        val connected: Boolean,
-        val message: String? = null
-    )
-    
-    data class DataTransferStats(
-        val bytesSent: Long,
-        val bytesReceived: Long,
-        val messagesSent: Int,
-        val messagesReceived: Int
-    )
 }
 
 // Battery state for optimization
@@ -530,19 +460,19 @@ data class SessionState(
     val metadata: Map<String, String> = emptyMap()
 )
 
-// Chat manager interface for voice integration
+// Chat manager interface
 interface ChatManager {
     suspend fun sendMessage(projectId: String, message: String): Result<String>
-    suspend fun getLastMessage(projectId: String): ClaudeMessage?
-    suspend fun getConversationHistory(projectId: String, limit: Int = 10): List<ClaudeMessage>
-    fun observeMessages(projectId: String): Flow<ClaudeMessage>
+    suspend fun getLastMessage(projectId: String): ChatMessage?
+    suspend fun getConversationHistory(projectId: String, limit: Int = 10): List<ChatMessage>
+    fun observeMessages(projectId: String): Flow<ChatMessage>
     suspend fun clearChat(projectId: String): Result<Unit>
 }
 ```
 
 ## Message Handlers
 
-**Purpose**: Registry pattern for handling different message types. Each handler processes specific message types (Claude responses, permission requests, status updates) with appropriate actions like database storage, notification display, or UI updates. Extensible for new message types.
+**Purpose**: Registry pattern for handling different message types. Each handler processes specific message types (agent responses, permission requests, status updates) with appropriate actions like database storage, notification display, or UI updates. Extensible for new message types.
 
 ```kotlin
 import kotlinx.coroutines.flow.*
@@ -576,19 +506,19 @@ class MessageHandlerRegistry @Inject constructor() {
 // Example handlers
 
 @Singleton
-class ClaudeResponseHandler @Inject constructor(
+class AgentResponseHandler @Inject constructor(
     private val messageRepository: MessageRepository
 ) : MessageHandlerRegistry.MessageHandler {
     
     override suspend fun handle(message: MessageProtocol.Message) {
-        if (message is MessageProtocol.ClaudeResponse) {
+        if (message is MessageProtocol.AgentResponse) {
             // Store in local database
             messageRepository.insertMessage(
                 MessageEntity(
                     id = message.id,
                     projectId = message.conversationId ?: "",
                     content = message.content,
-                    isFromClaude = true,
+                    isFromAgent = true,
                     timestamp = message.timestamp
                 )
             )

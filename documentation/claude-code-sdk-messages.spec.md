@@ -174,7 +174,7 @@ The wrapper service must:
 ### Wrapper Translation to Mobile:
 ```json
 {
-  "type": "claude_response",
+  "type": "agent_response",
   "content": "I'll run the test suite now. Running test 5 of 20...",
   "conversationId": "sess_123"
 }
