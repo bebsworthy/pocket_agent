@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pocket Agent - Mobile App Mockup</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    <style>
+        :root {
+            /* Light Theme Colors */
+            --primary: #FF6B35;
+            --on-primary: #FFFFFF;
+            --primary-container: #FFE5DC;
+            --on-primary-container: #3D1F00;
+            --secondary: #5D6B5D;
+            --background: #FAFAFA;
+            --surface: #FFFFFF;
+            --surface-variant: #F0F0F0;
+            --error: #DC3545;
+            --on-background: #1A1C1A;
+            --on-surface: #1A1C1A;
+            --outline: #C0C0C0;
+            --shadow: rgba(0, 0, 0, 0.08);
+            
+            /* Spacing */
+            --spacing-xs: 4px;
+            --spacing-sm: 8px;
+            --spacing-md: 16px;
+            --spacing-lg: 24px;
+            --spacing-xl: 32px;
+            
+            /* Typography */
+            --font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        [data-theme="dark"] {
+            --primary: #FF6B35;
+            --on-primary: #FFFFFF;
+            --primary-container: #4A2013;
+            --on-primary-container: #FFE5DC;
+            --secondary: #B9CCB9;
+            --background: #0A0A0F;
+            --surface: #1A1A24;
+            --surface-variant: #25252F;
+            --error: #FF5757;
+            --on-background: #FFFFFF;
+            --on-surface: #FFFFFF;
+            --outline: #4A4A54;
+            --shadow: rgba(0, 0, 0, 0.5);
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background);
+            color: var(--on-background);
+            line-height: 1.5;
+            overflow: hidden;
+        }
+        
+        /* Dark theme specific overrides */
+        [data-theme="dark"] * {
+            color: #FFFFFF;
+        }
+        
+        [data-theme="dark"] .status-chip.disconnected {
+            color: #999999;
+        }
+        
+        [data-theme="dark"] .nav-item {
+            color: #FFFFFF;
+        }
+        
+        [data-theme="dark"] .file-icon {
+            color: #FFFFFF;
+        }
+        
+        /* Phone Frame */
+        .phone-frame {
+            width: 375px;
+            height: 812px;
+            margin: 20px auto;
+            background-color: var(--background);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px var(--shadow);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* Mobile Keyboard */
+        .mobile-keyboard {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 260px;
+            background-color: #D1D5DB;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            z-index: 100;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        [data-theme="dark"] .mobile-keyboard {
+            background-color: #2C2C2E;
+        }
+        
+        .mobile-keyboard.active {
+            transform: translateY(0);
+        }
+        
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            padding: 0 3px;
+            margin-bottom: 6px;
+        }
+        
+        .keyboard-key {
+            background-color: #FFFFFF;
+            border-radius: 5px;
+            flex: 1;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 23px;
+            font-weight: 400;
+            color: #000;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        [data-theme="dark"] .keyboard-key {
+            background-color: #505053;
+            color: #FFFFFF;
+        }
+        
+        .keyboard-key:active {
+            background-color: #E5E5E5;
+            transform: scale(1.1);
+        }
+        
+        .keyboard-key.space {
+            flex: 5;
+        }
+        
+        .keyboard-key.special {
+            background-color: #ACB3BD;
+            flex: 1.5;
+            font-size: 16px;
+        }
+        
+        [data-theme="dark"] .keyboard-key.special {
+            background-color: #3A3A3C;
+        }
+        
+        .keyboard-key.return {
+            background-color: var(--primary);
+            color: white;
+            flex: 1.5;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .keyboard-key.return i {
+            color: white !important;
+        }
+        
+        .keyboard-suggestions {
+            background-color: #F2F2F7;
+            padding: 8px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            border-bottom: 1px solid #C7C7CC;
+        }
+        
+        [data-theme="dark"] .keyboard-suggestions {
+            background-color: #1C1C1E;
+            border-bottom-color: #38383A;
+        }
+        
+        .keyboard-suggestion {
+            padding: 4px 12px;
+            background-color: white;
+            border-radius: 14px;
+            font-size: 16px;
+            color: #000;
+        }
+        
+        [data-theme="dark"] .keyboard-suggestion {
+            background-color: #38383A;
+            color: #FFFFFF;
+        }
+        
+        /* Status Bar */
+        .status-bar {
+            height: 44px;
+            background-color: var(--surface);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 var(--spacing-md);
+            font-size: 14px;
+        }
+        
+        /* Navigation */
+        .top-app-bar {
+            background-color: var(--surface);
+            box-shadow: 0 2px 4px var(--shadow);
+            position: relative;
+            z-index: 10;
+        }
+        
+        .app-bar-content {
+            height: 56px;
+            display: flex;
+            align-items: center;
+            padding: 0 var(--spacing-md);
+        }
+        
+        /* Segmented Control */
+        .segmented-control {
+            display: flex;
+            background-color: var(--surface-variant);
+            border-radius: 8px;
+            padding: 2px;
+            margin: 0 var(--spacing-md) var(--spacing-sm);
+            position: relative;
+        }
+        
+        .segment {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-radius: 6px;
+            z-index: 1;
+        }
+        
+        .segment i {
+            font-size: 16px;
+            opacity: 0.6;
+            transition: all 0.3s ease;
+        }
+        
+        .segment.active i {
+            opacity: 1;
+            color: var(--primary);
+        }
+        
+        .segment-indicator {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: calc(25% - 4px);
+            height: calc(100% - 4px);
+            background-color: var(--background);
+            border-radius: 6px;
+            box-shadow: 0 2px 4px var(--shadow);
+            transition: transform 0.3s ease;
+        }
+        
+        /* Content */
+        .content {
+            height: calc(100% - 44px - 56px);
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        #mainContent {
+            height: calc(100% - 44px - 56px);
+        }
+        
+        #mainContent.with-segments {
+            height: calc(100% - 44px - 96px);
+        }
+        
+        .content.with-segments {
+            height: 100%;
+            padding-bottom: 0;
+        }
+        
+        /* Screens */
+        .screen {
+            display: none;
+            padding: var(--spacing-md);
+            height: 100%;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        #projectScreen {
+            padding: 0;
+            position: relative;
+        }
+        
+        #projectScreen.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Cards */
+        .card {
+            background-color: var(--surface);
+            border-radius: 16px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+            box-shadow: 0 2px 8px var(--shadow);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid var(--outline);
+        }
+        
+        .card:hover {
+            box-shadow: 0 4px 16px var(--shadow);
+            transform: translateY(-2px);
+            border-color: var(--primary);
+        }
+        
+        .card.gradient {
+            background: var(--gradient-1);
+            border: none;
+            color: white;
+        }
+        
+        /* Project Card */
+        .project-card {
+            background-color: #3f4045;
+            border-radius: 16px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid #3A3A44;
+        }
+        
+        [data-theme="light"] .project-card {
+            background-color: #F5F5F5;
+            border-color: #E0E0E0;
+        }
+        
+        .project-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px var(--shadow);
+        }
+        
+        .project-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .project-icon.connected {
+            background-color: #15be88;
+        }
+        
+        .project-icon.connecting {
+            background-color: #FFB74D;
+        }
+        
+        .project-icon.disconnected {
+            background-color: #616161;
+        }
+        
+        .project-info {
+            flex: 1;
+        }
+        
+        .project-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        
+        .project-status {
+            font-size: 14px;
+            opacity: 0.6;
+        }
+        
+        .project-badge {
+            background-color: var(--primary);
+            color: white;
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+        
+        /* Buttons */
+        .button {
+            padding: var(--spacing-md) var(--spacing-lg);
+            border-radius: 12px;
+            border: none;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .button-primary {
+            background-color: var(--primary);
+            color: var(--on-primary);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+        }
+        
+        .button-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+        }
+        
+        .button-outlined {
+            background-color: transparent;
+            color: var(--on-surface);
+            border: 2px solid var(--outline);
+        }
+        
+        .button-outlined:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        /* FAB */
+        .fab {
+            position: absolute;
+            bottom: var(--spacing-lg);
+            right: var(--spacing-lg);
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background-color: var(--primary);
+            color: var(--on-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+            cursor: pointer;
+            font-size: 24px;
+            transition: all 0.3s ease;
+        }
+        
+        .fab:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(255, 107, 53, 0.5);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 400px;
+            text-align: center;
+        }
+        
+        .empty-state-icon {
+            font-size: 64px;
+            color: var(--outline);
+            margin-bottom: var(--spacing-md);
+        }
+        
+        /* Chat */
+        .chat-messages {
+            padding: var(--spacing-md);
+            padding-bottom: 80px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        
+        .message {
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .message-bubble {
+            padding: var(--spacing-sm) var(--spacing-md);
+            border-radius: 16px;
+            word-wrap: break-word;
+            background-color: var(--surface);
+            border: 1px solid var(--outline);
+            max-width: 100%;
+        }
+        
+        .message.user {
+            align-items: flex-end;
+        }
+        
+        .message.user .message-bubble {
+            background-color: var(--primary);
+            color: var(--on-primary);
+            border-bottom-right-radius: 4px;
+            border: none;
+        }
+        
+        .message.agent {
+            align-items: flex-start;
+        }
+        
+        .message.agent .message-bubble {
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-time {
+            font-size: 12px;
+            opacity: 0.5;
+            margin-top: 4px;
+            padding: 0 var(--spacing-sm);
+        }
+        
+        #chatTab {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-input {
+            position: absolute;
+            bottom: var(--spacing-lg);
+            left: var(--spacing-md);
+            right: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            z-index: 50;
+            transition: bottom 0.3s ease;
+        }
+        
+        .keyboard-active .chat-input {
+            bottom: 284px;
+        }
+        
+        .chat-input-bar {
+            flex: 1;
+            background-color: #2A2A34;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            padding: 4px;
+            box-shadow: 0 2px 8px var(--shadow);
+            border: 1px solid #3A3A44;
+        }
+        
+        [data-theme="light"] .chat-input-bar {
+            background-color: #E8E8E8;
+            border: 1px solid #D0D0D0;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--on-surface);
+            font-family: inherit;
+            font-size: 15px;
+            outline: none;
+        }
+        
+        .chat-input-bar button {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: #888888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        [data-theme="dark"] .chat-input-bar button i {
+            color: #888888 !important;
+        }
+        
+        .chat-input-bar button:hover {
+            background-color: var(--surface-variant);
+        }
+        
+        .chat-input-send {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background-color: var(--primary);
+            color: var(--on-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(255, 107, 53, 0.3);
+        }
+        
+        .chat-input-send:hover {
+            transform: scale(1.1);
+        }
+        
+        /* File Browser */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            overflow-x: auto;
+            padding: var(--spacing-sm) 0;
+            margin-bottom: var(--spacing-md);
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        
+        .breadcrumb::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .breadcrumb-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 16px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            min-height: 32px;
+        }
+        
+        .breadcrumb-chip:hover {
+            background-color: var(--surface-variant);
+        }
+        
+        .breadcrumb-chip.current {
+            color: var(--primary);
+            background-color: var(--primary-container);
+        }
+        
+        .breadcrumb-separator {
+            color: var(--outline);
+            font-size: 18px;
+            margin: 0 2px;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: var(--spacing-sm) 0;
+            border-bottom: 1px solid var(--surface-variant);
+            cursor: pointer;
+        }
+        
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: var(--spacing-md);
+            font-size: 24px;
+        }
+        
+        .file-info {
+            flex: 1;
+        }
+        
+        .file-name {
+            font-weight: 500;
+        }
+        
+        .file-details {
+            font-size: 12px;
+            opacity: 0.6;
+        }
+        
+        /* Settings */
+        .settings-section {
+            margin-bottom: var(--spacing-lg);
+        }
+        
+        .settings-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: var(--spacing-sm);
+            color: var(--primary);
+        }
+        
+        .settings-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-md) 0;
+            border-bottom: 1px solid var(--surface-variant);
+        }
+        
+        /* Status Chip */
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background-color: var(--surface-variant);
+            border: 1px solid var(--outline);
+        }
+        
+        .status-chip:before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-chip.connected {
+            color: #4CAF50;
+        }
+        
+        .status-chip.connected:before {
+            background-color: #4CAF50;
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+        }
+        
+        .status-chip.disconnected {
+            color: var(--outline);
+        }
+        
+        .status-chip.disconnected:before {
+            background-color: var(--outline);
+        }
+        
+        /* Icons */
+        .icon {
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Tabler Icon adjustments */
+        .ti {
+            font-size: 24px;
+            width: 24px;
+            height: 24px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Dialogs */
+        .dialog-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .dialog-overlay.active {
+            display: flex;
+        }
+        
+        .dialog {
+            background-color: var(--surface);
+            border-radius: 16px;
+            padding: var(--spacing-lg);
+            margin: var(--spacing-md);
+            max-width: 320px;
+            width: 100%;
+        }
+        
+        .dialog h2 {
+            font-size: 20px;
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: var(--spacing-sm);
+            margin-top: var(--spacing-lg);
+        }
+        
+        /* Form Elements */
+        .form-field {
+            margin-bottom: var(--spacing-md);
+        }
+        
+        .form-field label {
+            display: block;
+            margin-bottom: var(--spacing-xs);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .form-field input {
+            width: 100%;
+            padding: var(--spacing-sm);
+            border: 1px solid var(--outline);
+            border-radius: 8px;
+            background-color: var(--background);
+            color: var(--on-background);
+            font-family: inherit;
+        }
+        
+        /* Code Block */
+        .code-block {
+            background-color: var(--background);
+            border: none;
+            border-radius: 16px;
+            padding: var(--spacing-sm) var(--spacing-md);
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 0;
+            white-space: pre;
+        }
+        
+        pre.code-block {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .message-bubble.has-code {
+            padding: 0;
+            overflow: hidden;
+            background-color: var(--background);
+        }
+        
+        /* Progress */
+        .progress-item {
+            background-color: var(--surface);
+            border-radius: 8px;
+            padding: var(--spacing-md);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background-color: var(--surface-variant);
+            border-radius: 2px;
+            margin-top: var(--spacing-sm);
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary);
+            width: 60%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="phone-frame" data-theme="dark">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span>9:41 AM</span>
+            <span style="display: flex; gap: 4px; align-items: center;">
+                <i class="ti ti-antenna-bars-5" style="font-size: 16px;"></i>
+                <i class="ti ti-wifi" style="font-size: 16px;"></i>
+                <i class="ti ti-battery-4" style="font-size: 16px;"></i>
+            </span>
+        </div>
+        
+        <!-- Top App Bar -->
+        <div class="top-app-bar">
+            <div class="app-bar-content">
+                <i class="ti ti-menu-2" id="navIcon" style="cursor: pointer;"></i>
+                <h1 style="margin-left: 16px; font-size: 18px; flex: 1; font-weight: 600;">Pocket Agent</h1>
+                <i class="ti ti-sun" style="cursor: pointer;" onclick="toggleTheme()" id="themeIcon"></i>
+            </div>
+            <div class="segmented-control" id="projectSegments" style="display: none;">
+                <div class="segment-indicator"></div>
+                <div class="segment active" onclick="switchTab('chat')">
+                    <i class="ti ti-message-circle"></i>
+                </div>
+                <div class="segment" onclick="switchTab('files')">
+                    <i class="ti ti-folder"></i>
+                </div>
+                <div class="segment" onclick="switchTab('monitor')">
+                    <i class="ti ti-activity"></i>
+                </div>
+                <div class="segment" onclick="switchTab('settings')">
+                    <i class="ti ti-settings"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Content -->
+        <div class="content" id="mainContent">
+            <!-- Projects List Screen -->
+            <div class="screen active" id="projectsScreen">
+                <div style="padding: 16px 0 8px 0; display: flex; justify-content: space-between; align-items: center;">
+                    <h2 style="font-size: 20px; font-weight: 600; margin: 0;">Projects</h2>
+                    <a href="#" style="color: var(--primary); text-decoration: none; font-size: 14px; font-weight: 500;">See all</a>
+                </div>
+                <div id="projectsList">
+                    <!-- Project Cards -->
+                    <div class="project-card" onclick="openProject('project1')">
+                        <div class="project-icon connected">
+                            <i class="ti ti-prompt" style="font-size: 16px; color: white;"></i>
+                        </div>
+                        <div class="project-info">
+                            <div class="project-name">Personal Website</div>
+                        </div>
+                        <div class="project-badge">3</div>
+                    </div>
+                    
+                    <div class="project-card" onclick="openProject('project2')">
+                        <div class="project-icon disconnected">
+                            <i class="ti ti-plug-connected" style="font-size: 16px; color: white;"></i>
+                        </div>
+                        <div class="project-info">
+                            <div class="project-name">API Service</div>
+                        </div>
+                    </div>
+                    
+                    <div class="project-card" onclick="openProject('project3')">
+                        <div class="project-icon disconnected">
+                            <i class="ti ti-plug-connected" style="font-size: 16px; color: white;"></i>
+                        </div>
+                        <div class="project-info">
+                            <div class="project-name">ML Pipeline</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Empty State (hidden) -->
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <i class="ti ti-folder-off" style="font-size: 64px; color: var(--outline); margin-bottom: 16px;"></i>
+                    <h2>No projects yet</h2>
+                    <p style="opacity: 0.7; margin-bottom: 24px;">Create your first project to get started</p>
+                    <button class="button button-primary" onclick="showCreateProjectDialog()">Create Project</button>
+                </div>
+                
+                <!-- FAB -->
+                <div class="fab" onclick="showCreateProjectDialog()">
+                    <i class="ti ti-plus" style="font-size: 28px;"></i>
+                </div>
+            </div>
+            
+            <!-- Project Dashboard Screen -->
+            <div class="screen" id="projectScreen">
+                <div class="content with-segments">
+                    <!-- Chat Tab -->
+                    <div class="tab-content active" id="chatTab" style="position: relative; height: 100%;">
+                        <div class="chat-messages">
+                            <div class="message user">
+                                <div class="message-bubble">Hey Claude, can you help me fix the failing tests?</div>
+                                <div class="message-time">9:35 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble">I'll help you fix the failing tests. Let me first check what tests are failing.</div>
+                                <div class="message-time">9:35 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble has-code">
+                                    <pre class="code-block">npm test
+                                        
+Running test suite...
+✓ auth.test.js (5 tests)
+✗ api.test.js (3/8 tests failed)
+✓ utils.test.js (12 tests)</pre>
+                                </div>
+                                <div class="message-time">9:36 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble">I found 3 failing tests in api.test.js. Let me examine the errors and fix them.</div>
+                                <div class="message-time">9:36 AM</div>
+                            </div>
+                            
+                            <div class="message user">
+                                <div class="message-bubble">Thanks! Please make sure to run the tests again after fixing</div>
+                                <div class="message-time">9:37 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble">I'm analyzing the test failures now. It looks like there's an issue with the authentication middleware expecting a different token format.</div>
+                                <div class="message-time">9:37 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble has-code">
+                                    <pre class="code-block">// Fixed authentication middleware
+function authenticate(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  // Verify token logic here
+  next();
+}</pre>
+                                </div>
+                                <div class="message-time">9:38 AM</div>
+                            </div>
+                            
+                            <div class="message user">
+                                <div class="message-bubble">That looks good. What about the other failing tests?</div>
+                                <div class="message-time">9:38 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble">The other two failures are related to the response format. The tests expect a 'data' wrapper but the API is returning the response directly. Let me fix that.</div>
+                                <div class="message-time">9:39 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble has-code">
+                                    <pre class="code-block">git diff api.js
+@@ -45,7 +45,7 @@ router.get('/users', authenticate, async (req, res) => {
+   try {
+     const users = await User.findAll();
+-    res.json(users);
++    res.json({ data: users });
+   } catch (error) {
+     res.status(500).json({ error: error.message });
+   }</pre>
+                                </div>
+                                <div class="message-time">9:39 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble">All tests are now passing! Here's the final result:</div>
+                                <div class="message-time">9:40 AM</div>
+                            </div>
+                            
+                            <div class="message agent">
+                                <div class="message-bubble has-code">
+                                    <pre class="code-block">npm test
+
+Running test suite...
+✓ auth.test.js (5 tests)
+✓ api.test.js (8 tests)
+✓ utils.test.js (12 tests)
+
+Test Suites: 3 passed, 3 total
+Tests:       25 passed, 25 total
+Time:        2.451s</pre>
+                                </div>
+                                <div class="message-time">9:40 AM</div>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input">
+                            <div class="chat-input-bar">
+                                <input type="text" placeholder="Message" id="chatInput">
+                                <button>
+                                    <i class="ti ti-paperclip"></i>
+                                </button>
+                            </div>
+                            <button class="chat-input-send" onclick="sendMessage()">
+                                <i class="ti ti-send" style="font-size: 20px; transform: translateX(-1px) translateY(1px);"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Files Tab -->
+                    <div class="tab-content" id="filesTab" style="display: none;">
+                        <div style="padding: 16px;">
+                            <div class="breadcrumb">
+                                <div class="breadcrumb-chip" onclick="navigateToPath('/')">
+                                    Home
+                                </div>
+                                <i class="ti ti-chevron-right breadcrumb-separator"></i>
+                                <div class="breadcrumb-chip" onclick="navigateToPath('/projects')">
+                                    projects
+                                </div>
+                                <i class="ti ti-chevron-right breadcrumb-separator"></i>
+                                <div class="breadcrumb-chip current">
+                                    website
+                                </div>
+                            </div>
+                            
+                            <div class="file-item">
+                                <div class="file-icon">
+                                    <i class="ti ti-folder" style="color: var(--primary);"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name">src</div>
+                                    <div class="file-details">Modified 2 hours ago</div>
+                                </div>
+                            </div>
+                            
+                            <div class="file-item">
+                                <div class="file-icon">
+                                    <i class="ti ti-folder" style="color: var(--primary);"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name">tests</div>
+                                    <div class="file-details">Modified 1 hour ago</div>
+                                </div>
+                            </div>
+                            
+                            <div class="file-item">
+                                <div class="file-icon">
+                                    <i class="ti ti-file-code"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name">package.json</div>
+                                    <div class="file-details">2.1 KB • Modified 3 days ago</div>
+                                </div>
+                            </div>
+                            
+                            <div class="file-item">
+                                <div class="file-icon">
+                                    <i class="ti ti-markdown"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name">README.md</div>
+                                    <div class="file-details">5.8 KB • Modified 1 week ago</div>
+                                </div>
+                            </div>
+                            
+                            <div class="file-item">
+                                <div class="file-icon">
+                                    <i class="ti ti-file-code" style="color: #4CAF50;"></i>
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name">api.test.js</div>
+                                    <div class="file-details">3.2 KB • Modified just now</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Monitor Tab -->
+                    <div class="tab-content" id="monitorTab" style="display: none;">
+                        <div style="padding: 16px;">
+                            <div class="card">
+                                <h3 style="margin-bottom: 12px;">Active Processes</h3>
+                                <div class="progress-item">
+                                    <div style="display: flex; justify-content: space-between;">
+                                        <span>Claude Code Agent</span>
+                                        <span style="color: #4CAF50; font-size: 12px;">Running</span>
+                                    </div>
+                                    <div style="font-size: 12px; opacity: 0.6; margin-top: 4px;">
+                                        CPU: 12% • Memory: 256MB
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: 12%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card" style="margin-top: 16px;">
+                                <h3 style="margin-bottom: 12px;">Recent Activities</h3>
+                                <div style="font-size: 14px;">
+                                    <div style="padding: 8px 0; border-bottom: 1px solid var(--surface-variant);">
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span>Fixed failing tests</span>
+                                            <span style="font-size: 12px; opacity: 0.5;">2m ago</span>
+                                        </div>
+                                    </div>
+                                    <div style="padding: 8px 0; border-bottom: 1px solid var(--surface-variant);">
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span>Running test suite</span>
+                                            <span style="font-size: 12px; opacity: 0.5;">5m ago</span>
+                                        </div>
+                                    </div>
+                                    <div style="padding: 8px 0;">
+                                        <div style="display: flex; justify-content: space-between;">
+                                            <span>Analyzing code</span>
+                                            <span style="font-size: 12px; opacity: 0.5;">10m ago</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Settings Tab -->
+                    <div class="tab-content" id="settingsTab" style="display: none;">
+                        <div style="padding: 16px;">
+                            <div class="settings-section">
+                                <h3>Connection</h3>
+                                <div class="settings-item">
+                                    <span>Server URL</span>
+                                    <span style="opacity: 0.6; font-size: 14px;">home.dev:8080</span>
+                                </div>
+                                <div class="settings-item">
+                                    <span>Authentication</span>
+                                    <span class="status-chip connected">Active</span>
+                                </div>
+                                <div class="settings-item">
+                                    <span>Auto-reconnect</span>
+                                    <label class="switch">
+                                        <input type="checkbox" checked>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-section">
+                                <h3>Permissions</h3>
+                                <div class="settings-item">
+                                    <span>File access</span>
+                                    <span style="opacity: 0.6; font-size: 14px;">Project folder only</span>
+                                </div>
+                                <div class="settings-item">
+                                    <span>Command execution</span>
+                                    <span style="opacity: 0.6; font-size: 14px;">Ask every time</span>
+                                </div>
+                            </div>
+                            
+                            <div class="settings-section">
+                                <h3>About</h3>
+                                <div class="settings-item">
+                                    <span>Project path</span>
+                                    <span style="opacity: 0.6; font-size: 14px;">/home/user/projects/website</span>
+                                </div>
+                                <div class="settings-item">
+                                    <span>Claude version</span>
+                                    <span style="opacity: 0.6; font-size: 14px;">3.5.2</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Create Project Dialog -->
+        <div class="dialog-overlay" id="createProjectDialog">
+            <div class="dialog">
+                <h2>Create New Project</h2>
+                <div class="form-field">
+                    <label>Project Name</label>
+                    <input type="text" placeholder="My Project" id="projectName">
+                </div>
+                <div class="form-field">
+                    <label>Project Path</label>
+                    <input type="text" placeholder="/home/user/projects/myproject" id="projectPath">
+                </div>
+                <div class="form-field">
+                    <label>Server</label>
+                    <select style="width: 100%; padding: 8px; border: 1px solid var(--outline); border-radius: 8px; background-color: var(--background); color: var(--on-background);">
+                        <option>Home Dev Server (home.dev)</option>
+                        <option>Work Main Server (work.dev)</option>
+                        <option>+ Add New Server</option>
+                    </select>
+                </div>
+                <div class="dialog-actions">
+                    <button class="button button-outlined" onclick="hideDialog()">Cancel</button>
+                    <button class="button button-primary" onclick="createProject()">Create</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Permission Request Dialog -->
+        <div class="dialog-overlay" id="permissionDialog">
+            <div class="dialog">
+                <h2><i class="ti ti-lock" style="vertical-align: middle; margin-right: 8px;"></i>Permission Required</h2>
+                <p style="margin-bottom: 16px;">Claude wants to execute a command:</p>
+                <pre class="code-block">npm test</pre>
+                <div class="dialog-actions">
+                    <button class="button button-outlined" onclick="hideDialog()">Deny</button>
+                    <button class="button button-primary" onclick="hideDialog()">Allow</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile Keyboard -->
+        <div class="mobile-keyboard" id="mobileKeyboard">
+            <div class="keyboard-suggestions">
+                <div class="keyboard-suggestion">test</div>
+                <div class="keyboard-suggestion">tests</div>
+                <div class="keyboard-suggestion">testing</div>
+            </div>
+            <div style="padding: 8px 3px;">
+                <div class="keyboard-row">
+                    <div class="keyboard-key">q</div>
+                    <div class="keyboard-key">w</div>
+                    <div class="keyboard-key">e</div>
+                    <div class="keyboard-key">r</div>
+                    <div class="keyboard-key">t</div>
+                    <div class="keyboard-key">y</div>
+                    <div class="keyboard-key">u</div>
+                    <div class="keyboard-key">i</div>
+                    <div class="keyboard-key">o</div>
+                    <div class="keyboard-key">p</div>
+                </div>
+                <div class="keyboard-row" style="padding: 0 18px;">
+                    <div class="keyboard-key">a</div>
+                    <div class="keyboard-key">s</div>
+                    <div class="keyboard-key">d</div>
+                    <div class="keyboard-key">f</div>
+                    <div class="keyboard-key">g</div>
+                    <div class="keyboard-key">h</div>
+                    <div class="keyboard-key">j</div>
+                    <div class="keyboard-key">k</div>
+                    <div class="keyboard-key">l</div>
+                </div>
+                <div class="keyboard-row">
+                    <div class="keyboard-key special">⇧</div>
+                    <div class="keyboard-key">z</div>
+                    <div class="keyboard-key">x</div>
+                    <div class="keyboard-key">c</div>
+                    <div class="keyboard-key">v</div>
+                    <div class="keyboard-key">b</div>
+                    <div class="keyboard-key">n</div>
+                    <div class="keyboard-key">m</div>
+                    <div class="keyboard-key special">⌫</div>
+                </div>
+                <div class="keyboard-row">
+                    <div class="keyboard-key special">123</div>
+                    <div class="keyboard-key special">🌐</div>
+                    <div class="keyboard-key space">space</div>
+                    <div class="keyboard-key return" onclick="sendMessage()">
+                        <i class="ti ti-send" style="font-size: 18px;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Mock data
+        const projects = [
+            { id: 'project1', name: 'Personal Website', path: '/home/user/projects/website', status: 'connected' },
+            { id: 'project2', name: 'API Service', path: '/opt/projects/api-service', status: 'disconnected' },
+            { id: 'project3', name: 'ML Pipeline', path: '/data/ml-projects/pipeline', status: 'disconnected' }
+        ];
+        
+        let currentProject = null;
+        let currentTab = 'chat';
+        let keyboardVisible = false;
+        
+        // Navigation
+        document.getElementById('navIcon').addEventListener('click', function() {
+            if (currentProject) {
+                // Hide keyboard if open
+                if (keyboardVisible) {
+                    hideKeyboard();
+                }
+                // Go back to projects list
+                currentProject = null;
+                document.getElementById('projectsScreen').classList.add('active');
+                document.getElementById('projectScreen').classList.remove('active');
+                document.querySelector('.top-app-bar h1').textContent = 'Pocket Agent';
+                document.getElementById('navIcon').className = 'ti ti-menu-2';
+                document.getElementById('projectSegments').style.display = 'none';
+                document.getElementById('mainContent').classList.remove('with-segments');
+            }
+        });
+        
+        function openProject(projectId) {
+            currentProject = projects.find(p => p.id === projectId);
+            document.getElementById('projectsScreen').classList.remove('active');
+            document.getElementById('projectScreen').classList.add('active');
+            document.querySelector('.top-app-bar h1').textContent = currentProject.name;
+            document.getElementById('navIcon').className = 'ti ti-arrow-left';
+            document.getElementById('projectSegments').style.display = 'flex';
+            document.getElementById('mainContent').classList.add('with-segments');
+            updateSegmentIndicator(0); // Start at chat tab
+        }
+        
+        function switchTab(tab) {
+            // Hide keyboard if switching away from chat
+            if (currentTab === 'chat' && tab !== 'chat' && keyboardVisible) {
+                hideKeyboard();
+            }
+            
+            currentTab = tab;
+            const tabs = ['chat', 'files', 'monitor', 'settings'];
+            const index = tabs.indexOf(tab);
+            
+            // Update segments
+            document.querySelectorAll('.segment').forEach(item => item.classList.remove('active'));
+            document.querySelectorAll('.segment')[index].classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+            document.getElementById(tab + 'Tab').style.display = 'block';
+            
+            // Update indicator position
+            updateSegmentIndicator(index);
+        }
+        
+        function updateSegmentIndicator(index) {
+            const indicator = document.querySelector('.segment-indicator');
+            if (indicator) {
+                indicator.style.transform = `translateX(${index * 100}%)`;
+            }
+        }
+        
+        // Dialogs
+        function showCreateProjectDialog() {
+            document.getElementById('createProjectDialog').classList.add('active');
+        }
+        
+        function hideDialog() {
+            document.querySelectorAll('.dialog-overlay').forEach(dialog => {
+                dialog.classList.remove('active');
+            });
+        }
+        
+        function createProject() {
+            const name = document.getElementById('projectName').value;
+            const path = document.getElementById('projectPath').value;
+            
+            if (name && path) {
+                // Add new project to list
+                const newProject = {
+                    id: 'project' + (projects.length + 1),
+                    name: name,
+                    path: path,
+                    status: 'disconnected'
+                };
+                projects.push(newProject);
+                
+                // Hide empty state if shown
+                document.getElementById('emptyState').style.display = 'none';
+                document.getElementById('projectsList').style.display = 'block';
+                
+                // Add project card
+                const card = document.createElement('div');
+                card.className = 'project-card';
+                card.onclick = () => openProject(newProject.id);
+                card.innerHTML = `
+                    <div class="project-icon disconnected">
+                        <i class="ti ti-plug-connected" style="font-size: 16px; color: white;"></i>
+                    </div>
+                    <div class="project-info">
+                        <h3>${name}</h3>
+                    </div>
+                    <div class="project-badge">
+                        <span>NEW</span>
+                    </div>
+                `;
+                document.getElementById('projectsList').appendChild(card);
+                
+                hideDialog();
+                
+                // Clear form
+                document.getElementById('projectName').value = '';
+                document.getElementById('projectPath').value = '';
+            }
+        }
+        
+        // Chat functionality
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            
+            if (message) {
+                const chatMessages = document.querySelector('.chat-messages');
+                
+                // Add user message
+                const userMessage = document.createElement('div');
+                userMessage.className = 'message user';
+                userMessage.innerHTML = `
+                    <div class="message-bubble">${message}</div>
+                    <div class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                `;
+                chatMessages.appendChild(userMessage);
+                
+                // Simulate agent response
+                setTimeout(() => {
+                    const agentMessage = document.createElement('div');
+                    agentMessage.className = 'message agent';
+                    agentMessage.innerHTML = `
+                        <div class="message-bubble">I'll help you with that. Let me analyze your request...</div>
+                        <div class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    `;
+                    chatMessages.appendChild(agentMessage);
+                    
+                    // Scroll to bottom
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }, 1000);
+                
+                // Clear input
+                input.value = '';
+                
+                // Scroll to bottom
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Keep focus on input to maintain keyboard
+                input.focus();
+            }
+        }
+        
+        // Theme toggle
+        function toggleTheme() {
+            const phoneFrame = document.querySelector('.phone-frame');
+            const currentTheme = phoneFrame.getAttribute('data-theme');
+            const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+            phoneFrame.setAttribute('data-theme', newTheme);
+            
+            // Update theme icon
+            const themeIcon = document.getElementById('themeIcon');
+            themeIcon.className = newTheme === 'light' ? 'ti ti-moon' : 'ti ti-sun';
+        }
+        
+        // Enter key to send message
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Show empty state if no projects
+        if (projects.length === 0) {
+            document.getElementById('projectsList').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'flex';
+        }
+        
+        // File navigation
+        function navigateToPath(path) {
+            console.log('Navigate to:', path);
+            // In a real app, this would update the file listing
+        }
+        
+        // Mobile keyboard handling
+        const chatInput = document.getElementById('chatInput');
+        const mobileKeyboard = document.getElementById('mobileKeyboard');
+        const chatInputBar = document.querySelector('.chat-input-bar');
+        const chatInputSend = document.querySelector('.chat-input-send');
+        
+        // Click on chat input bar focuses the input
+        chatInputBar.addEventListener('click', (e) => {
+            if (e.target !== chatInput) {
+                chatInput.focus();
+            }
+        });
+        
+        // Show keyboard when focusing on input
+        chatInput.addEventListener('focus', () => {
+            if (currentTab === 'chat') {
+                showKeyboard();
+            }
+        });
+        
+        // Function to show keyboard
+        function showKeyboard() {
+            mobileKeyboard.classList.add('active');
+            document.getElementById('chatTab').classList.add('keyboard-active');
+            keyboardVisible = true;
+            // Adjust chat messages padding to account for keyboard
+            document.querySelector('.chat-messages').style.paddingBottom = '340px';
+            // Scroll to bottom to show latest messages
+            const chatMessages = document.querySelector('.chat-messages');
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 300);
+        }
+        
+        // Function to hide keyboard
+        function hideKeyboard() {
+            mobileKeyboard.classList.remove('active');
+            document.getElementById('chatTab').classList.remove('keyboard-active');
+            keyboardVisible = false;
+            // Reset chat messages padding
+            document.querySelector('.chat-messages').style.paddingBottom = '80px';
+            chatInput.blur();
+        }
+        
+        // Close keyboard when clicking in chat messages area
+        document.querySelector('.chat-messages').addEventListener('click', () => {
+            if (keyboardVisible) {
+                hideKeyboard();
+            }
+        });
+        
+        // Return key is now handled by sendMessage() function
+        
+        // Swipe gesture support
+        let touchStartX = 0;
+        let touchEndX = 0;
+        
+        document.getElementById('projectScreen').addEventListener('touchstart', e => {
+            touchStartX = e.changedTouches[0].screenX;
+        });
+        
+        document.getElementById('projectScreen').addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipeGesture();
+        });
+        
+        function handleSwipeGesture() {
+            const swipeThreshold = 50;
+            const tabs = ['chat', 'files', 'monitor', 'settings'];
+            const currentIndex = tabs.indexOf(currentTab);
+            
+            if (touchEndX < touchStartX - swipeThreshold) {
+                // Swipe left - go to next tab
+                if (currentIndex < tabs.length - 1) {
+                    switchTab(tabs[currentIndex + 1]);
+                }
+            } else if (touchEndX > touchStartX + swipeThreshold) {
+                // Swipe right - go to previous tab
+                if (currentIndex > 0) {
+                    switchTab(tabs[currentIndex - 1]);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
