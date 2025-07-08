@@ -26,13 +26,20 @@ This document provides a comprehensive table of contents for all documentation a
   - Technical specification for data layer implementation
   - Entity management architecture and components
 
-- **[communication-layer.feat.md](./communication-layer.feat.md)** - Communication layer feature
+- **[communication-layer/](./communication-layer/)** - Communication layer feature (split into multiple files)
+  - **[communication-layer-index.md](./communication-layer/communication-layer-index.md)** - Index and navigation for communication layer docs
   - Inter-component communication specifications
-  - API and messaging architecture
+  - WebSocket implementation, authentication, message protocol
 
-- **[background-services.feat.md](./background-services.feat.md)** - Background services feature
-  - Service worker and background task specifications
-  - Async processing and job management
+- **[background-services/](./background-services/)** - Background services feature (split into multiple files)
+  - **[background-services-index.md](./background-services/background-services-index.md)** - Index and navigation for background services docs
+  - Android foreground service implementation
+  - Notification system, monitoring, and optimization
+
+- **[ui-navigation-foundation/](./ui-navigation-foundation/)** - UI navigation foundation feature (split into multiple files)
+  - **[ui-navigation-index.md](./ui-navigation-foundation/ui-navigation-index.md)** - Index and navigation for UI navigation docs
+  - Navigation framework, theme system, base components
+  - Screen scaffolding and state management
 
 - **[screen-design.feat.md](./screen-design.feat.md)** - Screen design and UI layout feature
   - UI/UX specifications and design patterns
@@ -41,10 +48,6 @@ This document provides a comprehensive table of contents for all documentation a
 - **[security-authentication.feat.md](./security-authentication.feat.md)** - Security and authentication feature
   - Authentication mechanisms and security protocols
   - User authorization and access control
-
-- **[ui-navigation-foundation.feat.md](./ui-navigation-foundation.feat.md)** - UI navigation foundation feature
-  - Navigation structure and routing specifications
-  - User interface navigation patterns
 
 - **[voice-integration.feat.md](./voice-integration.feat.md)** - Voice integration feature ⚠️ **Future Release**
   - Voice command and speech recognition specifications (deferred)
@@ -55,6 +58,20 @@ This document provides a comprehensive table of contents for all documentation a
 - **[feature-list.info.md](./feature-list.info.md)** - List of features and their status
   - Comprehensive feature inventory
   - Feature categorization and implementation status
+
+### SDK and Integration Documentation
+
+- **[claude-code-sdk-messages.spec.md](./claude-code-sdk-messages.spec.md)** - Claude Code SDK message format
+  - Actual message schema from Claude Code SDK
+  - Shows unstructured text format, not progress data
+
+- **[wrapper-service-translation.spec.md](./wrapper-service-translation.spec.md)** - Wrapper service translation requirements
+  - How wrapper translates between Claude Code SDK and mobile app formats
+  - Natural language parsing requirements for progress extraction
+
+- **[RENAMING_NOTES.md](./RENAMING_NOTES.md)** - Service renaming documentation
+  - Tracks all service and component name changes
+  - Documents v1 simplifications
 
 ### Templates and Resources
 

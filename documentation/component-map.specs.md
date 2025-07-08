@@ -7,7 +7,7 @@ App Root
 │
 ├── Global Services (Always Active)
 │   ├── ThemeManager
-│   ├── ClaudeBackgroundService
+│   ├── BackgroundOperationsService
 │   │   ├── BatteryAwarePoller
 │   │   ├── NotificationManager
 │   │   │   ├── PermissionNotification
@@ -100,7 +100,7 @@ App Root
 - **Each Screen** → Contains its specific UI components
 
 ### Cross-Screen Dependencies
-- **ClaudeBackgroundService** → Monitors all active projects
+- **BackgroundOperationsService** → Manages all background operations and monitoring
 - **Data Repositories** → Shared across all screens
 - **BiometricPrompt** → Used by multiple screens for security
 - **NotificationManager** → Triggered by background service, affects all screens

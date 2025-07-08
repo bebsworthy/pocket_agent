@@ -349,29 +349,23 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant M as Mobile App
-    participant SSH as SSH Tunnel Manager
     participant KS as Android Keystore
     participant W as Wrapper Service
     participant C as Claude Code
     
     Note over M: User taps "Connect" on project
     M->>M: Check project SSH identity
-    M->>KS: Request biometric authentication
-    KS->>M: Show biometric prompt
-    M->>KS: User provides biometric
-    KS->>M: Authentication successful
+    M->>M: App already authenticated at launch
     
-    M->>SSH: Decrypt SSH private key
-    SSH->>KS: Retrieve encrypted key
-    KS->>SSH: Return decrypted key
+    M->>KS: Retrieve SSH private key
+    KS->>M: Return decrypted key (already unlocked)
     
-    M->>SSH: Establish SSH tunnel
-    SSH->>SSH: Connect to server (hostname:port)
-    SSH->>SSH: Setup port forwarding (local:remote)
-    SSH->>M: Return local port
-    
-    M->>W: Connect WebSocket via tunnel
-    W->>M: Connection established
+    M->>W: Connect WebSocket (WSS)
+    W->>M: auth_challenge {nonce, timestamp}
+    M->>M: Sign challenge with SSH private key
+    M->>W: auth_response {publicKey, signature}
+    W->>W: Verify SSH key signature
+    W->>M: auth_success {sessionId}
     
     M->>W: Send session_resume or new session
     W->>C: Initialize Claude Code process
@@ -452,31 +446,31 @@ sequenceDiagram
 sequenceDiagram
     participant M as Mobile App
     participant CM as Connection Manager
-    participant SSH as SSH Tunnel
     participant W as Wrapper Service
     participant BS as Background Service
     participant N as Notification Manager
     
     Note over M,W: Normal operation
-    SSH--XW: SSH tunnel failure
+    W--XM: WebSocket connection failure
     CM->>CM: Detect connection loss
     CM->>BS: Report connection failure
     BS->>N: Show "Connection Lost" notification
     
     CM->>CM: Start exponential backoff
-    CM->>SSH: Attempt 1 (immediate)
-    SSH--XCM: Failed
+    CM->>W: Attempt 1 (immediate)
+    W--XCM: Failed
     
     CM->>CM: Wait 2 seconds
-    CM->>SSH: Attempt 2
-    SSH--XCM: Failed
+    CM->>W: Attempt 2
+    W--XCM: Failed
     
     CM->>CM: Wait 4 seconds
-    CM->>SSH: Attempt 3
-    SSH->>CM: Connection successful
+    CM->>W: Attempt 3 with re-authentication
+    W->>CM: auth_challenge
+    CM->>CM: Sign with SSH key
+    CM->>W: auth_response
+    W->>CM: auth_success
     
-    CM->>W: Re-establish WebSocket
-    W->>CM: WebSocket connected
     CM->>BS: Report connection restored
     BS->>N: Update notification (connected)
     BS->>M: Sync missed messages
@@ -547,7 +541,6 @@ sequenceDiagram
 sequenceDiagram
     participant U as User
     participant M as Mobile App
-    participant SSH as SSH Tunnel Manager
     participant W as Wrapper Service
     participant Git as Git Server
     participant TV as Token Vault
@@ -555,13 +548,13 @@ sequenceDiagram
     Note over U: User creates new project
     U->>M: Provide GitHub repo URL
     U->>M: Select server profile
-    M->>TV: Request GitHub token (biometric auth)
+    M->>TV: Request GitHub token (already unlocked)
     TV->>M: Return decrypted token
     
-    M->>SSH: Establish tunnel to server
-    SSH->>M: Tunnel ready (local port)
-    M->>W: Connect to wrapper service
-    W->>M: Connection established
+    M->>W: Connect WebSocket with SSH key auth
+    W->>M: auth_challenge
+    M->>W: auth_response (signed with SSH key)
+    W->>M: auth_success
     
     M->>W: Initialize project (repo URL + token)
     W->>Git: Clone repository to project path
@@ -570,32 +563,32 @@ sequenceDiagram
     W->>W: Initialize wrapper configuration
     W->>M: Project initialized successfully
     
-    M->>M: Save project to local database
+    M->>M: Save project to encrypted JSON storage
     M->>M: Navigate to project dashboard
 ```
 
-### Database Migration and Sync Flow
+### Data Migration and Sync Flow
 ```mermaid
 sequenceDiagram
     participant A as Android System
     participant M as Mobile App
-    participant DB as Room Database
+    participant JS as JSON Storage
     participant MIG as Migration Manager
-    participant REPO as Repositories
+    participant REPO as SecureDataRepository
     
     Note over A: App update installed
     A->>M: Launch updated app
-    M->>DB: Initialize database
-    DB->>MIG: Check schema version
+    M->>JS: Load encrypted JSON file
+    JS->>MIG: Check data version
     MIG->>MIG: Compare versions (v1.0 -> v1.1)
     
     alt Migration needed
-        MIG->>DB: Backup current database
-        MIG->>DB: Execute migration SQL
-        DB->>MIG: Migration successful
-        MIG->>REPO: Refresh repository caches
+        MIG->>JS: Backup current data
+        MIG->>JS: Transform data structure
+        JS->>MIG: Migration successful
+        MIG->>REPO: Refresh in-memory cache
     else No migration needed
-        DB->>M: Database ready
+        JS->>M: Data ready
     end
     
     M->>REPO: Load projects and profiles
@@ -759,7 +752,8 @@ class ConnectionManager {
     }
     
     suspend fun authenticate(sshKey: SshKey): String {
-        // Handle SSH key authentication during connection
+        // Handle SSH key authentication for WebSocket connection (not SSH tunneling)
+        // Uses challenge-response authentication over WSS
         return performSshKeyAuth(sshKey)
     }
 }

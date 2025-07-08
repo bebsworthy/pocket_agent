@@ -6,9 +6,9 @@ The following feature specifications are available for implementation:
 
 - **[Data Layer & Entity Management](./data-layer-entity-management.feat.md)** - Complete specification for database, entities, and repositories (✅ Ready for implementation)
 - **[Security & Authentication](./security-authentication.feat.md)** - Complete specification for biometric auth, SSH key import, token vault, and secure storage (✅ Ready for implementation)
-- **[Communication Layer](./communication-layer.feat.md)** - Complete specification for direct WebSocket connections with SSH key authentication, message protocol, and connection management (✅ Ready for implementation)
-- **[UI Navigation & Foundation](./ui-navigation-foundation.feat.md)** - Complete specification for navigation framework, Material Design 3 theme, base UI components, and screen scaffolding (✅ Ready for implementation)
-- **[Background Services](./background-services.feat.md)** - Complete specification for foreground service, notifications, WorkManager integration, battery optimization, and background monitoring (✅ Ready for implementation)
+- **[Communication Layer](./communication-layer/)** - Complete specification for direct WebSocket connections with SSH key authentication, message protocol, and connection management (✅ Ready for implementation) - **[Index](./communication-layer/communication-layer-index.md)**
+- **[UI Navigation & Foundation](./ui-navigation-foundation/)** - Complete specification for navigation framework, Material Design 3 theme, base UI components, and screen scaffolding (✅ Ready for implementation) - **[Index](./ui-navigation-foundation/ui-navigation-index.md)**
+- **[Background Services](./background-services/)** - Complete specification for foreground service, notifications, WorkManager integration, battery optimization, and background monitoring (✅ Ready for implementation) - **[Index](./background-services/background-services-index.md)**
 - **[Voice Integration](./voice-integration.feat.md)** - Complete specification for speech-to-text, text-to-speech, voice commands, audio permissions, and voice UI components (⚠️ Future Release - Deferred due to complexity)
 - **[Screen Design & UI](./screen-design.feat.md)** - Complete specification for all screens, user flows, visual design system, and interaction patterns (✅ Ready for implementation)
 
@@ -35,7 +35,7 @@ Based on the frontend specification analysis, here are the **key functional area
 - Secure credential storage for tokens and SSH keys
 - Encrypted SharedPreferences setup
 
-### 3. **Communication Layer** ✅ **[Full Specification Available](./communication-layer.feat.md)**
+### 3. **Communication Layer** ✅ **[Full Specification Available](./communication-layer/communication-layer-index.md)**
 **Independent Implementation Area** 
 - WebSocket client implementation (OkHttp3)
 - SSH key authentication (challenge-response)
@@ -44,7 +44,7 @@ Based on the frontend specification analysis, here are the **key functional area
 - Reconnection logic with exponential backoff
 - Authentication session management
 
-### 4. **UI Navigation & Foundation** ✅ **[Full Specification Available](./ui-navigation-foundation.feat.md)**
+### 4. **UI Navigation & Foundation** ✅ **[Full Specification Available](./ui-navigation-foundation/ui-navigation-index.md)**
 **Independent Implementation Area**
 - Jetpack Compose setup with Material Design 3
 - Navigation structure (bottom tabs, app-level navigation)
@@ -52,7 +52,7 @@ Based on the frontend specification analysis, here are the **key functional area
 - Screen scaffolding for all major screens
 - Theme management (dark/light modes)
 
-### 5. **Background Services** ✅ **[Full Specification Available](./background-services.feat.md)**
+### 5. **Background Services** ✅ **[Full Specification Available](./background-services/background-services-index.md)**
 **Independent Implementation Area**
 - Foreground service for monitoring
 - WorkManager integration  
