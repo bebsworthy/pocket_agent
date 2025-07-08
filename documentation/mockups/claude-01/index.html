@@ -353,6 +353,8 @@
             cursor: pointer;
             transition: all 0.3s ease;
             border: 1px solid #3A3A44;
+            position: relative;
+            overflow: hidden;
         }
         
         [data-theme="light"] .project-card {
@@ -392,6 +394,58 @@
         
         .project-info {
             flex: 1;
+        }
+        
+        .project-stats {
+            display: flex;
+            gap: 12px;
+            margin-top: 6px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .project-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .project-stat i {
+            font-size: 14px;
+        }
+        
+        
+        .filter-chips {
+            display: flex;
+            gap: 8px;
+            padding: 0 0 16px 0;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .filter-chips::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .filter-chip {
+            background-color: var(--surface-variant);
+            color: var(--on-surface);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        
+        .filter-chip.active {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .filter-chip:hover {
+            transform: translateY(-1px);
         }
         
         .project-name {
@@ -931,9 +985,16 @@
         <div class="content" id="mainContent">
             <!-- Projects List Screen -->
             <div class="screen active" id="projectsScreen">
-                <div style="padding: 16px 0 8px 0; display: flex; justify-content: space-between; align-items: center;">
+                <!-- Projects Section -->
+                <div style="padding: 8px 0 16px 0;">
                     <h2 style="font-size: 20px; font-weight: 600; margin: 0;">Projects</h2>
-                    <a href="#" style="color: var(--primary); text-decoration: none; font-size: 14px; font-weight: 500;">See all</a>
+                </div>
+                <div class="filter-chips">
+                    <div class="filter-chip active">All</div>
+                    <div class="filter-chip">Active</div>
+                    <div class="filter-chip">Connected</div>
+                    <div class="filter-chip">Recent</div>
+                    <div class="filter-chip">Has Changes</div>
                 </div>
                 <div id="projectsList">
                     <!-- Project Cards -->
@@ -943,6 +1004,16 @@
                         </div>
                         <div class="project-info">
                             <div class="project-name">Personal Website</div>
+                            <div class="project-stats">
+                                <div class="project-stat">
+                                    <i class="ti ti-git-branch"></i>
+                                    <span>main</span>
+                                </div>
+                                <div class="project-stat">
+                                    <i class="ti ti-file-diff"></i>
+                                    <span>5 changes</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="project-badge">3</div>
                     </div>
@@ -953,6 +1024,12 @@
                         </div>
                         <div class="project-info">
                             <div class="project-name">API Service</div>
+                            <div class="project-stats">
+                                <div class="project-stat">
+                                    <i class="ti ti-git-branch"></i>
+                                    <span>develop</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -962,6 +1039,16 @@
                         </div>
                         <div class="project-info">
                             <div class="project-name">ML Pipeline</div>
+                            <div class="project-stats">
+                                <div class="project-stat">
+                                    <i class="ti ti-git-branch"></i>
+                                    <span>feature/v2</span>
+                                </div>
+                                <div class="project-stat">
+                                    <i class="ti ti-file-diff"></i>
+                                    <span>12 changes</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1464,7 +1551,13 @@ Time:        2.451s</pre>
                         <i class="ti ti-plug-connected" style="font-size: 16px; color: white;"></i>
                     </div>
                     <div class="project-info">
-                        <h3>${name}</h3>
+                        <div class="project-name">${name}</div>
+                        <div class="project-stats">
+                            <div class="project-stat">
+                                <i class="ti ti-git-branch"></i>
+                                <span>main</span>
+                            </div>
+                        </div>
                     </div>
                     <div class="project-badge">
                         <span>NEW</span>
