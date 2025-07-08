@@ -111,12 +111,15 @@ Used to indicate that I have answered the questions or issue raised in `open-que
 All the documentation for the project is available in ./documentation/ 
 
 - [project.spec.md - The overview of the project](./documentation/project.specs.md) **ALWAYS READ THIS FILE**
-- [frontend.spec.md - The technical specification for the frontend](./documentation/frontend.spec.md) **ALWAYS READ THIS FILE BEFORE WORKING ON THE FRONTEND**
+- Mobile app specifications are located in `./documentation/mobile-app-spec/`:
+  - [frontend.spec.md - The technical specification for the mobile app frontend](./documentation/mobile-app-spec/frontend.spec.md) **ALWAYS READ THIS FILE BEFORE WORKING ON THE MOBILE APP**
+  - All mobile app features and components are documented in the mobile-app-spec subdirectory
 - [backend.spec.md - The technical specification for the backend](./documentation/backend.spec.md) **ALWAYS READ THIS FILE BEFORE WORKING ON THE BACKEND**
 
 
 **Others files pattern**
  * `*.feat.md`: Technical specification about a specific feature (usually under development or preparation). **ALWAYS READ THIS FILE IF MENTIONNED IN THE CURRENT TASK or read as needed**
+   - Mobile app features are in `./documentation/mobile-app-spec/*.feat.md`
  * `*.spec.md`: Technical specification about a specific component other than the backend or the frontend (for example an external API or function) **ALWAYS READ THIS FILE IF MENTIONNED IN THE CURRENT TASK or read as needed**
 
 ### About `project.spec.md`
@@ -216,7 +219,7 @@ By adhering to this structured markdown format, you provide a clear, unambiguous
 
 ---
 
-## 5. Codign rules
+## 5. Coding rules
 
 List of coding rules for this project based on language and framework best practices
 ```

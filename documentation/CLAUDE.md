@@ -11,51 +11,57 @@ This document provides a comprehensive table of contents for all documentation a
   - Project structure and folder organization
   - Project-specific rules and guidelines
 
-- **[frontend.spec.md](./frontend.spec.md)** - The technical specification for the frontend
+### Mobile App Specifications
+
+All mobile app specific documentation is located in the **[mobile-app-spec/](./mobile-app-spec/)** directory:
+
+- **[frontend.spec.md](./mobile-app-spec/frontend.spec.md)** - The technical specification for the mobile app frontend
   - Architecture and technology stack
   - Directory structure and coding standards
   - Feature specifications and global concepts
   - Deployment and build process
 
-- **[component-map.specs.md](./component-map.specs.md)** - Component mapping and architecture specifications
+- **[component-map.specs.md](./mobile-app-spec/component-map.specs.md)** - Component mapping and architecture specifications
   - System component relationships and dependencies
 
-### Feature Documentation
+### Mobile App Feature Documentation
 
-- **[data-layer-entity-management.feat.md](./data-layer-entity-management.feat.md)** - Data layer entity management feature
+All feature documentation is located in the **[mobile-app-spec/](./mobile-app-spec/)** directory:
+
+- **[data-layer-entity-management.feat.md](./mobile-app-spec/data-layer-entity-management.feat.md)** - Data layer entity management feature
   - Technical specification for data layer implementation
   - Entity management architecture and components
 
-- **[communication-layer/](./communication-layer/)** - Communication layer feature (split into multiple files)
-  - **[communication-layer-index.md](./communication-layer/communication-layer-index.md)** - Index and navigation for communication layer docs
+- **[communication-layer/](./mobile-app-spec/communication-layer/)** - Communication layer feature (split into multiple files)
+  - **[communication-layer-index.md](./mobile-app-spec/communication-layer/communication-layer-index.md)** - Index and navigation for communication layer docs
   - Inter-component communication specifications
   - WebSocket implementation, authentication, message protocol
 
-- **[background-services/](./background-services/)** - Background services feature (split into multiple files)
-  - **[background-services-index.md](./background-services/background-services-index.md)** - Index and navigation for background services docs
+- **[background-services/](./mobile-app-spec/background-services/)** - Background services feature (split into multiple files)
+  - **[background-services-index.md](./mobile-app-spec/background-services/background-services-index.md)** - Index and navigation for background services docs
   - Android foreground service implementation
   - Notification system, monitoring, and optimization
 
-- **[ui-navigation-foundation/](./ui-navigation-foundation/)** - UI navigation foundation feature (split into multiple files)
-  - **[ui-navigation-index.md](./ui-navigation-foundation/ui-navigation-index.md)** - Index and navigation for UI navigation docs
+- **[ui-navigation-foundation/](./mobile-app-spec/ui-navigation-foundation/)** - UI navigation foundation feature (split into multiple files)
+  - **[ui-navigation-index.md](./mobile-app-spec/ui-navigation-foundation/ui-navigation-index.md)** - Index and navigation for UI navigation docs
   - Navigation framework, theme system, base components
   - Screen scaffolding and state management
 
-- **[screen-design.feat.md](./screen-design.feat.md)** - Screen design and UI layout feature
+- **[screen-design.feat.md](./mobile-app-spec/screen-design.feat.md)** - Screen design and UI layout feature
   - UI/UX specifications and design patterns
   - Screen layouts and component designs
 
-- **[security-authentication.feat.md](./security-authentication.feat.md)** - Security and authentication feature
+- **[security-authentication.feat.md](./mobile-app-spec/security-authentication.feat.md)** - Security and authentication feature
   - Authentication mechanisms and security protocols
   - User authorization and access control
 
-- **[voice-integration.feat.md](./voice-integration.feat.md)** - Voice integration feature ⚠️ **Future Release**
+- **[voice-integration.feat.md](./mobile-app-spec/voice-integration.feat.md)** - Voice integration feature ⚠️ **Future Release**
   - Voice command and speech recognition specifications (deferred)
   - Audio processing and voice interaction design (deferred)
 
-### Information Files
+### Mobile App Information Files
 
-- **[feature-list.info.md](./feature-list.info.md)** - List of features and their status
+- **[feature-list.info.md](./mobile-app-spec/feature-list.info.md)** - List of features and their status
   - Comprehensive feature inventory
   - Feature categorization and implementation status
 
@@ -64,14 +70,6 @@ This document provides a comprehensive table of contents for all documentation a
 - **[claude-code-sdk-messages.spec.md](./claude-code-sdk-messages.spec.md)** - Claude Code SDK message format
   - Actual message schema from Claude Code SDK
   - Shows unstructured text format, not progress data
-
-- **[wrapper-service-translation.spec.md](./wrapper-service-translation.spec.md)** - Wrapper service translation requirements
-  - How wrapper translates between Claude Code SDK and mobile app formats
-  - Natural language parsing requirements for progress extraction
-
-- **[RENAMING_NOTES.md](./RENAMING_NOTES.md)** - Service renaming documentation
-  - Tracks all service and component name changes
-  - Documents v1 simplifications
 
 ### Templates and Resources
 
@@ -96,7 +94,7 @@ This document provides a comprehensive table of contents for all documentation a
 ## Usage Instructions
 
 - **ALWAYS READ** `project.spec.md` before starting any work
-- **ALWAYS READ** `frontend.spec.md` before working on frontend components
-- **READ AS NEEDED** feature specification files (`*.feat.md`) when mentioned in current tasks
+- **ALWAYS READ** `mobile-app-spec/frontend.spec.md` before working on mobile app frontend components
+- **READ AS NEEDED** feature specification files (`*.feat.md`) in `mobile-app-spec/` when mentioned in current tasks
 - **READ AS NEEDED** other specification files (`*.spec.md`) when mentioned in current tasks
 - **USE TEMPLATES** from the `templates/` folder when creating new documentation
