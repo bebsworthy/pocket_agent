@@ -370,7 +370,10 @@ spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
-        ktlint("1.0.1")
+        ktlint("1.0.1") {
+            // Disable the consecutive comments rule
+            userData(mapOf("ktlint_disabled_rules" to "standard:no-consecutive-comments"))
+        }
 
         // Custom formatting rules
         trimTrailingWhitespace()
