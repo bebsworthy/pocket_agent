@@ -1,6 +1,8 @@
 package com.pocketagent.testing
 
-import io.mockk.*
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -8,41 +10,40 @@ import kotlinx.coroutines.flow.flowOf
  * Utility functions for MockK testing.
  */
 object MockKTestUtils {
-    
     /**
      * Creates a relaxed mock that returns sensible defaults.
      */
     inline fun <reified T : Any> createRelaxedMock(): T = mockk<T>(relaxed = true)
-    
+
     /**
      * Creates a spy with relaxed behavior.
      */
     inline fun <reified T : Any> createRelaxedSpy(obj: T): T = spyk(obj, recordPrivateCalls = true)
-    
+
     /**
      * Stub a suspend function with a result.
      */
     suspend fun <T> MockKStubScope<T, T>.returnsResult(value: T): MockKStubScope<T, T> {
         return this.returns(value)
     }
-    
+
     /**
      * Stub a suspend function with an exception.
      */
     suspend fun <T> MockKStubScope<T, T>.throwsException(exception: Throwable): MockKStubScope<T, T> {
         return this.throws(exception)
     }
-    
+
     /**
      * Stub a Flow return value.
      */
     fun <T> stubFlow(value: T): Flow<T> = flowOf(value)
-    
+
     /**
      * Stub a Flow with multiple values.
      */
     fun <T> stubFlow(vararg values: T): Flow<T> = flowOf(*values)
-    
+
     /**
      * Verify a suspend function was called.
      */
@@ -96,7 +97,10 @@ suspend fun <T> T.verifyCall(block: suspend T.() -> Unit) {
 /**
  * Verify that a suspend function was called exactly n times.
  */
-suspend fun <T> T.verifyCall(exactly: Int, block: suspend T.() -> Unit) {
+suspend fun <T> T.verifyCall(
+    exactly: Int,
+    block: suspend T.() -> Unit,
+) {
     verify(exactly = exactly) { runBlocking { block() } }
 }
 

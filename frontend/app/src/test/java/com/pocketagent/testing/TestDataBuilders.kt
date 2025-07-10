@@ -17,14 +17,19 @@ class SshIdentityTestBuilder {
     private var encryptedPrivateKey: ByteArray = "encrypted_private_key".toByteArray()
     private var keyAlias: String = "test_key_alias"
     private var createdAt: Instant = Instant.now()
-    
+
     fun id(id: String) = apply { this.id = id }
+
     fun name(name: String) = apply { this.name = name }
+
     fun publicKey(publicKey: String) = apply { this.publicKey = publicKey }
+
     fun encryptedPrivateKey(key: ByteArray) = apply { this.encryptedPrivateKey = key }
+
     fun keyAlias(alias: String) = apply { this.keyAlias = alias }
+
     fun createdAt(instant: Instant) = apply { this.createdAt = instant }
-    
+
     fun build(): SshIdentityEntity {
         return SshIdentityEntity(
             id = id,
@@ -32,7 +37,7 @@ class SshIdentityTestBuilder {
             publicKey = publicKey,
             encryptedPrivateKey = encryptedPrivateKey,
             keyAlias = keyAlias,
-            createdAt = createdAt
+            createdAt = createdAt,
         )
     }
 }
@@ -49,16 +54,23 @@ class ServerProfileTestBuilder {
     private var sshIdentityId: String = UUID.randomUUID().toString()
     private var lastConnected: Instant = Instant.now()
     private var status: String = "DISCONNECTED"
-    
+
     fun id(id: String) = apply { this.id = id }
+
     fun name(name: String) = apply { this.name = name }
+
     fun hostname(hostname: String) = apply { this.hostname = hostname }
+
     fun port(port: Int) = apply { this.port = port }
+
     fun username(username: String) = apply { this.username = username }
+
     fun sshIdentityId(sshIdentityId: String) = apply { this.sshIdentityId = sshIdentityId }
+
     fun lastConnected(instant: Instant) = apply { this.lastConnected = instant }
+
     fun status(status: String) = apply { this.status = status }
-    
+
     fun build(): ServerProfileEntity {
         return ServerProfileEntity(
             id = id,
@@ -68,7 +80,7 @@ class ServerProfileTestBuilder {
             username = username,
             sshIdentityId = sshIdentityId,
             lastConnected = lastConnected,
-            status = status
+            status = status,
         )
     }
 }
@@ -86,17 +98,25 @@ class ProjectTestBuilder {
     private var status: String = "DISCONNECTED"
     private var created: Instant = Instant.now()
     private var lastActive: Instant = Instant.now()
-    
+
     fun id(id: String) = apply { this.id = id }
+
     fun name(name: String) = apply { this.name = name }
+
     fun serverProfileId(serverProfileId: String) = apply { this.serverProfileId = serverProfileId }
+
     fun projectPath(path: String) = apply { this.projectPath = path }
+
     fun scriptsFolder(folder: String) = apply { this.scriptsFolder = folder }
+
     fun claudeSessionId(sessionId: String?) = apply { this.claudeSessionId = sessionId }
+
     fun status(status: String) = apply { this.status = status }
+
     fun created(instant: Instant) = apply { this.created = instant }
+
     fun lastActive(instant: Instant) = apply { this.lastActive = instant }
-    
+
     fun build(): ProjectEntity {
         return ProjectEntity(
             id = id,
@@ -107,7 +127,7 @@ class ProjectTestBuilder {
             claudeSessionId = claudeSessionId,
             status = status,
             created = created,
-            lastActive = lastActive
+            lastActive = lastActive,
         )
     }
 }
@@ -123,15 +143,21 @@ class MessageTestBuilder {
     private var timestamp: Instant = Instant.now()
     private var isPartial: Boolean = false
     private var metadata: Map<String, String> = emptyMap()
-    
+
     fun id(id: String) = apply { this.id = id }
+
     fun projectId(projectId: String) = apply { this.projectId = projectId }
+
     fun content(content: String) = apply { this.content = content }
+
     fun type(type: String) = apply { this.type = type }
+
     fun timestamp(instant: Instant) = apply { this.timestamp = instant }
+
     fun isPartial(partial: Boolean) = apply { this.isPartial = partial }
+
     fun metadata(metadata: Map<String, String>) = apply { this.metadata = metadata }
-    
+
     fun build(): MessageEntity {
         return MessageEntity(
             id = id,
@@ -140,7 +166,7 @@ class MessageTestBuilder {
             type = type,
             timestamp = timestamp,
             isPartial = isPartial,
-            metadata = metadata
+            metadata = metadata,
         )
     }
 }
@@ -153,38 +179,47 @@ class WebSocketMessageTestBuilder {
     private var id: String = UUID.randomUUID().toString()
     private var timestamp: Long = System.currentTimeMillis()
     private var payload: Map<String, Any> = emptyMap()
-    
+
     fun type(type: String) = apply { this.type = type }
+
     fun id(id: String) = apply { this.id = id }
+
     fun timestamp(timestamp: Long) = apply { this.timestamp = timestamp }
+
     fun payload(payload: Map<String, Any>) = apply { this.payload = payload }
-    
-    fun buildCommandMessage(command: String, isShellCommand: Boolean = false): Map<String, Any> {
+
+    fun buildCommandMessage(
+        command: String,
+        isShellCommand: Boolean = false,
+    ): Map<String, Any> {
         return mapOf(
             "type" to "command",
             "id" to id,
             "timestamp" to timestamp,
             "command" to command,
-            "isShellCommand" to isShellCommand
+            "isShellCommand" to isShellCommand,
         )
     }
-    
-    fun buildClaudeResponse(content: String, conversationId: String): Map<String, Any> {
+
+    fun buildClaudeResponse(
+        content: String,
+        conversationId: String,
+    ): Map<String, Any> {
         return mapOf(
             "type" to "claude_response",
             "id" to id,
             "timestamp" to timestamp,
             "content" to content,
             "conversationId" to conversationId,
-            "isPartial" to false
+            "isPartial" to false,
         )
     }
-    
+
     fun buildPermissionRequest(
         tool: String,
         action: String,
         details: Map<String, Any> = emptyMap(),
-        risk: String = "MEDIUM"
+        risk: String = "MEDIUM",
     ): Map<String, Any> {
         return mapOf(
             "type" to "permission_request",
@@ -194,48 +229,55 @@ class WebSocketMessageTestBuilder {
             "action" to action,
             "details" to details,
             "risk" to risk,
-            "timeout" to 300
+            "timeout" to 300,
         )
     }
-    
-    fun buildPermissionResponse(requestId: String, approved: Boolean): Map<String, Any> {
+
+    fun buildPermissionResponse(
+        requestId: String,
+        approved: Boolean,
+    ): Map<String, Any> {
         return mapOf(
             "type" to "permission_response",
             "id" to id,
             "timestamp" to timestamp,
             "requestId" to requestId,
-            "approved" to approved
+            "approved" to approved,
         )
     }
-    
-    fun buildAuthChallenge(nonce: String, serverVersion: String = "1.0.0"): Map<String, Any> {
+
+    fun buildAuthChallenge(
+        nonce: String,
+        serverVersion: String = "1.0.0",
+    ): Map<String, Any> {
         return mapOf(
             "type" to "auth_challenge",
             "nonce" to nonce,
             "timestamp" to timestamp,
-            "serverVersion" to serverVersion
+            "serverVersion" to serverVersion,
         )
     }
-    
+
     fun buildAuthResponse(
         publicKey: String,
         signature: String,
-        sessionId: String? = null
+        sessionId: String? = null,
     ): Map<String, Any> {
         return mapOf(
             "type" to "auth_response",
             "publicKey" to publicKey,
             "signature" to signature,
             "clientVersion" to "1.0.0",
-            "sessionId" to sessionId
+            "sessionId" to sessionId,
         )
     }
-    
+
     fun buildAuthSuccess(sessionId: String): Map<String, Any> {
         return mapOf(
             "type" to "auth_success",
             "sessionId" to sessionId,
-            "expiresAt" to (timestamp + 86400000) // 24 hours
+            // 24 hours
+            "expiresAt" to (timestamp + 86400000),
         )
     }
 }
@@ -248,18 +290,21 @@ class BatteryStateTestBuilder {
     private var isCharging: Boolean = false
     private var isPowerSaveMode: Boolean = false
     private var level: String = "NORMAL"
-    
+
     fun percentage(percentage: Int) = apply { this.percentage = percentage }
+
     fun isCharging(charging: Boolean) = apply { this.isCharging = charging }
+
     fun isPowerSaveMode(powerSave: Boolean) = apply { this.isPowerSaveMode = powerSave }
+
     fun level(level: String) = apply { this.level = level }
-    
+
     fun build(): BatteryStateEntity {
         return BatteryStateEntity(
             percentage = percentage,
             isCharging = isCharging,
             isPowerSaveMode = isPowerSaveMode,
-            level = level
+            level = level,
         )
     }
 }
@@ -268,27 +313,26 @@ class BatteryStateTestBuilder {
  * Factory object for creating test data with predefined scenarios.
  */
 object TestDataFactory {
-    
     /**
      * Creates a typical SSH identity for testing.
      */
     fun createSshIdentity(
         name: String = "Test SSH Key",
-        keyAlias: String = "test_key"
+        keyAlias: String = "test_key",
     ): SshIdentityEntity {
         return SshIdentityTestBuilder()
             .name(name)
             .keyAlias(keyAlias)
             .build()
     }
-    
+
     /**
      * Creates a typical server profile for testing.
      */
     fun createServerProfile(
         name: String = "Test Server",
         hostname: String = "test.example.com",
-        sshIdentityId: String = UUID.randomUUID().toString()
+        sshIdentityId: String = UUID.randomUUID().toString(),
     ): ServerProfileEntity {
         return ServerProfileTestBuilder()
             .name(name)
@@ -296,14 +340,14 @@ object TestDataFactory {
             .sshIdentityId(sshIdentityId)
             .build()
     }
-    
+
     /**
      * Creates a typical project for testing.
      */
     fun createProject(
         name: String = "Test Project",
         serverProfileId: String = UUID.randomUUID().toString(),
-        status: String = "DISCONNECTED"
+        status: String = "DISCONNECTED",
     ): ProjectEntity {
         return ProjectTestBuilder()
             .name(name)
@@ -311,13 +355,13 @@ object TestDataFactory {
             .status(status)
             .build()
     }
-    
+
     /**
      * Creates a user message for testing.
      */
     fun createUserMessage(
         content: String = "Test user message",
-        projectId: String = UUID.randomUUID().toString()
+        projectId: String = UUID.randomUUID().toString(),
     ): MessageEntity {
         return MessageTestBuilder()
             .content(content)
@@ -325,13 +369,13 @@ object TestDataFactory {
             .projectId(projectId)
             .build()
     }
-    
+
     /**
      * Creates a Claude response message for testing.
      */
     fun createClaudeMessage(
         content: String = "Test Claude response",
-        projectId: String = UUID.randomUUID().toString()
+        projectId: String = UUID.randomUUID().toString(),
     ): MessageEntity {
         return MessageTestBuilder()
             .content(content)
@@ -339,7 +383,7 @@ object TestDataFactory {
             .projectId(projectId)
             .build()
     }
-    
+
     /**
      * Creates a low battery state for testing.
      */
@@ -350,7 +394,7 @@ object TestDataFactory {
             .level("LOW")
             .build()
     }
-    
+
     /**
      * Creates a charging battery state for testing.
      */
@@ -361,7 +405,7 @@ object TestDataFactory {
             .level("CHARGING")
             .build()
     }
-    
+
     /**
      * Creates a complete project setup with related entities.
      */
@@ -369,16 +413,17 @@ object TestDataFactory {
         val sshIdentity = createSshIdentity()
         val serverProfile = createServerProfile(sshIdentityId = sshIdentity.id)
         val project = createProject(serverProfileId = serverProfile.id, status = "CONNECTED")
-        val messages = listOf(
-            createUserMessage(content = "Hello Claude", projectId = project.id),
-            createClaudeMessage(content = "Hello! How can I help you?", projectId = project.id)
-        )
-        
+        val messages =
+            listOf(
+                createUserMessage(content = "Hello Claude", projectId = project.id),
+                createClaudeMessage(content = "Hello! How can I help you?", projectId = project.id),
+            )
+
         return ProjectSetup(
             sshIdentity = sshIdentity,
             serverProfile = serverProfile,
             project = project,
-            messages = messages
+            messages = messages,
         )
     }
 }
@@ -390,7 +435,7 @@ data class ProjectSetup(
     val sshIdentity: SshIdentityEntity,
     val serverProfile: ServerProfileEntity,
     val project: ProjectEntity,
-    val messages: List<MessageEntity>
+    val messages: List<MessageEntity>,
 )
 
 // Placeholder entity classes - these would be replaced with actual domain models
@@ -400,7 +445,7 @@ data class SshIdentityEntity(
     val publicKey: String,
     val encryptedPrivateKey: ByteArray,
     val keyAlias: String,
-    val createdAt: Instant
+    val createdAt: Instant,
 )
 
 data class ServerProfileEntity(
@@ -411,7 +456,7 @@ data class ServerProfileEntity(
     val username: String,
     val sshIdentityId: String,
     val lastConnected: Instant,
-    val status: String
+    val status: String,
 )
 
 data class ProjectEntity(
@@ -423,7 +468,7 @@ data class ProjectEntity(
     val claudeSessionId: String?,
     val status: String,
     val created: Instant,
-    val lastActive: Instant
+    val lastActive: Instant,
 )
 
 data class MessageEntity(
@@ -433,12 +478,13 @@ data class MessageEntity(
     val type: String,
     val timestamp: Instant,
     val isPartial: Boolean,
-    val metadata: Map<String, String>
+    val metadata: Map<String, String>,
 )
 
 data class BatteryStateEntity(
     val percentage: Int,
     val isCharging: Boolean,
     val isPowerSaveMode: Boolean,
-    val level: String
+    val level: String,
 )
+
