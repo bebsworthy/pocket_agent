@@ -375,7 +375,7 @@ spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
-        ktlint("1.0.1").setUseExperimental(true).editorConfigOverride(
+        ktlint("1.0.1").editorConfigOverride(
             mapOf("ktlint_disabled_rules" to "standard:no-consecutive-comments")
         )
 
