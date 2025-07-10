@@ -22,34 +22,31 @@ import javax.inject.Singleton
 
 /**
  * Dagger Hilt module for providing migration-related dependencies.
- * 
+ *
  * This module configures the dependency injection for the data migration system,
  * including migration registry, migration manager, and individual migration implementations.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object MigrationModule {
-    
     /**
      * Provides the migration registry with all available migrations.
      */
     @Provides
     @Singleton
-    fun provideMigrationRegistry(
-        migrations: Set<@JvmSuppressWildcards DataMigration>
-    ): MigrationRegistry {
+    fun provideMigrationRegistry(migrations: Set<@JvmSuppressWildcards DataMigration>): MigrationRegistry {
         val registry = MigrationRegistry()
-        
+
         // Register all available migrations
         runBlocking {
             migrations.forEach { migration ->
                 registry.registerMigration(migration)
             }
         }
-        
+
         return registry
     }
-    
+
     /**
      * Provides the data migration manager.
      */
@@ -59,62 +56,53 @@ object MigrationModule {
         @ApplicationContext context: Context,
         encryptedStorage: EncryptedJsonStorage,
         migrationRegistry: MigrationRegistry,
-        dataValidator: DataValidator
+        dataValidator: DataValidator,
     ): DataMigrationManager {
         return DataMigrationManager(
             context = context,
             encryptedStorage = encryptedStorage,
             migrationRegistry = migrationRegistry,
-            dataValidator = dataValidator
+            dataValidator = dataValidator,
         )
     }
-    
+
     // Individual Migration Providers
-    
+
     /**
      * Provides the initial migration.
      */
     @Provides
     @IntoSet
-    fun provideInitialMigration(
-        initialMigration: InitialMigration
-    ): DataMigration = initialMigration
-    
+    fun provideInitialMigration(initialMigration: InitialMigration): DataMigration = initialMigration
+
     /**
      * Provides the version 1 to 2 migration (future migration example).
      */
     @Provides
     @IntoSet
-    fun provideVersion1To2Migration(
-        version1To2Migration: Version1To2Migration
-    ): DataMigration = version1To2Migration
-    
+    fun provideVersion1To2Migration(version1To2Migration: Version1To2Migration): DataMigration = version1To2Migration
+
     /**
      * Provides the data repair migration.
      */
     @Provides
     @IntoSet
-    fun provideDataRepairMigration(
-        dataRepairMigration: DataRepairMigration
-    ): DataMigration = dataRepairMigration
-    
+    fun provideDataRepairMigration(dataRepairMigration: DataRepairMigration): DataMigration = dataRepairMigration
+
     /**
      * Provides the legacy data migration.
      */
     @Provides
     @IntoSet
-    fun provideLegacyDataMigration(
-        legacyDataMigration: LegacyDataMigration
-    ): DataMigration = legacyDataMigration
-    
+    fun provideLegacyDataMigration(legacyDataMigration: LegacyDataMigration): DataMigration = legacyDataMigration
+
     /**
      * Provides the legacy data cleanup migration.
      */
     @Provides
     @IntoSet
-    fun provideLegacyDataCleanupMigration(
-        legacyDataCleanupMigration: LegacyDataCleanupMigration
-    ): DataMigration = legacyDataCleanupMigration
+    fun provideLegacyDataCleanupMigration(legacyDataCleanupMigration: LegacyDataCleanupMigration): DataMigration =
+        legacyDataCleanupMigration
 }
 
 /**
@@ -123,14 +111,13 @@ object MigrationModule {
 @Module
 @InstallIn(SingletonComponent::class)
 object MigrationConfigurationModule {
-    
     /**
      * Provides migration configuration settings.
      */
     @Provides
     @Singleton
     fun provideMigrationConfiguration(
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
     ): MigrationConfiguration {
         return MigrationConfiguration(
             autoMigrationEnabled = true,
@@ -138,7 +125,7 @@ object MigrationConfigurationModule {
             maxBackupFiles = 5,
             migrationTimeoutMs = 30_000L, // 30 seconds
             enableProgressReporting = true,
-            validateAfterMigration = true
+            validateAfterMigration = true,
         )
     }
 }
@@ -152,14 +139,13 @@ data class MigrationConfiguration(
     val maxBackupFiles: Int = 5,
     val migrationTimeoutMs: Long = 30_000L,
     val enableProgressReporting: Boolean = true,
-    val validateAfterMigration: Boolean = true
+    val validateAfterMigration: Boolean = true,
 ) {
-    
     init {
         require(maxBackupFiles >= 0) { "Max backup files must be non-negative" }
         require(migrationTimeoutMs > 0) { "Migration timeout must be positive" }
     }
-    
+
     companion object {
         /**
          * Creates a default configuration for production use.
@@ -167,7 +153,7 @@ data class MigrationConfiguration(
         fun default(): MigrationConfiguration {
             return MigrationConfiguration()
         }
-        
+
         /**
          * Creates a configuration optimized for testing.
          */
@@ -177,10 +163,10 @@ data class MigrationConfiguration(
                 maxBackupFiles = 1,
                 migrationTimeoutMs = 5_000L,
                 enableProgressReporting = false,
-                validateAfterMigration = true
+                validateAfterMigration = true,
             )
         }
-        
+
         /**
          * Creates a configuration for development with verbose logging.
          */
@@ -191,7 +177,7 @@ data class MigrationConfiguration(
                 maxBackupFiles = 10,
                 migrationTimeoutMs = 60_000L,
                 enableProgressReporting = true,
-                validateAfterMigration = true
+                validateAfterMigration = true,
             )
         }
     }

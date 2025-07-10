@@ -19,68 +19,68 @@ import java.io.IOException
  * Utility functions for instrumentation testing.
  */
 object InstrumentationTestUtils {
-    
     /**
      * Gets the test application context.
      */
     fun getContext(): Context {
         return ApplicationProvider.getApplicationContext()
     }
-    
+
     /**
      * Gets the target context (app under test).
      */
     fun getTargetContext(): Context {
         return InstrumentationRegistry.getInstrumentation().targetContext
     }
-    
+
     /**
      * Gets the test context (test app).
      */
     fun getTestContext(): Context {
         return InstrumentationRegistry.getInstrumentation().context
     }
-    
+
     /**
      * Gets the UiDevice instance for UI automation.
      */
     fun getUiDevice(): UiDevice {
         return UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
     }
-    
+
     /**
      * Initializes WorkManager for testing.
      */
     fun initializeWorkManager(context: Context = getContext()) {
-        val config = Configuration.Builder()
-            .setMinimumLoggingLevel(android.util.Log.DEBUG)
-            .setExecutor(SynchronousExecutor())
-            .build()
-        
+        val config =
+            Configuration.Builder()
+                .setMinimumLoggingLevel(android.util.Log.DEBUG)
+                .setExecutor(SynchronousExecutor())
+                .build()
+
         WorkManagerTestInitHelper.initializeTestWorkManager(context, config)
     }
-    
+
     /**
      * Gets the WorkManager instance for testing.
      */
     fun getWorkManager(context: Context = getContext()): WorkManager {
         return WorkManager.getInstance(context)
     }
-    
+
     /**
      * Waits for idle state.
      */
     fun waitForIdle() {
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
     }
-    
+
     /**
      * Runs code on the UI thread.
      */
     fun runOnUiThread(action: () -> Unit) {
         InstrumentationRegistry.getInstrumentation().runOnMainSync(action)
     }
-    
+
     /**
      * Clears app data and cache.
      */
@@ -91,39 +91,39 @@ object InstrumentationTestUtils {
             context.databaseList().forEach { dbName ->
                 context.deleteDatabase(dbName)
             }
-            
+
             // Clear shared preferences
             context.getSharedPreferences("default", Context.MODE_PRIVATE)
                 .edit()
                 .clear()
                 .apply()
-                
+
             // Clear cache
             context.cacheDir.deleteRecursively()
         } catch (e: Exception) {
             // Handle clearing errors
         }
     }
-    
+
     /**
      * Grants runtime permissions.
      */
     fun grantPermissions(vararg permissions: String) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val uiAutomation = instrumentation.uiAutomation
-        
+
         permissions.forEach { permission ->
             try {
                 uiAutomation.grantRuntimePermission(
                     getContext().packageName,
-                    permission
+                    permission,
                 )
             } catch (e: Exception) {
                 // Permission may already be granted
             }
         }
     }
-    
+
     /**
      * Simulates device rotation.
      */
@@ -137,7 +137,7 @@ object InstrumentationTestUtils {
             // Handle rotation errors
         }
     }
-    
+
     /**
      * Simulates low memory condition.
      */
@@ -146,7 +146,7 @@ object InstrumentationTestUtils {
         val app = instrumentation.targetContext.applicationContext as HiltTestApplication
         app.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL)
     }
-    
+
     /**
      * Simulates app going to background.
      */
@@ -155,7 +155,7 @@ object InstrumentationTestUtils {
         uiDevice.pressHome()
         Thread.sleep(1000)
     }
-    
+
     /**
      * Simulates app coming to foreground.
      */
@@ -172,10 +172,9 @@ object InstrumentationTestUtils {
  * Base class for MockWebServer testing.
  */
 abstract class MockWebServerTestBase {
-    
     protected lateinit var mockWebServer: MockWebServer
     protected lateinit var baseUrl: String
-    
+
     @Before
     open fun setUpMockWebServer() {
         mockWebServer = MockWebServer()
@@ -186,7 +185,7 @@ abstract class MockWebServerTestBase {
             throw RuntimeException("Failed to start MockWebServer", e)
         }
     }
-    
+
     @After
     open fun tearDownMockWebServer() {
         try {
@@ -195,7 +194,7 @@ abstract class MockWebServerTestBase {
             // Ignore shutdown errors
         }
     }
-    
+
     /**
      * Gets the WebSocket URL for testing.
      */
@@ -208,7 +207,6 @@ abstract class MockWebServerTestBase {
  * Test utilities for working with permissions.
  */
 object PermissionTestUtils {
-    
     /**
      * Grants all required app permissions.
      */
@@ -220,10 +218,10 @@ object PermissionTestUtils {
             android.Manifest.permission.FOREGROUND_SERVICE,
             android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
             android.Manifest.permission.USE_BIOMETRIC,
-            android.Manifest.permission.USE_FINGERPRINT
+            android.Manifest.permission.USE_FINGERPRINT,
         )
     }
-    
+
     /**
      * Checks if a permission is granted.
      */
@@ -231,37 +229,39 @@ object PermissionTestUtils {
         val context = InstrumentationTestUtils.getContext()
         return androidx.core.content.ContextCompat.checkSelfPermission(
             context,
-            permission
+            permission,
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
     }
-    
+
     /**
      * Waits for permission dialog and grants it.
      */
     fun grantPermissionInDialog(timeoutMillis: Long = 5000) {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
-        val allowButton = uiDevice.findObject(
-            androidx.test.uiautomator.UiSelector()
-                .textContains("Allow")
-                .className("android.widget.Button")
-        )
-        
+        val allowButton =
+            uiDevice.findObject(
+                androidx.test.uiautomator.UiSelector()
+                    .textContains("Allow")
+                    .className("android.widget.Button"),
+            )
+
         if (allowButton.waitForExists(timeoutMillis)) {
             allowButton.click()
         }
     }
-    
+
     /**
      * Denies permission in dialog.
      */
     fun denyPermissionInDialog(timeoutMillis: Long = 5000) {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
-        val denyButton = uiDevice.findObject(
-            androidx.test.uiautomator.UiSelector()
-                .textContains("Deny")
-                .className("android.widget.Button")
-        )
-        
+        val denyButton =
+            uiDevice.findObject(
+                androidx.test.uiautomator.UiSelector()
+                    .textContains("Deny")
+                    .className("android.widget.Button"),
+            )
+
         if (denyButton.waitForExists(timeoutMillis)) {
             denyButton.click()
         }
@@ -272,7 +272,6 @@ object PermissionTestUtils {
  * Test utilities for working with notifications.
  */
 object NotificationTestUtils {
-    
     /**
      * Opens the notification panel.
      */
@@ -280,7 +279,7 @@ object NotificationTestUtils {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
         uiDevice.openNotification()
     }
-    
+
     /**
      * Closes the notification panel.
      */
@@ -288,7 +287,7 @@ object NotificationTestUtils {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
         uiDevice.pressBack()
     }
-    
+
     /**
      * Finds a notification by title.
      */
@@ -297,17 +296,17 @@ object NotificationTestUtils {
         return uiDevice.findObject(
             androidx.test.uiautomator.UiSelector()
                 .textContains(title)
-                .className("android.widget.TextView")
+                .className("android.widget.TextView"),
         )
     }
-    
+
     /**
      * Clicks on a notification.
      */
     fun clickNotification(title: String): Boolean {
         openNotificationPanel()
         Thread.sleep(1000)
-        
+
         val notification = findNotificationByTitle(title)
         return if (notification != null && notification.exists()) {
             notification.click()
@@ -317,14 +316,14 @@ object NotificationTestUtils {
             false
         }
     }
-    
+
     /**
      * Swipes away a notification.
      */
     fun dismissNotification(title: String): Boolean {
         openNotificationPanel()
         Thread.sleep(1000)
-        
+
         val notification = findNotificationByTitle(title)
         return if (notification != null && notification.exists()) {
             notification.swipeRight()
@@ -340,29 +339,30 @@ object NotificationTestUtils {
  * Test utilities for working with system UI.
  */
 object SystemUiTestUtils {
-    
     /**
      * Waits for a dialog to appear.
      */
     fun waitForDialog(timeoutMillis: Long = 5000): Boolean {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
-        val dialog = uiDevice.findObject(
-            androidx.test.uiautomator.UiSelector()
-                .className("android.app.AlertDialog")
-        )
+        val dialog =
+            uiDevice.findObject(
+                androidx.test.uiautomator.UiSelector()
+                    .className("android.app.AlertDialog"),
+            )
         return dialog.waitForExists(timeoutMillis)
     }
-    
+
     /**
      * Clicks OK in a dialog.
      */
     fun clickDialogOk(): Boolean {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
-        val okButton = uiDevice.findObject(
-            androidx.test.uiautomator.UiSelector()
-                .textMatches("OK|ok")
-                .className("android.widget.Button")
-        )
+        val okButton =
+            uiDevice.findObject(
+                androidx.test.uiautomator.UiSelector()
+                    .textMatches("OK|ok")
+                    .className("android.widget.Button"),
+            )
         return if (okButton.exists()) {
             okButton.click()
             true
@@ -370,17 +370,18 @@ object SystemUiTestUtils {
             false
         }
     }
-    
+
     /**
      * Clicks Cancel in a dialog.
      */
     fun clickDialogCancel(): Boolean {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
-        val cancelButton = uiDevice.findObject(
-            androidx.test.uiautomator.UiSelector()
-                .textMatches("Cancel|cancel")
-                .className("android.widget.Button")
-        )
+        val cancelButton =
+            uiDevice.findObject(
+                androidx.test.uiautomator.UiSelector()
+                    .textMatches("Cancel|cancel")
+                    .className("android.widget.Button"),
+            )
         return if (cancelButton.exists()) {
             cancelButton.click()
             true
@@ -388,7 +389,7 @@ object SystemUiTestUtils {
             false
         }
     }
-    
+
     /**
      * Handles battery optimization dialog.
      */

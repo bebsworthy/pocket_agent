@@ -16,8 +16,6 @@ import com.pocketagent.mobile.data.local.EncryptedJsonStorage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -25,6 +23,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 
 /**
  * Integration tests for the migration system with SecureDataRepository.

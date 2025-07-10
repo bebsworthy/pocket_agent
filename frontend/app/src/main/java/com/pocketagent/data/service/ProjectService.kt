@@ -5,6 +5,7 @@ import com.pocketagent.data.models.Project
 import com.pocketagent.data.models.ProjectStatus
 import com.pocketagent.data.repository.DataException
 import com.pocketagent.data.repository.SecureDataRepository
+import com.pocketagent.data.validation.RepositoryValidationService
 import com.pocketagent.data.validation.ValidationResult
 import com.pocketagent.data.validation.validators.ProjectValidator
 import kotlinx.coroutines.Dispatchers
@@ -86,7 +87,7 @@ class ProjectService @Inject constructor(
                 // Validate server profile exists
                 val serverResult = serverProfileService.getServerProfile(serverProfileId)
                 if (serverResult.isFailure) {
-                    return@withContext ServiceResult.failure("Server profile not found: ${serverResult.getErrorOrNull()}")
+                    return@withContext serviceFailure("Server profile not found: ${serverResult.getErrorOrNull()}")
                 }
                 val serverProfile = serverResult.getOrNull()!!
                 
@@ -102,8 +103,8 @@ class ProjectService @Inject constructor(
                 
                 // Validate the project
                 val validationResult = validator.validateForCreation(project)
-                if (!validationResult.isValid) {
-                    return@withContext ServiceResult.failure("Validation failed: ${validationResult.getErrorSummary()}")
+                if (validationResult.isFailure()) {
+                    return@withContext serviceFailure("Validation failed: ${validationResult.getFirstErrorMessage()}")
                 }
                 
                 // Check name uniqueness
@@ -112,8 +113,8 @@ class ProjectService @Inject constructor(
                     name, 
                     existingProjects.map { it.name }
                 )
-                if (!nameValidation.isValid) {
-                    return@withContext ServiceResult.failure("Project name already exists")
+                if (nameValidation.isFailure()) {
+                    return@withContext serviceFailure("Project name already exists")
                 }
                 
                 // Check project path uniqueness on the same server
@@ -122,29 +123,29 @@ class ProjectService @Inject constructor(
                     serverProfileId,
                     existingProjects.map { it.projectPath to it.serverProfileId }
                 )
-                if (!pathValidation.isValid) {
-                    return@withContext ServiceResult.failure("Project with same path already exists on this server")
+                if (pathValidation.isFailure()) {
+                    return@withContext serviceFailure("Project with same path already exists on this server")
                 }
                 
                 // Check server project limits
                 val serverProjects = existingProjects.filter { it.serverProfileId == serverProfileId }
                 if (serverProjects.size >= MAX_PROJECTS_PER_SERVER) {
-                    return@withContext ServiceResult.failure("Maximum number of projects ($MAX_PROJECTS_PER_SERVER) reached for this server")
+                    return@withContext serviceFailure("Maximum number of projects ($MAX_PROJECTS_PER_SERVER) reached for this server")
                 }
                 
                 // Validate repository URL if provided
                 if (repositoryUrl != null) {
                     val repoValidation = repositoryValidationService.validateRepositoryUrl(repositoryUrl)
-                    if (!repoValidation.isValid) {
-                        return@withContext ServiceResult.failure("Repository URL validation failed: ${repoValidation.getErrorSummary()}")
+                    if (repoValidation.isFailure()) {
+                        return@withContext serviceFailure("Repository URL validation failed: ${repoValidation.getFirstErrorMessage() ?: "Repository validation failed"}")
                     }
                 }
                 
                 // Validate paths on server if requested
                 if (validatePaths) {
                     val pathValidationResult = validateProjectPaths(serverProfile, projectPath, scriptsFolder)
-                    if (!pathValidationResult.isValid) {
-                        return@withContext ServiceResult.failure("Path validation failed: ${pathValidationResult.getErrorSummary()}")
+                    if (pathValidationResult.isFailure()) {
+                        return@withContext serviceFailure("Path validation failed: ${pathValidationResult.getFirstErrorMessage() ?: "Path validation failed"}")
                     }
                 }
                 
@@ -159,11 +160,11 @@ class ProjectService @Inject constructor(
                 }
                 
                 Log.d(TAG, "Project created successfully: $name")
-                ServiceResult.success(finalProject)
+                serviceSuccess(finalProject)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create project", e)
-            ServiceResult.failure("Failed to create project: ${e.message}")
+            serviceFailure("Failed to create project: ${e.message}")
         }
     }
     
@@ -176,13 +177,13 @@ class ProjectService @Inject constructor(
         return try {
             val project = repository.getProjectById(id)
             if (project != null) {
-                ServiceResult.success(project)
+                serviceSuccess(project)
             } else {
-                ServiceResult.failure("Project not found")
+                serviceFailure("Project not found")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get project", e)
-            ServiceResult.failure("Failed to retrieve project: ${e.message}")
+            serviceFailure("Failed to retrieve project: ${e.message}")
         }
     }
     
@@ -204,7 +205,7 @@ class ProjectService @Inject constructor(
         
         return try {
             val existing = repository.getProjectById(id)
-                ?: return ServiceResult.failure("Project not found")
+                ?: return serviceFailure("Project not found")
             
             val updated = existing.copy(
                 name = name ?: existing.name,
@@ -219,8 +220,8 @@ class ProjectService @Inject constructor(
             
             // Validate the update
             val validationResult = validator.validateForUpdate(existing, updated)
-            if (!validationResult.isValid) {
-                return ServiceResult.failure("Validation failed: ${validationResult.getErrorSummary()}")
+            if (validationResult.isFailure()) {
+                return serviceFailure("Validation failed: ${validationResult.getFirstErrorMessage() ?: "Validation failed"}")
             }
             
             // Check name uniqueness if name changed
@@ -231,8 +232,8 @@ class ProjectService @Inject constructor(
                     existingProjects.map { it.name },
                     excludeId = id
                 )
-                if (!nameValidation.isValid) {
-                    return ServiceResult.failure("Project name already exists")
+                if (nameValidation.isFailure()) {
+                    return serviceFailure("Project name already exists")
                 }
             }
             
@@ -245,16 +246,16 @@ class ProjectService @Inject constructor(
                     existingProjects.map { it.projectPath to it.serverProfileId },
                     excludeId = id
                 )
-                if (!pathValidation.isValid) {
-                    return ServiceResult.failure("Project with same path already exists on this server")
+                if (pathValidation.isFailure()) {
+                    return serviceFailure("Project with same path already exists on this server")
                 }
             }
             
             // Validate repository URL if changed
             if (repositoryUrl != null && repositoryUrl != existing.repositoryUrl) {
                 val repoValidation = repositoryValidationService.validateRepositoryUrl(repositoryUrl)
-                if (!repoValidation.isValid) {
-                    return ServiceResult.failure("Repository URL validation failed: ${repoValidation.getErrorSummary()}")
+                if (repoValidation.isFailure()) {
+                    return serviceFailure("Repository URL validation failed: ${repoValidation.getFirstErrorMessage() ?: "Repository validation failed"}")
                 }
             }
             
@@ -270,8 +271,8 @@ class ProjectService @Inject constructor(
                         updated.projectPath, 
                         updated.scriptsFolder
                     )
-                    if (!pathValidationResult.isValid) {
-                        return ServiceResult.failure("Path validation failed: ${pathValidationResult.getErrorSummary()}")
+                    if (pathValidationResult.isFailure()) {
+                        return serviceFailure("Path validation failed: ${pathValidationResult.getFirstErrorMessage() ?: "Path validation failed"}")
                     }
                 }
             }
@@ -279,10 +280,10 @@ class ProjectService @Inject constructor(
             repository.updateProject(updated)
             
             Log.d(TAG, "Project updated successfully: $id")
-            ServiceResult.success(updated)
+            serviceSuccess(updated)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update project", e)
-            ServiceResult.failure("Failed to update project: ${e.message}")
+            serviceFailure("Failed to update project: ${e.message}")
         }
     }
     
@@ -294,11 +295,11 @@ class ProjectService @Inject constructor(
         
         return try {
             val project = repository.getProjectById(id)
-                ?: return ServiceResult.failure("Project not found")
+                ?: return serviceFailure("Project not found")
             
             // Check if project is active
             if (project.status == ProjectStatus.ACTIVE) {
-                return ServiceResult.failure("Cannot delete active project. Please disconnect first.")
+                return serviceFailure("Cannot delete active project. Please disconnect first.")
             }
             
             repository.deleteProject(id)
@@ -308,10 +309,10 @@ class ProjectService @Inject constructor(
             }
             
             Log.d(TAG, "Project deleted successfully: $id")
-            ServiceResult.success(Unit)
+            serviceSuccess(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete project", e)
-            ServiceResult.failure("Failed to delete project: ${e.message}")
+            serviceFailure("Failed to delete project: ${e.message}")
         }
     }
     
@@ -362,10 +363,10 @@ class ProjectService @Inject constructor(
                 ProjectSortBy.PROJECT_PATH -> statusFiltered.sortedBy { it.projectPath }
             }.let { if (ascending) it else it.reversed() }
             
-            ServiceResult.success(sorted)
+            serviceSuccess(sorted)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to list projects", e)
-            ServiceResult.failure("Failed to list projects: ${e.message}")
+            serviceFailure("Failed to list projects: ${e.message}")
         }
     }
     
@@ -384,12 +385,12 @@ class ProjectService @Inject constructor(
         
         return try {
             val project = repository.getProjectById(projectId)
-                ?: return ServiceResult.failure("Project not found")
+                ?: return serviceFailure("Project not found")
             
             // Validate status transition
             val transitionValidation = validator.validateStatusTransition(project.status, newStatus)
-            if (!transitionValidation.isValid) {
-                return ServiceResult.failure("Invalid status transition: ${transitionValidation.getErrorSummary()}")
+            if (transitionValidation.isFailure()) {
+                return serviceFailure("Invalid status transition: ${transitionValidation.getFirstErrorMessage() ?: "Transition validation failed"}")
             }
             
             val updated = when (newStatus) {
@@ -422,10 +423,10 @@ class ProjectService @Inject constructor(
             repository.updateProject(updated)
             
             Log.d(TAG, "Project status updated successfully: $projectId")
-            ServiceResult.success(updated)
+            serviceSuccess(updated)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update project status", e)
-            ServiceResult.failure("Failed to update project status: ${e.message}")
+            serviceFailure("Failed to update project status: ${e.message}")
         }
     }
     
@@ -456,15 +457,15 @@ class ProjectService @Inject constructor(
     suspend fun clearProjectError(projectId: String): ServiceResult<Project> {
         return try {
             val project = repository.getProjectById(projectId)
-                ?: return ServiceResult.failure("Project not found")
+                ?: return serviceFailure("Project not found")
             
             if (project.status == ProjectStatus.ERROR) {
                 updateProject(projectId, status = ProjectStatus.INACTIVE, lastError = null)
             } else {
-                ServiceResult.success(project)
+                serviceSuccess(project)
             }
         } catch (e: Exception) {
-            ServiceResult.failure("Failed to clear project error: ${e.message}")
+            serviceFailure("Failed to clear project error: ${e.message}")
         }
     }
     
@@ -478,20 +479,20 @@ class ProjectService @Inject constructor(
         
         return try {
             val project = repository.getProjectById(projectId)
-                ?: return ServiceResult.failure("Project not found")
+                ?: return serviceFailure("Project not found")
             
             val serverResult = serverProfileService.getServerProfile(project.serverProfileId)
             if (serverResult.isFailure) {
-                return ServiceResult.failure("Server profile not found")
+                return serviceFailure("Server profile not found")
             }
             
             // For now, just mark as initialized
             // In a full implementation, this would SSH to server and create directories
             Log.d(TAG, "Project initialization completed: $projectId")
-            ServiceResult.success(project)
+            serviceSuccess(project)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to initialize project", e)
-            ServiceResult.failure("Failed to initialize project: ${e.message}")
+            serviceFailure("Failed to initialize project: ${e.message}")
         }
     }
     
@@ -521,7 +522,7 @@ class ProjectService @Inject constructor(
         
         return try {
             if (query.isBlank()) {
-                return ServiceResult.success(emptyList())
+                return serviceSuccess(emptyList())
             }
             
             val allProjects = repository.getAllProjects()
@@ -532,10 +533,10 @@ class ProjectService @Inject constructor(
                 project.getDisplayName().contains(query, ignoreCase = true)
             }.take(limit)
             
-            ServiceResult.success(searchResults)
+            serviceSuccess(searchResults)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to search projects", e)
-            ServiceResult.failure("Failed to search projects: ${e.message}")
+            serviceFailure("Failed to search projects: ${e.message}")
         }
     }
     
@@ -590,10 +591,10 @@ class ProjectService @Inject constructor(
                 filtered = filtered.filter { regex.containsMatchIn(it.projectPath) }
             }
             
-            ServiceResult.success(filtered)
+            serviceSuccess(filtered)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to filter projects", e)
-            ServiceResult.failure("Failed to filter projects: ${e.message}")
+            serviceFailure("Failed to filter projects: ${e.message}")
         }
     }
     
@@ -634,10 +635,10 @@ class ProjectService @Inject constructor(
         
         return try {
             val projects = repository.getProjectsForServer(serverProfileId)
-            ServiceResult.success(projects)
+            serviceSuccess(projects)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get projects for server", e)
-            ServiceResult.failure("Failed to get projects for server: ${e.message}")
+            serviceFailure("Failed to get projects for server: ${e.message}")
         }
     }
     
@@ -690,7 +691,7 @@ class ProjectService @Inject constructor(
         
         return try {
             val project = repository.getProjectById(projectId)
-                ?: return ServiceResult.failure("Project not found")
+                ?: return serviceFailure("Project not found")
             
             val exportData = project.toExportModel()
             val jsonData = kotlinx.serialization.json.Json.encodeToString(
@@ -698,10 +699,10 @@ class ProjectService @Inject constructor(
                 exportData
             )
             
-            ServiceResult.success(jsonData)
+            serviceSuccess(jsonData)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to export project", e)
-            ServiceResult.failure("Failed to export project: ${e.message}")
+            serviceFailure("Failed to export project: ${e.message}")
         }
     }
     
@@ -733,7 +734,7 @@ class ProjectService @Inject constructor(
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import project", e)
-            ServiceResult.failure("Failed to import project: ${e.message}")
+            serviceFailure("Failed to import project: ${e.message}")
         }
     }
     
@@ -794,10 +795,3 @@ data class ProjectWithUsage(
     val usageStats: ProjectUsageStats
 )
 
-// Extension function for getting error summary from ValidationResult
-private fun ValidationResult.getErrorSummary(): String {
-    return when (this) {
-        is ValidationResult.Success -> "No errors"
-        is ValidationResult.Failure -> error.message
-    }
-}

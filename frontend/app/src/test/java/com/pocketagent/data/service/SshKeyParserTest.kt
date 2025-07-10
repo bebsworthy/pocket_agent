@@ -1,6 +1,6 @@
 package com.pocketagent.data.service
 
-import io.mockk.*
+import io.mockk.unmockkAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -8,17 +8,19 @@ import org.junit.jupiter.api.Test
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.interfaces.RSAPublicKey
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 /**
  * Unit tests for SshKeyParser.
- * 
+ *
  * Tests SSH key parsing, format detection, key generation,
  * and format conversion functionality.
  */
 @DisplayName("SSH Key Parser Tests")
 class SshKeyParserTest {
-
     private lateinit var parser: SshKeyParser
     private val testKeyPair = generateTestKeyPair()
 
@@ -38,11 +40,12 @@ class SshKeyParserTest {
     @DisplayName("Detect OpenSSH Private Key Format")
     fun testDetectFormat_OpenSshPrivateKey() {
         // Arrange
-        val openSshKey = """
+        val openSshKey =
+            """
             -----BEGIN OPENSSH PRIVATE KEY-----
             b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAA
             -----END OPENSSH PRIVATE KEY-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val format = parser.detectFormat(openSshKey)
@@ -55,11 +58,12 @@ class SshKeyParserTest {
     @DisplayName("Detect PEM RSA Private Key Format")
     fun testDetectFormat_PemRsaPrivateKey() {
         // Arrange
-        val pemRsaKey = """
+        val pemRsaKey =
+            """
             -----BEGIN RSA PRIVATE KEY-----
             MIIEpAIBAAKCAQEA1234567890abcdef
             -----END RSA PRIVATE KEY-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val format = parser.detectFormat(pemRsaKey)
@@ -72,11 +76,12 @@ class SshKeyParserTest {
     @DisplayName("Detect PKCS8 Private Key Format")
     fun testDetectFormat_Pkcs8PrivateKey() {
         // Arrange
-        val pkcs8Key = """
+        val pkcs8Key =
+            """
             -----BEGIN PRIVATE KEY-----
             MIIEvgIBADANBgkqhkiG9w0BAQEFAASC
             -----END PRIVATE KEY-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val format = parser.detectFormat(pkcs8Key)
@@ -89,11 +94,12 @@ class SshKeyParserTest {
     @DisplayName("Detect Encrypted PKCS8 Private Key Format")
     fun testDetectFormat_EncryptedPkcs8PrivateKey() {
         // Arrange
-        val encryptedPkcs8Key = """
+        val encryptedPkcs8Key =
+            """
             -----BEGIN ENCRYPTED PRIVATE KEY-----
             MIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkq
             -----END ENCRYPTED PRIVATE KEY-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val format = parser.detectFormat(encryptedPkcs8Key)
@@ -106,13 +112,14 @@ class SshKeyParserTest {
     @DisplayName("Detect PuTTY Private Key Format")
     fun testDetectFormat_PuttyPrivateKey() {
         // Arrange
-        val puttyKey = """
+        val puttyKey =
+            """
             PuTTY-User-Key-File-2: ssh-rsa
             Encryption: aes256-cbc
             Comment: test@example.com
             Public-Lines: 6
             AAAAB3NzaC1yc2EAAAADAQABAAABAQDc
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val format = parser.detectFormat(puttyKey)
@@ -153,14 +160,15 @@ class SshKeyParserTest {
     @DisplayName("Detect Encrypted PEM Key")
     fun testIsPrivateKeyEncrypted_EncryptedPem() {
         // Arrange
-        val encryptedPemKey = """
+        val encryptedPemKey =
+            """
             -----BEGIN RSA PRIVATE KEY-----
             Proc-Type: 4,ENCRYPTED
             DEK-Info: AES-128-CBC,1234567890ABCDEF
             
             encrypted_key_data_here
             -----END RSA PRIVATE KEY-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val isEncrypted = parser.isPrivateKeyEncrypted(encryptedPemKey)
@@ -173,11 +181,12 @@ class SshKeyParserTest {
     @DisplayName("Detect Encrypted PKCS8 Key")
     fun testIsPrivateKeyEncrypted_EncryptedPkcs8() {
         // Arrange
-        val encryptedPkcs8Key = """
+        val encryptedPkcs8Key =
+            """
             -----BEGIN ENCRYPTED PRIVATE KEY-----
             MIIFLTBXBgkqhkiG9w0BBQ0wSjApBgkq
             -----END ENCRYPTED PRIVATE KEY-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val isEncrypted = parser.isPrivateKeyEncrypted(encryptedPkcs8Key)
@@ -190,11 +199,12 @@ class SshKeyParserTest {
     @DisplayName("Detect Unencrypted Key")
     fun testIsPrivateKeyEncrypted_Unencrypted() {
         // Arrange
-        val unencryptedKey = """
+        val unencryptedKey =
+            """
             -----BEGIN RSA PRIVATE KEY-----
             MIIEpAIBAAKCAQEA1234567890abcdef
             -----END RSA PRIVATE KEY-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val isEncrypted = parser.isPrivateKeyEncrypted(unencryptedKey)
@@ -215,7 +225,7 @@ class SshKeyParserTest {
         assertNotNull(keyPair)
         assertEquals("RSA", keyPair.public.algorithm)
         assertEquals("RSA", keyPair.private.algorithm)
-        
+
         // Check key size
         val rsaPublicKey = keyPair.public as RSAPublicKey
         assertEquals(2048, rsaPublicKey.modulus.bitLength())
@@ -324,11 +334,12 @@ class SshKeyParserTest {
     @DisplayName("Parse Private Key - Auto Detect Format")
     fun testParsePrivateKey_AutoDetect() {
         // Arrange
-        val mockKeyData = """
+        val mockKeyData =
+            """
             -----BEGIN RSA PRIVATE KEY-----
             MIIEpAIBAAKCAQEA1234567890abcdef
             -----END RSA PRIVATE KEY-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val result = parser.parsePrivateKey(mockKeyData, SshKeyFormat.AUTO_DETECT)
@@ -374,12 +385,12 @@ class SshKeyParserTest {
 
         // Assert
         assertTrue(formatted.startsWith("ssh-rsa"))
-        
+
         // Should have three parts: type, base64-data, optional comment
         val parts = formatted.split(" ")
         assertTrue(parts.size >= 2)
         assertEquals("ssh-rsa", parts[0])
-        
+
         // Base64 part should be valid
         try {
             java.util.Base64.getDecoder().decode(parts[1])
@@ -403,11 +414,12 @@ class SshKeyParserTest {
     @DisplayName("Handle Malformed Key Headers")
     fun testHandleMalformedKeyHeaders() {
         // Arrange
-        val malformedKey = """
+        val malformedKey =
+            """
             -----BEGIN RSA PRIVATE KEY-----
             MIIEpAIBAAKCAQEA1234567890abcdef
             -----END WRONG FOOTER-----
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val result = parser.parsePrivateKey(malformedKey)
@@ -420,14 +432,15 @@ class SshKeyParserTest {
     @DisplayName("Handle Key Data With Extra Whitespace")
     fun testHandleKeyDataWithWhitespace() {
         // Arrange
-        val keyWithWhitespace = """
+        val keyWithWhitespace =
+            """
             
             -----BEGIN RSA PRIVATE KEY-----
             MIIEpAIBAAKCAQEA1234567890abcdef
             
             -----END RSA PRIVATE KEY-----
             
-        """.trimIndent()
+            """.trimIndent()
 
         // Act
         val format = parser.detectFormat(keyWithWhitespace)
@@ -449,7 +462,6 @@ class SshKeyParserTest {
  * Test utilities for SSH key parser testing.
  */
 object SshKeyParserTestUtils {
-    
     /**
      * Creates test RSA private key data in PEM format.
      */
@@ -473,53 +485,53 @@ object SshKeyParserTestUtils {
             """.trimIndent()
         }
     }
-    
+
     /**
      * Creates test OpenSSH private key data.
      */
     fun createTestOpenSshKey(): String {
         return """
-        -----BEGIN OPENSSH PRIVATE KEY-----
-        b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAFwAAAAdzc2gtcn
-        NhAAAAAwEAAQAAAQEA1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP
-        -----END OPENSSH PRIVATE KEY-----
-        """.trimIndent()
+            -----BEGIN OPENSSH PRIVATE KEY-----
+            b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAFwAAAAdzc2gtcn
+            NhAAAAAwEAAQAAAQEA1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP
+            -----END OPENSSH PRIVATE KEY-----
+            """.trimIndent()
     }
-    
+
     /**
      * Creates test PKCS8 private key data.
      */
     fun createTestPkcs8Key(): String {
         return """
-        -----BEGIN PRIVATE KEY-----
-        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDc1234567890abcd
-        efghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh
-        -----END PRIVATE KEY-----
-        """.trimIndent()
+            -----BEGIN PRIVATE KEY-----
+            MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDc1234567890abcd
+            efghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh
+            -----END PRIVATE KEY-----
+            """.trimIndent()
     }
-    
+
     /**
      * Creates test public key data in OpenSSH format.
      */
     fun createTestOpenSshPublicKey(): String {
         return "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDC1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ test@example.com"
     }
-    
+
     /**
      * Creates test PuTTY private key data.
      */
     fun createTestPuttyKey(): String {
         return """
-        PuTTY-User-Key-File-2: ssh-rsa
-        Encryption: none
-        Comment: test@example.com
-        Public-Lines: 6
-        AAAAB3NzaC1yc2EAAAADAQABAAABAQDC1234567890abcdefghijklmnopqrstuvwx
-        yzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzAB
-        Private-Lines: 14
-        AAABAQCc1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU
-        VWXYZabcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUV
-        Private-MAC: 1234567890abcdef1234567890abcdef1234567890abcdef
-        """.trimIndent()
+            PuTTY-User-Key-File-2: ssh-rsa
+            Encryption: none
+            Comment: test@example.com
+            Public-Lines: 6
+            AAAAB3NzaC1yc2EAAAADAQABAAABAQDC1234567890abcdefghijklmnopqrstuvwx
+            yzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzAB
+            Private-Lines: 14
+            AAABAQCc1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU
+            VWXYZabcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUV
+            Private-MAC: 1234567890abcdef1234567890abcdef1234567890abcdef
+            """.trimIndent()
     }
 }

@@ -1,42 +1,42 @@
 // Additional Gradle tasks for comprehensive testing
 
 // Task to run all unit tests
-task runAllUnitTests {
+tasks.register('runAllUnitTests') {
     group = 'verification'
     description = 'Run all unit tests for the project'
     dependsOn 'testDebugUnitTest'
 }
 
 // Task to run all instrumentation tests
-task runAllInstrumentationTests {
+tasks.register('runAllInstrumentationTests') {
     group = 'verification'
     description = 'Run all instrumentation tests for the project'
     dependsOn 'connectedAndroidTest'
 }
 
 // Task to run all tests (unit + instrumentation)
-task runAllTests {
+tasks.register('runAllTests') {
     group = 'verification'
     description = 'Run all tests (unit and instrumentation)'
     dependsOn 'runAllUnitTests', 'runAllInstrumentationTests'
 }
 
 // Task to generate test coverage report
-task generateTestCoverageReport {
+tasks.register('generateTestCoverageReport') {
     group = 'verification'
     description = 'Generate comprehensive test coverage report'
     dependsOn 'testDebugUnitTest', 'jacocoTestReport'
 }
 
 // Task to run tests with coverage
-task testWithCoverage {
+tasks.register('testWithCoverage') {
     group = 'verification'
     description = 'Run tests and generate coverage report'
     dependsOn 'generateTestCoverageReport'
 }
 
 // Task to run specific test suites
-task runCommunicationTests {
+tasks.register('runCommunicationTests') {
     group = 'verification'
     description = 'Run communication layer tests'
     dependsOn 'testDebugUnitTest'
@@ -45,7 +45,7 @@ task runCommunicationTests {
     }
 }
 
-task runUITests {
+tasks.register('runUITests') {
     group = 'verification'
     description = 'Run UI layer tests'
     dependsOn 'connectedAndroidTest'
@@ -54,7 +54,7 @@ task runUITests {
     }
 }
 
-task runServiceTests {
+tasks.register('runServiceTests') {
     group = 'verification'
     description = 'Run service layer tests'
     dependsOn 'connectedAndroidTest'
@@ -64,7 +64,7 @@ task runServiceTests {
 }
 
 // Task to clean test reports
-task cleanTestReports {
+tasks.register('cleanTestReports') {
     group = 'verification'
     description = 'Clean all test reports'
     doLast {
@@ -75,11 +75,11 @@ task cleanTestReports {
 }
 
 // Task to run tests in CI environment
-task runCITests {
+tasks.register('runCITests') {
     group = 'verification'
     description = 'Run tests suitable for CI environment'
     dependsOn 'runAllUnitTests'
-    
+
     // Only run instrumentation tests if not in CI
     if (!System.getenv('CI')) {
         dependsOn 'runAllInstrumentationTests'
@@ -121,47 +121,47 @@ jacoco {
 }
 
 // Enhanced JaCoCo test report
-tasks.withType(JacocoReport) {
+tasks.withType(JacocoReport).configureEach {
     reports {
         xml.required = true
         html.required = true
         csv.required = false
     }
-    
+
     afterEvaluate {
         classDirectories.setFrom(files(classDirectories.files.collect {
             fileTree(dir: it, exclude: [
-                '**/*Test*.*',
-                '**/R.class',
-                '**/R$*.class',
-                '**/BuildConfig.*',
-                '**/Manifest*.*',
-                '**/*$ViewInjector*.*',
-                '**/*$ViewBinder*.*',
-                '**/*_MembersInjector.class',
-                '**/*_Factory.class',
-                '**/*_Provide*Factory.class',
-                '**/*Module*.*',
-                '**/*Component*.*',
-                '**/*_Hilt*.*',
-                '**/Hilt_*.*',
-                '**/*_Generated*.*',
-                '**/di/**/*.*',
-                '**/dagger/**/*.*',
-                '**/*Activity*.*',
-                '**/*Fragment*.*',
-                '**/*Application*.*'
+                    '**/*Test*.*',
+                    '**/R.class',
+                    '**/R$*.class',
+                    '**/BuildConfig.*',
+                    '**/Manifest*.*',
+                    '**/*$ViewInjector*.*',
+                    '**/*$ViewBinder*.*',
+                    '**/*_MembersInjector.class',
+                    '**/*_Factory.class',
+                    '**/*_Provide*Factory.class',
+                    '**/*Module*.*',
+                    '**/*Component*.*',
+                    '**/*_Hilt*.*',
+                    '**/Hilt_*.*',
+                    '**/*_Generated*.*',
+                    '**/di/**/*.*',
+                    '**/dagger/**/*.*',
+                    '**/*Activity*.*',
+                    '**/*Fragment*.*',
+                    '**/*Application*.*'
             ])
         }))
     }
 }
 
 // Task to validate test coverage
-task validateCoverage {
+tasks.register('validateCoverage') {
     group = 'verification'
     description = 'Validate test coverage meets minimum requirements'
     dependsOn 'jacocoTestReport'
-    
+
     doLast {
         def coverageFile = file("$buildDir/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
         if (coverageFile.exists()) {
@@ -170,9 +170,9 @@ task validateCoverage {
             def covered = instructionCoverage.@covered.toInteger()
             def missed = instructionCoverage.@missed.toInteger()
             def coveragePercent = (covered / (covered + missed)) * 100
-            
+
             println "Test Coverage: ${coveragePercent.round(2)}%"
-            
+
             if (coveragePercent < 70) {
                 throw new GradleException("Test coverage (${coveragePercent.round(2)}%) is below minimum requirement (70%)")
             }
@@ -181,7 +181,7 @@ task validateCoverage {
 }
 
 // Task to run linting and tests
-task runQualityChecks {
+tasks.register('runQualityChecks') {
     group = 'verification'
     description = 'Run all quality checks including lint and tests'
     dependsOn 'lint', 'runAllUnitTests', 'validateCoverage'
@@ -193,7 +193,7 @@ tasks.named('check') {
 }
 
 // Helper task to print test configuration
-task printTestConfig {
+tasks.register('printTestConfig') {
     group = 'help'
     description = 'Print test configuration information'
     doLast {

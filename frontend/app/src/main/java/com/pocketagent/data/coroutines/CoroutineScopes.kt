@@ -16,77 +16,77 @@ import javax.inject.Singleton
 
 /**
  * Centralized scope management for the Pocket Agent application.
- * 
+ *
  * This class provides a unified interface for managing different coroutine scopes
  * throughout the application lifecycle, ensuring proper cleanup and cancellation.
  */
 @Singleton
-class CoroutineScopes @Inject constructor(
-    @ApplicationScope private val applicationScope: CoroutineScope,
-    @WebSocketScope private val webSocketScope: CoroutineScope,
-    @BackgroundScope private val backgroundScope: CoroutineScope
-) {
-    
-    /**
-     * Gets the application-wide coroutine scope.
-     * Use this for operations that should live for the entire app lifecycle.
-     */
-    fun getApplicationScope(): CoroutineScope = applicationScope
-    
-    /**
-     * Gets the WebSocket coroutine scope.
-     * Use this for WebSocket connection management and message handling.
-     */
-    fun getWebSocketScope(): CoroutineScope = webSocketScope
-    
-    /**
-     * Gets the background service coroutine scope.
-     * Use this for background monitoring and periodic tasks.
-     */
-    fun getBackgroundScope(): CoroutineScope = backgroundScope
-    
-    /**
-     * Launches a coroutine in the application scope.
-     */
-    fun launchInApplicationScope(block: suspend CoroutineScope.() -> Unit): Job {
-        return applicationScope.launch(block = block)
+class CoroutineScopes
+    @Inject
+    constructor(
+        @ApplicationScope private val applicationScope: CoroutineScope,
+        @WebSocketScope private val webSocketScope: CoroutineScope,
+        @BackgroundScope private val backgroundScope: CoroutineScope,
+    ) {
+        /**
+         * Gets the application-wide coroutine scope.
+         * Use this for operations that should live for the entire app lifecycle.
+         */
+        fun getApplicationScope(): CoroutineScope = applicationScope
+
+        /**
+         * Gets the WebSocket coroutine scope.
+         * Use this for WebSocket connection management and message handling.
+         */
+        fun getWebSocketScope(): CoroutineScope = webSocketScope
+
+        /**
+         * Gets the background service coroutine scope.
+         * Use this for background monitoring and periodic tasks.
+         */
+        fun getBackgroundScope(): CoroutineScope = backgroundScope
+
+        /**
+         * Launches a coroutine in the application scope.
+         */
+        fun launchInApplicationScope(block: suspend CoroutineScope.() -> Unit): Job {
+            return applicationScope.launch(block = block)
+        }
+
+        /**
+         * Launches a coroutine in the WebSocket scope.
+         */
+        fun launchInWebSocketScope(block: suspend CoroutineScope.() -> Unit): Job {
+            return webSocketScope.launch(block = block)
+        }
+
+        /**
+         * Launches a coroutine in the background scope.
+         */
+        fun launchInBackgroundScope(block: suspend CoroutineScope.() -> Unit): Job {
+            return backgroundScope.launch(block = block)
+        }
+
+        /**
+         * Cancels all scopes (typically called during app shutdown).
+         */
+        fun cancelAllScopes() {
+            applicationScope.cancel()
+            webSocketScope.cancel()
+            backgroundScope.cancel()
+        }
     }
-    
-    /**
-     * Launches a coroutine in the WebSocket scope.
-     */
-    fun launchInWebSocketScope(block: suspend CoroutineScope.() -> Unit): Job {
-        return webSocketScope.launch(block = block)
-    }
-    
-    /**
-     * Launches a coroutine in the background scope.
-     */
-    fun launchInBackgroundScope(block: suspend CoroutineScope.() -> Unit): Job {
-        return backgroundScope.launch(block = block)
-    }
-    
-    /**
-     * Cancels all scopes (typically called during app shutdown).
-     */
-    fun cancelAllScopes() {
-        applicationScope.cancel()
-        webSocketScope.cancel()
-        backgroundScope.cancel()
-    }
-}
 
 /**
  * Extension functions for ViewModel coroutine scope management.
  */
 object ViewModelScopeExtensions {
-    
     /**
      * Launches a coroutine in the ViewModel scope with error handling.
      */
     fun ViewModel.launchWithErrorHandling(
         onError: (Throwable) -> Unit = { it.printStackTrace() },
-        block: suspend CoroutineScope.() -> Unit
+        block: suspend CoroutineScope.() -> Unit,
     ): Job {
         return viewModelScope.launch {
             try {
@@ -96,14 +96,12 @@ object ViewModelScopeExtensions {
             }
         }
     }
-    
+
     /**
      * Launches a coroutine in the ViewModel scope with supervisor behavior.
      * This ensures that if one child coroutine fails, others continue running.
      */
-    fun ViewModel.launchWithSupervisor(
-        block: suspend CoroutineScope.() -> Unit
-    ): Job {
+    fun ViewModel.launchWithSupervisor(block: suspend CoroutineScope.() -> Unit): Job {
         return viewModelScope.launch {
             supervisorScope {
                 block()
@@ -116,10 +114,10 @@ object ViewModelScopeExtensions {
  * Lifecycle-aware coroutine scope that can be cancelled when the lifecycle is destroyed.
  */
 class LifecycleCoroutineScope(
-    private val baseScope: CoroutineScope
+    private val baseScope: CoroutineScope,
 ) {
     private var scopeJob: Job? = null
-    
+
     /**
      * Creates a new scope tied to the lifecycle.
      */
@@ -128,7 +126,7 @@ class LifecycleCoroutineScope(
         scopeJob = job
         return baseScope + job
     }
-    
+
     /**
      * Cancels the current scope.
      */
@@ -136,7 +134,7 @@ class LifecycleCoroutineScope(
         scopeJob?.cancel()
         scopeJob = null
     }
-    
+
     /**
      * Checks if the scope is active.
      */
@@ -150,16 +148,19 @@ class LifecycleCoroutineScope(
  */
 class CancellationManager {
     private val jobs = mutableMapOf<String, Job>()
-    
+
     /**
      * Registers a job with a key for later cancellation.
      */
-    fun registerJob(key: String, job: Job) {
+    fun registerJob(
+        key: String,
+        job: Job,
+    ) {
         // Cancel any existing job with the same key
         jobs[key]?.cancel()
         jobs[key] = job
     }
-    
+
     /**
      * Cancels a job by key.
      */
@@ -167,7 +168,7 @@ class CancellationManager {
         jobs[key]?.cancel()
         jobs.remove(key)
     }
-    
+
     /**
      * Cancels all registered jobs.
      */
@@ -175,14 +176,14 @@ class CancellationManager {
         jobs.values.forEach { it.cancel() }
         jobs.clear()
     }
-    
+
     /**
      * Checks if a job is still active.
      */
     fun isJobActive(key: String): Boolean {
         return jobs[key]?.isActive == true
     }
-    
+
     /**
      * Gets the number of active jobs.
      */
@@ -197,7 +198,7 @@ class CancellationManager {
 fun CoroutineScope.launchCancellable(
     cancellationManager: CancellationManager,
     key: String,
-    block: suspend CoroutineScope.() -> Unit
+    block: suspend CoroutineScope.() -> Unit,
 ): Job {
     val job = this.launch(block = block)
     cancellationManager.registerJob(key, job)
@@ -214,10 +215,9 @@ fun CoroutineScope.createChildScope(): CoroutineScope {
 /**
  * Utility for creating scopes with specific error handling.
  */
-fun CoroutineScope.withErrorHandling(
-    onError: (Throwable) -> Unit
-): CoroutineScope {
-    return this + kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
-        onError(throwable)
-    }
+fun CoroutineScope.withErrorHandling(onError: (Throwable) -> Unit): CoroutineScope {
+    return this +
+        kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
+            onError(throwable)
+        }
 }

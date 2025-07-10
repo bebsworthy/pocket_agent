@@ -101,6 +101,12 @@ data class AppData(
     fun getTotalMessageCount(): Int = messages.values.sumOf { it.size }
     
     /**
+     * Gets total count of all entities.
+     */
+    fun getTotalEntityCount(): Int = 
+        sshIdentities.size + serverProfiles.size + projects.size + getTotalMessageCount()
+    
+    /**
      * Gets total storage size estimate in bytes.
      */
     fun getEstimatedStorageSize(): Long {

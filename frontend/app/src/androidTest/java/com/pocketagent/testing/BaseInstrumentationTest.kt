@@ -11,7 +11,7 @@ import org.junit.runner.RunWith
 
 /**
  * Base class for instrumentation tests that provides common Hilt setup.
- * 
+ *
  * Features:
  * - Hilt dependency injection
  * - Application context access
@@ -20,12 +20,11 @@ import org.junit.runner.RunWith
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 abstract class BaseInstrumentationTest {
-    
     @get:Rule(order = 0)
     val hiltRule = HiltAndroidRule(this)
-    
+
     protected val context = ApplicationProvider.getApplicationContext<android.content.Context>()
-    
+
     @Before
     open fun setUp() {
         hiltRule.inject()
@@ -38,9 +37,8 @@ abstract class BaseInstrumentationTest {
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 abstract class BaseComposeInstrumentationTest : BaseInstrumentationTest() {
-    
     // Compose-specific setup will be added here
-    
+
     @Before
     override fun setUp() {
         super.setUp()
@@ -54,9 +52,8 @@ abstract class BaseComposeInstrumentationTest : BaseInstrumentationTest() {
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 abstract class BaseActivityInstrumentationTest<T : androidx.activity.ComponentActivity> : BaseInstrumentationTest() {
-    
     abstract val activityScenarioRule: ActivityScenarioRule<T>
-    
+
     @Before
     override fun setUp() {
         super.setUp()

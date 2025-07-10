@@ -12,13 +12,10 @@ import org.junit.runners.Suite
 @Suite.SuiteClasses(
     // Example tests
     ExampleInstrumentationTest::class,
-    
     // Navigation tests
     NavigationTest::class,
-    
     // Service tests
     BackgroundServiceTest::class,
-    
     // Add other instrumentation test classes here
 )
 class AllInstrumentationTestSuite

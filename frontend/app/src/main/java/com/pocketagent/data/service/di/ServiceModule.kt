@@ -14,14 +14,13 @@ import javax.inject.Singleton
 
 /**
  * Dagger Hilt module for providing service layer dependencies.
- * 
+ *
  * This module provides instances of service classes that handle business logic
  * and coordinate between the data layer and presentation layer.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object ServiceModule {
-    
     /**
      * Provides SSH key parser for handling SSH key format conversion and parsing.
      */
@@ -30,7 +29,7 @@ object ServiceModule {
     fun provideSshKeyParser(): SshKeyParser {
         return SshKeyParser()
     }
-    
+
     /**
      * Provides SSH key encryption service for secure key storage.
      */
@@ -39,10 +38,10 @@ object ServiceModule {
     fun provideSshKeyEncryption(): SshKeyEncryption {
         return SshKeyEncryption()
     }
-    
+
     /**
      * Provides comprehensive SSH identity service with CRUD operations.
-     * 
+     *
      * @param repository Secure data repository for persistence
      * @param validator SSH identity validator for validation
      * @param sshKeyParser SSH key parser for format handling
@@ -54,29 +53,27 @@ object ServiceModule {
         repository: SecureDataRepository,
         validator: SshIdentityValidator,
         sshKeyParser: SshKeyParser,
-        sshKeyEncryption: SshKeyEncryption
+        sshKeyEncryption: SshKeyEncryption,
     ): SshIdentityService {
         return SshIdentityService(
             repository = repository,
             validator = validator,
             sshKeyParser = sshKeyParser,
-            sshKeyEncryption = sshKeyEncryption
+            sshKeyEncryption = sshKeyEncryption,
         )
     }
-    
+
     /**
      * Provides server connection tester for testing network connectivity.
-     * 
+     *
      * @param sshIdentityService SSH identity service for authentication validation
      */
     @Provides
     @Singleton
-    fun provideServerConnectionTester(
-        sshIdentityService: SshIdentityService
-    ): ServerConnectionTester {
+    fun provideServerConnectionTester(sshIdentityService: SshIdentityService): ServerConnectionTester {
         return ServerConnectionTester(sshIdentityService)
     }
-    
+
     /**
      * Provides network configuration validator for validating server configurations.
      */
@@ -85,10 +82,10 @@ object ServiceModule {
     fun provideNetworkConfigurationValidator(): NetworkConfigurationValidator {
         return NetworkConfigurationValidator()
     }
-    
+
     /**
      * Provides comprehensive server profile service with CRUD operations.
-     * 
+     *
      * @param repository Secure data repository for persistence
      * @param validator Server profile validator for validation
      * @param sshIdentityService SSH identity service for SSH key management
@@ -102,20 +99,20 @@ object ServiceModule {
         validator: ServerProfileValidator,
         sshIdentityService: SshIdentityService,
         connectionTester: ServerConnectionTester,
-        networkValidator: NetworkConfigurationValidator
+        networkValidator: NetworkConfigurationValidator,
     ): ServerProfileService {
         return ServerProfileService(
             repository = repository,
             validator = validator,
             sshIdentityService = sshIdentityService,
             connectionTester = connectionTester,
-            networkValidator = networkValidator
+            networkValidator = networkValidator,
         )
     }
-    
+
     /**
      * Provides comprehensive project service with CRUD operations.
-     * 
+     *
      * @param repository Secure data repository for persistence
      * @param validator Project validator for validation
      * @param serverProfileService Server profile service for server integration
@@ -127,16 +124,16 @@ object ServiceModule {
         repository: SecureDataRepository,
         validator: ProjectValidator,
         serverProfileService: ServerProfileService,
-        repositoryValidationService: RepositoryValidationService
+        repositoryValidationService: RepositoryValidationService,
     ): ProjectService {
         return ProjectService(
             repository = repository,
             validator = validator,
             serverProfileService = serverProfileService,
-            repositoryValidationService = repositoryValidationService
+            repositoryValidationService = repositoryValidationService,
         )
     }
-    
+
     /**
      * Provides project initialization utilities for project setup operations.
      */
@@ -145,17 +142,15 @@ object ServiceModule {
     fun provideProjectInitializationUtils(): ProjectInitializationUtils {
         return ProjectInitializationUtils()
     }
-    
+
     /**
      * Provides project status manager for status workflow management.
-     * 
+     *
      * @param projectService Project service for status updates
      */
     @Provides
     @Singleton
-    fun provideProjectStatusManager(
-        projectService: ProjectService
-    ): ProjectStatusManager {
+    fun provideProjectStatusManager(projectService: ProjectService): ProjectStatusManager {
         return ProjectStatusManager(projectService)
     }
 }

@@ -17,7 +17,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * Main activity for the Pocket Agent application
- * 
+ *
  * This activity serves as the entry point for the UI and is responsible for:
  * - Setting up the main compose content
  * - Handling system UI insets
@@ -26,22 +26,22 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         // Enable edge-to-edge display
         enableEdgeToEdge()
-        
+
         setContent {
             PocketAgentTheme {
                 // Main app content
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Surface(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding),
-                        color = MaterialTheme.colorScheme.background
+                        modifier =
+                            Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding),
+                        color = MaterialTheme.colorScheme.background,
                     ) {
                         // TODO: Replace with actual navigation and app content
                         PlaceholderContent()
@@ -53,11 +53,9 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun PocketAgentTheme(
-    content: @Composable () -> Unit
-) {
+fun PocketAgentTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        content = content
+        content = content,
     )
 }
 
@@ -65,7 +63,7 @@ fun PocketAgentTheme(
 fun PlaceholderContent() {
     Text(
         text = "Pocket Agent - Build system configured!",
-        style = MaterialTheme.typography.headlineMedium
+        style = MaterialTheme.typography.headlineMedium,
     )
 }
 

@@ -13,7 +13,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import io.mockk.runs
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -904,7 +903,7 @@ class ProjectServiceTest : BaseUnitTest() {
     fun `repository exceptions should be handled gracefully`() =
         runTest {
             // Given
-            coEvery { mockRepository.getProjectById(testProjectId) } throws 
+            coEvery { mockRepository.getProjectById(testProjectId) } throws
                 DataException.CorruptedDataException("Data corrupted", RuntimeException())
 
             // When

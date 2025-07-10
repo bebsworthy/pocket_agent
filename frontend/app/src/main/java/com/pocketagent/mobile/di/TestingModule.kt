@@ -11,7 +11,7 @@ import com.pocketagent.mobile.domain.repository.SshIdentityRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.components.SingletonComponent
-import dagger.hilt.testing.TestInstallIn
+import dagger.hilt.InstallIn
 import javax.inject.Singleton
 
 /**
@@ -21,15 +21,7 @@ import javax.inject.Singleton
  * It replaces the production modules when running tests.
  */
 @Module
-@TestInstallIn(
-    components = [SingletonComponent::class],
-    replaces = [
-        DataModule::class,
-        SecurityModule::class,
-        NetworkModule::class,
-        DomainModule::class
-    ]
-)
+@InstallIn(SingletonComponent::class)
 object TestingModule {
     
     /**

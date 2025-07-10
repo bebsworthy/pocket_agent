@@ -14,13 +14,7 @@ config:
   validation: true
   warningsAsErrors: false
   checkExhaustiveness: false
-  excludes: 
-    - '*/build/*'
-    - '*/generated/*'
-    - '*/resources/*'
-    - '*/tmp/*'
-    - '*/test/*'
-    - '*/androidTest/*'
+  excludes: ''
 
 processors:
   active: true

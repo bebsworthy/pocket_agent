@@ -2,6 +2,8 @@ package com.pocketagent.data.service
 
 import android.util.Log
 import kotlinx.coroutines.*
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.io.IOException
 import java.net.*
 import java.util.concurrent.ConcurrentHashMap
@@ -24,7 +26,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class ServerConnectionTester @Inject constructor(
-    private val sshIdentityService: SshIdentityService
+    private val sshIdentityService: SshIdentityService,
+    private val serverProfileService: ServerProfileService
 ) {
     
     companion object {
@@ -148,7 +151,8 @@ class ServerConnectionTester @Inject constructor(
                         semaphore.withPermit {
                             try {
                                 // Get profile from repository
-                                val profile = getServerProfile(profileId)
+                                val profileResult = serverProfileService.getServerProfile(profileId)
+                                val profile = profileResult.getOrNull()
                                 if (profile != null) {
                                     val result = testConnection(
                                         hostname = profile.hostname,

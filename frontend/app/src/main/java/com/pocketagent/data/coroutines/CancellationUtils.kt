@@ -4,6 +4,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.ensureActive
@@ -22,7 +23,7 @@ import javax.inject.Singleton
 
 /**
  * Comprehensive cancellation utilities for the Pocket Agent application.
- * 
+ *
  * This class provides sophisticated cancellation support, including:
  * - Graceful cancellation with cleanup
  * - Hierarchical cancellation management
@@ -30,234 +31,233 @@ import javax.inject.Singleton
  * - Proper exception handling during cancellation
  */
 @Singleton
-class CancellationUtils @Inject constructor() {
-    
-    companion object {
-        private const val TAG = "CancellationUtils"
-        private const val CLEANUP_TIMEOUT_MS = 5000L
-    }
-    
-    /**
-     * Executes a block with proper cancellation handling.
-     */
-    suspend fun <T> withCancellationHandling(
-        onCancellation: suspend () -> Unit = {},
-        block: suspend () -> T
-    ): T {
-        return try {
-            block()
-        } catch (e: CancellationException) {
-            android.util.Log.d(TAG, "Operation cancelled")
-            onCancellation()
-            throw e
+class CancellationUtils
+    @Inject
+    constructor() {
+        companion object {
+            private const val TAG = "CancellationUtils"
+            private const val CLEANUP_TIMEOUT_MS = 5000L
         }
-    }
-    
-    /**
-     * Executes a block that should complete even if the parent is cancelled.
-     */
-    suspend fun <T> withNonCancellableCleanup(
-        block: suspend () -> T
-    ): T {
-        return withContext(NonCancellable) {
-            block()
-        }
-    }
-    
-    /**
-     * Checks if the current coroutine is active and throws CancellationException if not.
-     */
-    suspend fun checkCancellation() {
-        kotlinx.coroutines.currentCoroutineContext().ensureActive()
-    }
-    
-    /**
-     * Yields execution and checks for cancellation.
-     */
-    suspend fun yieldAndCheckCancellation() {
-        yield()
-        checkCancellation()
-    }
-    
-    /**
-     * Executes a long-running operation with periodic cancellation checks.
-     */
-    suspend fun <T> withPeriodicCancellationCheck(
-        checkInterval: Int = 100,
-        operation: suspend (checkCancellation: suspend () -> Unit) -> T
-    ): T {
-        var operationCount = 0
-        return operation {
-            if (++operationCount % checkInterval == 0) {
-                yieldAndCheckCancellation()
+
+        /**
+         * Executes a block with proper cancellation handling.
+         */
+        suspend fun <T> withCancellationHandling(
+            onCancellation: suspend () -> Unit = {},
+            block: suspend () -> T,
+        ): T {
+            return try {
+                block()
+            } catch (e: CancellationException) {
+                android.util.Log.d(TAG, "Operation cancelled")
+                onCancellation()
+                throw e
             }
         }
-    }
-    
-    /**
-     * Cancels a job gracefully with timeout.
-     */
-    suspend fun cancelGracefully(
-        job: Job,
-        timeoutMs: Long = CLEANUP_TIMEOUT_MS
-    ) {
-        try {
-            withContext(NonCancellable) {
-                kotlinx.coroutines.withTimeout(timeoutMs) {
-                    job.cancelAndJoin()
+
+        /**
+         * Executes a block that should complete even if the parent is cancelled.
+         */
+        suspend fun <T> withNonCancellableCleanup(block: suspend () -> T): T {
+            return withContext(NonCancellable) {
+                block()
+            }
+        }
+
+        /**
+         * Checks if the current coroutine is active and throws CancellationException if not.
+         */
+        suspend fun checkCancellation() {
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
+        }
+
+        /**
+         * Yields execution and checks for cancellation.
+         */
+        suspend fun yieldAndCheckCancellation() {
+            yield()
+            checkCancellation()
+        }
+
+        /**
+         * Executes a long-running operation with periodic cancellation checks.
+         */
+        suspend fun <T> withPeriodicCancellationCheck(
+            checkInterval: Int = 100,
+            operation: suspend (checkCancellation: suspend () -> Unit) -> T,
+        ): T {
+            var operationCount = 0
+            return operation {
+                if (++operationCount % checkInterval == 0) {
+                    yieldAndCheckCancellation()
                 }
             }
-        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-            android.util.Log.w(TAG, "Job cancellation timed out, forcing cancellation")
-            job.cancel()
         }
-    }
-    
-    /**
-     * Creates a cancellation-aware flow.
-     */
-    fun <T> Flow<T>.withCancellationAwareness(): Flow<T> {
-        return this
-            .onStart {
-                android.util.Log.d(TAG, "Flow started")
-            }
-            .catch { throwable ->
-                when (throwable) {
-                    is CancellationException -> {
-                        android.util.Log.d(TAG, "Flow cancelled")
-                        throw throwable
-                    }
-                    else -> {
-                        android.util.Log.e(TAG, "Flow error", throwable)
-                        throw throwable
+
+        /**
+         * Cancels a job gracefully with timeout.
+         */
+        suspend fun cancelGracefully(
+            job: Job,
+            timeoutMs: Long = CLEANUP_TIMEOUT_MS,
+        ) {
+            try {
+                withContext(NonCancellable) {
+                    kotlinx.coroutines.withTimeout(timeoutMs) {
+                        job.cancelAndJoin()
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                android.util.Log.w(TAG, "Job cancellation timed out, forcing cancellation")
+                job.cancel()
             }
-            .onCompletion { throwable ->
-                when (throwable) {
-                    null -> android.util.Log.d(TAG, "Flow completed normally")
-                    is CancellationException -> android.util.Log.d(TAG, "Flow cancelled")
-                    else -> android.util.Log.e(TAG, "Flow completed with error", throwable)
+        }
+
+        /**
+         * Creates a cancellation-aware flow.
+         */
+        fun <T> Flow<T>.withCancellationAwareness(): Flow<T> {
+            return this
+                .onStart {
+                    android.util.Log.d(TAG, "Flow started")
                 }
-            }
+                .catch { throwable ->
+                    when (throwable) {
+                        is CancellationException -> {
+                            android.util.Log.d(TAG, "Flow cancelled")
+                            throw throwable
+                        }
+                        else -> {
+                            android.util.Log.e(TAG, "Flow error", throwable)
+                            throw throwable
+                        }
+                    }
+                }
+                .onCompletion { throwable ->
+                    when (throwable) {
+                        null -> android.util.Log.d(TAG, "Flow completed normally")
+                        is CancellationException -> android.util.Log.d(TAG, "Flow cancelled")
+                        else -> android.util.Log.e(TAG, "Flow completed with error", throwable)
+                    }
+                }
+        }
     }
-}
 
 /**
  * Hierarchical cancellation manager for complex cancellation scenarios.
  */
 @Singleton
-class HierarchicalCancellationManager @Inject constructor() {
-    
-    private val cancellationHierarchy = ConcurrentHashMap<String, CancellationNode>()
-    private val nodeCounter = AtomicInteger(0)
-    
-    /**
-     * Represents a node in the cancellation hierarchy.
-     */
-    data class CancellationNode(
-        val id: String,
-        val parentId: String?,
-        val job: Job,
-        val children: MutableSet<String> = mutableSetOf(),
-        val onCancellation: suspend () -> Unit = {}
-    )
-    
-    /**
-     * Registers a job in the cancellation hierarchy.
-     */
-    fun registerJob(
-        job: Job,
-        parentId: String? = null,
-        onCancellation: suspend () -> Unit = {}
-    ): String {
-        val nodeId = "node_${nodeCounter.incrementAndGet()}"
-        val node = CancellationNode(nodeId, parentId, job, onCancellation = onCancellation)
-        
-        cancellationHierarchy[nodeId] = node
-        
-        // Add to parent's children
-        parentId?.let { parentNodeId ->
-            cancellationHierarchy[parentNodeId]?.children?.add(nodeId)
+class HierarchicalCancellationManager
+    @Inject
+    constructor() {
+        private val cancellationHierarchy = ConcurrentHashMap<String, CancellationNode>()
+        private val nodeCounter = AtomicInteger(0)
+
+        /**
+         * Represents a node in the cancellation hierarchy.
+         */
+        data class CancellationNode(
+            val id: String,
+            val parentId: String?,
+            val job: Job,
+            val children: MutableSet<String> = mutableSetOf(),
+            val onCancellation: suspend () -> Unit = {},
+        )
+
+        /**
+         * Registers a job in the cancellation hierarchy.
+         */
+        fun registerJob(
+            job: Job,
+            parentId: String? = null,
+            onCancellation: suspend () -> Unit = {},
+        ): String {
+            val nodeId = "node_${nodeCounter.incrementAndGet()}"
+            val node = CancellationNode(nodeId, parentId, job, onCancellation = onCancellation)
+
+            cancellationHierarchy[nodeId] = node
+
+            // Add to parent's children
+            parentId?.let { parentNodeId ->
+                cancellationHierarchy[parentNodeId]?.children?.add(nodeId)
+            }
+
+            return nodeId
         }
-        
-        return nodeId
-    }
-    
-    /**
-     * Cancels a job and all its children.
-     */
-    suspend fun cancelHierarchy(nodeId: String) {
-        val node = cancellationHierarchy[nodeId] ?: return
-        
-        // Cancel all children first
-        val childrenToCancel = node.children.toList()
-        for (childId in childrenToCancel) {
-            cancelHierarchy(childId)
+
+        /**
+         * Cancels a job and all its children.
+         */
+        suspend fun cancelHierarchy(nodeId: String) {
+            val node = cancellationHierarchy[nodeId] ?: return
+
+            // Cancel all children first
+            val childrenToCancel = node.children.toList()
+            for (childId in childrenToCancel) {
+                cancelHierarchy(childId)
+            }
+
+            // Cancel this node
+            try {
+                node.onCancellation()
+            } catch (e: Exception) {
+                android.util.Log.e("HierarchicalCancellation", "Error during cancellation cleanup", e)
+            }
+
+            node.job.cancel()
+            cancellationHierarchy.remove(nodeId)
+
+            // Remove from parent's children
+            node.parentId?.let { parentId ->
+                cancellationHierarchy[parentId]?.children?.remove(nodeId)
+            }
         }
-        
-        // Cancel this node
-        try {
-            node.onCancellation()
-        } catch (e: Exception) {
-            android.util.Log.e("HierarchicalCancellation", "Error during cancellation cleanup", e)
+
+        /**
+         * Checks if a node is still active.
+         */
+        fun isNodeActive(nodeId: String): Boolean {
+            return cancellationHierarchy[nodeId]?.job?.isActive == true
         }
-        
-        node.job.cancel()
-        cancellationHierarchy.remove(nodeId)
-        
-        // Remove from parent's children
-        node.parentId?.let { parentId ->
-            cancellationHierarchy[parentId]?.children?.remove(nodeId)
+
+        /**
+         * Gets all active nodes.
+         */
+        fun getActiveNodes(): List<String> {
+            return cancellationHierarchy.entries
+                .filter { it.value.job.isActive }
+                .map { it.key }
         }
-    }
-    
-    /**
-     * Checks if a node is still active.
-     */
-    fun isNodeActive(nodeId: String): Boolean {
-        return cancellationHierarchy[nodeId]?.job?.isActive == true
-    }
-    
-    /**
-     * Gets all active nodes.
-     */
-    fun getActiveNodes(): List<String> {
-        return cancellationHierarchy.entries
-            .filter { it.value.job.isActive }
-            .map { it.key }
-    }
-    
-    /**
-     * Cancels all nodes.
-     */
-    suspend fun cancelAll() {
-        val rootNodes = cancellationHierarchy.values.filter { it.parentId == null }
-        for (rootNode in rootNodes) {
-            cancelHierarchy(rootNode.id)
+
+        /**
+         * Cancels all nodes.
+         */
+        suspend fun cancelAll() {
+            val rootNodes = cancellationHierarchy.values.filter { it.parentId == null }
+            for (rootNode in rootNodes) {
+                cancelHierarchy(rootNode.id)
+            }
         }
     }
-}
 
 /**
  * Cancellation-aware operation executor.
  */
 class CancellationAwareExecutor {
-    
     /**
      * Executes operations with proper cancellation support.
      */
     suspend fun <T> executeWithCancellationSupport(
         operations: List<suspend () -> T>,
         failFast: Boolean = true,
-        onCancellation: suspend () -> Unit = {}
+        onCancellation: suspend () -> Unit = {},
     ): List<T> {
         val results = mutableListOf<T>()
-        
+
         try {
             for (operation in operations) {
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                
+
                 try {
                     val result = operation()
                     results.add(result)
@@ -277,26 +277,27 @@ class CancellationAwareExecutor {
             onCancellation()
             throw e
         }
-        
+
         return results
     }
-    
+
     /**
      * Executes operations in parallel with cancellation support.
      */
     suspend fun <T> executeParallelWithCancellationSupport(
         operations: List<suspend () -> T>,
         scope: CoroutineScope,
-        onCancellation: suspend () -> Unit = {}
+        onCancellation: suspend () -> Unit = {},
     ): List<T> {
         return try {
-            val jobs = operations.map { operation ->
-                scope.launch {
-                    operation()
+            val deferreds =
+                operations.map { operation ->
+                    scope.async {
+                        operation()
+                    }
                 }
-            }
-            
-            jobs.map { it.await() }
+
+            deferreds.map { it.await() }
         } catch (e: CancellationException) {
             onCancellation()
             throw e
@@ -308,14 +309,13 @@ class CancellationAwareExecutor {
  * Timeout-aware cancellation utilities.
  */
 object TimeoutCancellationUtils {
-    
     /**
      * Executes a block with timeout and proper cancellation handling.
      */
     suspend fun <T> withTimeoutAndCancellation(
         timeoutMs: Long,
         onTimeout: suspend () -> Unit = {},
-        block: suspend () -> T
+        block: suspend () -> T,
     ): T {
         return try {
             kotlinx.coroutines.withTimeout(timeoutMs) {
@@ -327,7 +327,7 @@ object TimeoutCancellationUtils {
             throw e
         }
     }
-    
+
     /**
      * Executes a block with timeout or until cancelled.
      */
@@ -335,7 +335,7 @@ object TimeoutCancellationUtils {
         timeoutMs: Long,
         onTimeout: suspend () -> Unit = {},
         onCancellation: suspend () -> Unit = {},
-        block: suspend () -> T
+        block: suspend () -> T,
     ): T {
         return try {
             kotlinx.coroutines.withTimeout(timeoutMs) {
@@ -358,7 +358,7 @@ object TimeoutCancellationUtils {
  */
 fun CoroutineScope.launchCancellable(
     onCancellation: suspend () -> Unit = {},
-    block: suspend CoroutineScope.() -> Unit
+    block: suspend CoroutineScope.() -> Unit,
 ): Job {
     return this.launch {
         try {
@@ -377,13 +377,13 @@ fun CoroutineScope.launchCancellable(
 class CancellationToken {
     @Volatile
     private var cancelled = false
-    
+
     fun cancel() {
         cancelled = true
     }
-    
+
     fun isCancelled(): Boolean = cancelled
-    
+
     fun throwIfCancelled() {
         if (cancelled) {
             throw CancellationException("Operation was cancelled")
@@ -396,17 +396,17 @@ class CancellationToken {
  */
 class CooperativeCancellationChecker(
     private val scope: CoroutineScope,
-    private val checkInterval: Int = 1000
+    private val checkInterval: Int = 1000,
 ) {
     private var operationCount = 0
-    
+
     suspend fun checkCancellation() {
         if (++operationCount % checkInterval == 0) {
             scope.ensureActive()
             yield()
         }
     }
-    
+
     fun reset() {
         operationCount = 0
     }

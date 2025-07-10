@@ -1,8 +1,8 @@
 [versions]
 # Build tools
-agp = "8.2.1"
-kotlin = "1.9.22"
-ksp = "1.9.22-1.0.17"
+agp = "8.11.0"
+kotlin = "2.2.0"
+ksp = "2.2.0-1.0.29"
 
 # Code Quality Tools
 ktlint = "1.0.1"
@@ -19,11 +19,11 @@ work-runtime-ktx = "2.10.0"
 
 # Compose
 compose-bom = "2024.12.01"
-compose-compiler = "1.5.15"
+compose-compiler = "1.5.25"
 navigation-compose = "2.8.4"
 
 # Dependency Injection
-hilt = "2.48.1"
+hilt = "2.56.2"
 hilt-navigation-compose = "1.2.0"
 hilt-work = "1.2.0"
 
@@ -32,10 +32,10 @@ okhttp = "4.12.0"
 retrofit = "2.11.0"
 
 # Serialization
-kotlinx-serialization = "1.7.3"
+kotlinx-serialization = "1.9.0"
 
 # Coroutines
-kotlinx-coroutines = "1.9.0"
+kotlinx-coroutines = "1.10.2"
 
 # Security
 security-crypto = "1.1.0-alpha06"
@@ -52,7 +52,7 @@ accompanist-systemuicontroller = "0.34.0"
 
 # Testing
 junit = "4.13.2"
-kotlin-test = "1.9.22"
+kotlin-test = "1.9.25"
 mockito-core = "5.14.1"
 mockito-kotlin = "5.4.0"
 androidx-test-ext-junit = "1.2.1"

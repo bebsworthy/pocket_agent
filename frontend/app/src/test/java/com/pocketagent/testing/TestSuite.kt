@@ -64,6 +64,6 @@ class SecurityTestSuite
     CommunicationTestSuite::class,
     UITestSuite::class,
     DataTestSuite::class,
-    SecurityTestSuite::class
+    SecurityTestSuite::class,
 )
 class AllUnitTestSuite

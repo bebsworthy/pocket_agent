@@ -1,6 +1,5 @@
 package com.pocketagent.data.coroutines
 
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -9,7 +8,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestDispatcher
@@ -24,53 +22,48 @@ import org.junit.runner.Description
 
 /**
  * Test utilities for coroutine testing in the Pocket Agent application.
- * 
+ *
  * This class provides utilities for testing coroutines, flows, and suspending functions
  * with proper dispatcher management and time control.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CoroutineTestUtils {
-    
     companion object {
         /**
          * Runs a test with a test dispatcher and automatic cleanup.
          */
         fun runTestWithDispatcher(
             testDispatcher: TestDispatcher = StandardTestDispatcher(),
-            block: suspend CoroutineScope.() -> Unit
+            block: suspend CoroutineScope.() -> Unit,
         ) {
             runTest(testDispatcher) {
                 block()
             }
         }
-        
+
         /**
          * Runs a test with an unconfined dispatcher for immediate execution.
          */
-        fun runTestUnconfined(
-            block: suspend CoroutineScope.() -> Unit
-        ) {
+        fun runTestUnconfined(block: suspend CoroutineScope.() -> Unit) {
             runTest(UnconfinedTestDispatcher()) {
                 block()
             }
         }
-        
+
         /**
          * Collects all emissions from a flow for testing.
          */
         suspend fun <T> Flow<T>.collectToList(): List<T> {
             return this.toList()
         }
-        
+
         /**
          * Creates a test scope with a supervisor job.
          */
-        fun createTestScope(
-            testDispatcher: TestDispatcher = StandardTestDispatcher()
-        ): CoroutineScope {
+        fun createTestScope(testDispatcher: TestDispatcher = StandardTestDispatcher()): CoroutineScope {
             return CoroutineScope(SupervisorJob() + testDispatcher)
         }
-        
+
         /**
          * Creates test dispatchers for all operation types.
          */
@@ -80,11 +73,11 @@ class CoroutineTestUtils {
                 main = StandardTestDispatcher(scheduler),
                 io = StandardTestDispatcher(scheduler),
                 default = StandardTestDispatcher(scheduler),
-                unconfined = UnconfinedTestDispatcher(scheduler)
+                unconfined = UnconfinedTestDispatcher(scheduler),
             )
         }
     }
-    
+
     /**
      * Data class holding test dispatchers.
      */
@@ -92,7 +85,7 @@ class CoroutineTestUtils {
         val main: TestDispatcher,
         val io: TestDispatcher,
         val default: TestDispatcher,
-        val unconfined: TestDispatcher
+        val unconfined: TestDispatcher,
     )
 }
 
@@ -101,21 +94,20 @@ class CoroutineTestUtils {
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestCoroutineDispatchers(
-    private val testDispatchers: CoroutineTestUtils.TestDispatchers
+    private val testDispatchers: CoroutineTestUtils.TestDispatchers,
 ) : CoroutineDispatchers(
-    main = testDispatchers.main,
-    io = testDispatchers.io,
-    default = testDispatchers.default,
-    unconfined = testDispatchers.unconfined
-) {
-    
+        main = testDispatchers.main,
+        io = testDispatchers.io,
+        default = testDispatchers.default,
+        unconfined = testDispatchers.unconfined,
+    ) {
     /**
      * Advances time for all test dispatchers.
      */
     fun advanceTimeBy(delayTimeMillis: Long) {
         testDispatchers.main.scheduler.advanceTimeBy(delayTimeMillis)
     }
-    
+
     /**
      * Advances time until idle for all test dispatchers.
      */
@@ -129,19 +121,18 @@ class TestCoroutineDispatchers(
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CoroutineTestRule(
-    private val testDispatcher: TestDispatcher = StandardTestDispatcher()
+    private val testDispatcher: TestDispatcher = StandardTestDispatcher(),
 ) : TestWatcher() {
-    
     override fun starting(description: Description) {
         super.starting(description)
         Dispatchers.setMain(testDispatcher)
     }
-    
+
     override fun finished(description: Description) {
         super.finished(description)
         Dispatchers.resetMain()
     }
-    
+
     /**
      * Runs a test block with the test dispatcher.
      */
@@ -150,14 +141,14 @@ class CoroutineTestRule(
             block()
         }
     }
-    
+
     /**
      * Advances time by the specified amount.
      */
     fun advanceTimeBy(delayTimeMillis: Long) {
         testDispatcher.scheduler.advanceTimeBy(delayTimeMillis)
     }
-    
+
     /**
      * Advances time until all coroutines are idle.
      */
@@ -171,17 +162,18 @@ class CoroutineTestRule(
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TestCoroutineScopes(
-    private val testDispatchers: CoroutineTestUtils.TestDispatchers
+    private val testDispatchers: CoroutineTestUtils.TestDispatchers,
 ) {
-    
     private val applicationScope = CoroutineScope(SupervisorJob() + testDispatchers.default)
     private val webSocketScope = CoroutineScope(SupervisorJob() + testDispatchers.io)
     private val backgroundScope = CoroutineScope(SupervisorJob() + testDispatchers.default)
-    
+
     fun getApplicationScope(): CoroutineScope = applicationScope
+
     fun getWebSocketScope(): CoroutineScope = webSocketScope
+
     fun getBackgroundScope(): CoroutineScope = backgroundScope
-    
+
     /**
      * Cancels all test scopes.
      */
@@ -197,7 +189,6 @@ class TestCoroutineScopes(
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class FlowTestUtils {
-    
     companion object {
         /**
          * Tests a flow with time control and assertion.
@@ -206,70 +197,75 @@ class FlowTestUtils {
             flow: Flow<T>,
             testDispatcher: TestDispatcher = StandardTestDispatcher(),
             timeAdvancement: Long = 0,
-            expectedValues: List<T>
+            expectedValues: List<T>,
         ) {
             runTest(testDispatcher) {
                 val values = mutableListOf<T>()
-                
-                val job = launch {
-                    flow.collect { value ->
-                        values.add(value)
+
+                val job =
+                    launch {
+                        flow.collect { value ->
+                            values.add(value)
+                        }
                     }
-                }
-                
+
                 if (timeAdvancement > 0) {
                     advanceTimeBy(timeAdvancement)
                 }
-                
+
                 advanceUntilIdle()
                 job.cancel()
-                
+
                 assert(values == expectedValues) {
                     "Expected $expectedValues but got $values"
                 }
             }
         }
-        
+
         /**
          * Tests a flow that should emit specific values in order.
          */
         suspend fun <T> testFlowEmissions(
             flow: Flow<T>,
-            block: suspend FlowTestCollector<T>.() -> Unit
+            block: suspend FlowTestCollector<T>.() -> Unit,
         ) {
             val collector = FlowTestCollector<T>()
-            
+
             runTest {
-                val job = launch {
-                    flow.collect { value ->
-                        collector.addValue(value)
+                val job =
+                    launch {
+                        flow.collect { value ->
+                            collector.addValue(value)
+                        }
                     }
-                }
-                
+
                 block(collector)
-                
+
                 job.cancel()
             }
         }
     }
-    
+
     /**
      * Helper class for collecting and asserting flow values.
      */
     class FlowTestCollector<T> {
         private val values = mutableListOf<T>()
-        
+
         fun addValue(value: T) {
             values.add(value)
         }
-        
+
         fun assertValueCount(count: Int) {
             assert(values.size == count) {
                 "Expected $count values but got ${values.size}"
             }
         }
-        
-        fun assertValueAt(index: Int, expected: T) {
+
+        fun assertValueAt(
+            index: Int,
+            expected: T,
+        ) {
             assert(values.size > index) {
                 "No value at index $index"
             }
@@ -277,13 +273,13 @@ class FlowTestUtils {
                 "Expected $expected at index $index but got ${values[index]}"
             }
         }
-        
+
         fun assertValues(vararg expected: T) {
             assert(values == expected.toList()) {
                 "Expected ${expected.toList()} but got $values"
             }
         }
-        
+
         fun getValues(): List<T> = values.toList()
     }
 }
@@ -292,17 +288,18 @@ class FlowTestUtils {
  * Mock implementation of error handler for testing.
  */
 class MockCoroutineErrorHandler : CoroutineErrorHandler() {
-    
     val errors = mutableListOf<Throwable>()
-    
+
     override fun createGeneralExceptionHandler(): kotlinx.coroutines.CoroutineExceptionHandler {
         return kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
             errors.add(throwable)
         }
     }
-    
+
     fun getLastError(): Throwable? = errors.lastOrNull()
+
     fun getErrorCount(): Int = errors.size
+
     fun clearErrors() = errors.clear()
 }
 
@@ -312,7 +309,7 @@ class MockCoroutineErrorHandler : CoroutineErrorHandler() {
 @OptIn(ExperimentalCoroutinesApi::class)
 fun CoroutineScope.launchTest(
     testDispatcher: TestDispatcher = StandardTestDispatcher(),
-    block: suspend CoroutineScope.() -> Unit
+    block: suspend CoroutineScope.() -> Unit,
 ) {
     this.launch(testDispatcher) {
         block()
@@ -324,7 +321,7 @@ fun CoroutineScope.launchTest(
  */
 suspend fun <T> testSuspendFunction(
     timeoutMs: Long = 5000,
-    block: suspend () -> T
+    block: suspend () -> T,
 ): T {
     return kotlinx.coroutines.withTimeout(timeoutMs) {
         block()
@@ -337,13 +334,14 @@ suspend fun <T> testSuspendFunction(
 @OptIn(ExperimentalCoroutinesApi::class)
 fun testCancellation(
     testDispatcher: TestDispatcher = StandardTestDispatcher(),
-    block: suspend CoroutineScope.() -> Unit
+    block: suspend CoroutineScope.() -> Unit,
 ) {
     runTest(testDispatcher) {
-        val job = launch {
-            block()
-        }
-        
+        val job =
+            launch {
+                block()
+            }
+
         // Cancel the job and verify it's cancelled
         job.cancel()
         assert(job.isCancelled) {

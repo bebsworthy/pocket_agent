@@ -3,6 +3,7 @@ package com.pocketagent.data.service
 import android.util.Log
 import com.pocketagent.data.models.ConnectionStatus
 import com.pocketagent.data.models.ServerProfile
+import com.pocketagent.data.models.markAsConnected
 import com.pocketagent.data.repository.DataException
 import com.pocketagent.data.repository.SecureDataRepository
 import com.pocketagent.data.validation.ValidationResult
@@ -86,7 +87,7 @@ class ServerProfileService @Inject constructor(
                 // Validate SSH identity exists
                 val sshIdentityResult = sshIdentityService.getSshIdentity(sshIdentityId)
                 if (sshIdentityResult.isFailure) {
-                    return@withContext ServiceResult.failure("SSH Identity not found: ${sshIdentityResult.getErrorOrNull()}")
+                    return@withContext serviceFailure("SSH Identity not found: ${sshIdentityResult.getErrorOrNull()}")
                 }
                 
                 // Create the server profile
@@ -101,8 +102,9 @@ class ServerProfileService @Inject constructor(
                 
                 // Validate the profile
                 val validationResult = validator.validateForCreation(profile)
-                if (!validationResult.isValid) {
-                    return@withContext ServiceResult.failure("Validation failed: ${validationResult.getErrorSummary()}")
+                if (validationResult.isFailure()) {
+                    val errorMsg = validationResult.getFirstErrorMessage() ?: "Validation failed"
+                    return@withContext serviceFailure("Validation failed: $errorMsg")
                 }
                 
                 // Check name uniqueness
@@ -111,8 +113,8 @@ class ServerProfileService @Inject constructor(
                     name, 
                     existingProfiles.map { it.name }
                 )
-                if (!nameValidation.isValid) {
-                    return@withContext ServiceResult.failure("Server profile name already exists")
+                if (nameValidation.isFailure()) {
+                    return@withContext serviceFailure("Server profile name already exists")
                 }
                 
                 // Check hostname/port uniqueness
@@ -121,14 +123,15 @@ class ServerProfileService @Inject constructor(
                     port,
                     existingProfiles.map { it.hostname to it.port }
                 )
-                if (!hostnamePortValidation.isValid) {
-                    return@withContext ServiceResult.failure("Server with same hostname and port already exists")
+                if (hostnamePortValidation.isFailure()) {
+                    return@withContext serviceFailure("Server with same hostname and port already exists")
                 }
                 
                 // Validate network configuration
                 val networkValidation = networkValidator.validateConfiguration(hostname, port, wrapperPort)
-                if (!networkValidation.isValid) {
-                    return@withContext ServiceResult.failure("Network configuration invalid: ${networkValidation.getErrorSummary()}")
+                if (networkValidation.isFailure()) {
+                    val errorMsg = networkValidation.getFirstErrorMessage() ?: "Network validation failed"
+                    return@withContext serviceFailure("Network configuration invalid: $errorMsg")
                 }
                 
                 // Test connection if requested
@@ -149,11 +152,11 @@ class ServerProfileService @Inject constructor(
                 sshIdentityService.markAsUsed(sshIdentityId)
                 
                 Log.d(TAG, "Server profile created successfully: $name")
-                ServiceResult.success(finalProfile)
+                serviceSuccess(finalProfile)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create server profile", e)
-            ServiceResult.failure("Failed to create server profile: ${e.message}")
+            serviceFailure("Failed to create server profile: ${e.message}")
         }
     }
     
@@ -166,13 +169,13 @@ class ServerProfileService @Inject constructor(
         return try {
             val profile = repository.getServerProfileById(id)
             if (profile != null) {
-                ServiceResult.success(profile)
+                serviceSuccess(profile)
             } else {
-                ServiceResult.failure("Server profile not found")
+                serviceFailure("Server profile not found")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get server profile", e)
-            ServiceResult.failure("Failed to retrieve server profile: ${e.message}")
+            serviceFailure("Failed to retrieve server profile: ${e.message}")
         }
     }
     
@@ -194,13 +197,13 @@ class ServerProfileService @Inject constructor(
         
         return try {
             val existing = repository.getServerProfileById(id)
-                ?: return ServiceResult.failure("Server profile not found")
+                ?: return serviceFailure("Server profile not found")
             
             // Validate SSH identity if it's being changed
             if (sshIdentityId != null && sshIdentityId != existing.sshIdentityId) {
                 val sshIdentityResult = sshIdentityService.getSshIdentity(sshIdentityId)
                 if (sshIdentityResult.isFailure) {
-                    return ServiceResult.failure("SSH Identity not found: ${sshIdentityResult.getErrorOrNull()}")
+                    return serviceFailure("SSH Identity not found: ${sshIdentityResult.getErrorOrNull()}")
                 }
             }
             
@@ -215,8 +218,9 @@ class ServerProfileService @Inject constructor(
             
             // Validate the update
             val validationResult = validator.validateForUpdate(existing, updated)
-            if (!validationResult.isValid) {
-                return ServiceResult.failure("Validation failed: ${validationResult.getErrorSummary()}")
+            if (validationResult.isFailure()) {
+                val errorMsg = validationResult.getFirstErrorMessage() ?: "Validation failed"
+                return serviceFailure("Validation failed: $errorMsg")
             }
             
             // Check name uniqueness if name changed
@@ -227,8 +231,8 @@ class ServerProfileService @Inject constructor(
                     existingProfiles.map { it.name },
                     excludeId = id
                 )
-                if (!nameValidation.isValid) {
-                    return ServiceResult.failure("Server profile name already exists")
+                if (nameValidation.isFailure()) {
+                    return serviceFailure("Server profile name already exists")
                 }
             }
             
@@ -242,8 +246,8 @@ class ServerProfileService @Inject constructor(
                     existingProfiles.map { it.hostname to it.port },
                     excludeId = id
                 )
-                if (!hostnamePortValidation.isValid) {
-                    return ServiceResult.failure("Server with same hostname and port already exists")
+                if (hostnamePortValidation.isFailure()) {
+                    return serviceFailure("Server with same hostname and port already exists")
                 }
             }
             
@@ -256,8 +260,9 @@ class ServerProfileService @Inject constructor(
                     updated.port, 
                     updated.wrapperPort
                 )
-                if (!networkValidation.isValid) {
-                    return ServiceResult.failure("Network configuration invalid: ${networkValidation.getErrorSummary()}")
+                if (networkValidation.isFailure()) {
+                    val errorMsg = networkValidation.getFirstErrorMessage() ?: "Network validation failed"
+                    return serviceFailure("Network configuration invalid: $errorMsg")
                 }
             }
             
@@ -286,10 +291,10 @@ class ServerProfileService @Inject constructor(
             }
             
             Log.d(TAG, "Server profile updated successfully: $id")
-            ServiceResult.success(finalProfile)
+            serviceSuccess(finalProfile)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update server profile", e)
-            ServiceResult.failure("Failed to update server profile: ${e.message}")
+            serviceFailure("Failed to update server profile: ${e.message}")
         }
     }
     
@@ -301,12 +306,12 @@ class ServerProfileService @Inject constructor(
         
         return try {
             val profile = repository.getServerProfileById(id)
-                ?: return ServiceResult.failure("Server profile not found")
+                ?: return serviceFailure("Server profile not found")
             
             // Check for dependencies
             val projects = repository.getProjectsForServer(id)
             if (projects.isNotEmpty()) {
-                return ServiceResult.failure(
+                return serviceFailure(
                     "Cannot delete server profile. It is used by ${projects.size} project(s): ${
                         projects.take(3).joinToString(", ") { it.name }
                     }${if (projects.size > 3) "..." else ""}"
@@ -316,10 +321,10 @@ class ServerProfileService @Inject constructor(
             repository.deleteServerProfile(id)
             
             Log.d(TAG, "Server profile deleted successfully: $id")
-            ServiceResult.success(Unit)
+            serviceSuccess(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete server profile", e)
-            ServiceResult.failure("Failed to delete server profile: ${e.message}")
+            serviceFailure("Failed to delete server profile: ${e.message}")
         }
     }
     
@@ -367,10 +372,10 @@ class ServerProfileService @Inject constructor(
                 }
             }.let { if (ascending) it else it.reversed() }
             
-            ServiceResult.success(sorted)
+            serviceSuccess(sorted)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to list server profiles", e)
-            ServiceResult.failure("Failed to list server profiles: ${e.message}")
+            serviceFailure("Failed to list server profiles: ${e.message}")
         }
     }
     
@@ -439,7 +444,7 @@ class ServerProfileService @Inject constructor(
         
         return try {
             val profile = repository.getServerProfileById(profileId)
-                ?: return ServiceResult.failure("Server profile not found")
+                ?: return serviceFailure("Server profile not found")
             
             val updated = if (updateTimestamp && status == ConnectionStatus.CONNECTED) {
                 profile.copy(
@@ -451,10 +456,10 @@ class ServerProfileService @Inject constructor(
             }
             
             repository.updateServerProfile(updated)
-            ServiceResult.success(updated)
+            serviceSuccess(updated)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update connection status", e)
-            ServiceResult.failure("Failed to update connection status: ${e.message}")
+            serviceFailure("Failed to update connection status: ${e.message}")
         }
     }
     
@@ -471,7 +476,7 @@ class ServerProfileService @Inject constructor(
         
         return try {
             if (query.isBlank()) {
-                return ServiceResult.success(emptyList())
+                return serviceSuccess(emptyList())
             }
             
             val allProfiles = repository.getAllServerProfiles()
@@ -482,10 +487,10 @@ class ServerProfileService @Inject constructor(
                 profile.getConnectionString().contains(query, ignoreCase = true)
             }.take(limit)
             
-            ServiceResult.success(searchResults)
+            serviceSuccess(searchResults)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to search server profiles", e)
-            ServiceResult.failure("Failed to search server profiles: ${e.message}")
+            serviceFailure("Failed to search server profiles: ${e.message}")
         }
     }
     
@@ -543,10 +548,10 @@ class ServerProfileService @Inject constructor(
                 filtered = filtered.filter { it.port in range }
             }
             
-            ServiceResult.success(filtered)
+            serviceSuccess(filtered)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to filter server profiles", e)
-            ServiceResult.failure("Failed to filter server profiles: ${e.message}")
+            serviceFailure("Failed to filter server profiles: ${e.message}")
         }
     }
     
@@ -588,10 +593,10 @@ class ServerProfileService @Inject constructor(
         
         return try {
             val profiles = repository.getServerProfilesForIdentity(sshIdentityId)
-            ServiceResult.success(profiles)
+            serviceSuccess(profiles)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get profiles for SSH identity", e)
-            ServiceResult.failure("Failed to get profiles for SSH identity: ${e.message}")
+            serviceFailure("Failed to get profiles for SSH identity: ${e.message}")
         }
     }
     
@@ -603,10 +608,10 @@ class ServerProfileService @Inject constructor(
         
         return try {
             val projects = repository.getProjectsForServer(profileId)
-            ServiceResult.success(projects)
+            serviceSuccess(projects)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get projects for profile", e)
-            ServiceResult.failure("Failed to get projects for profile: ${e.message}")
+            serviceFailure("Failed to get projects for profile: ${e.message}")
         }
     }
     
@@ -632,11 +637,11 @@ class ServerProfileService @Inject constructor(
                     wrapperPortReachable = networkValidator.isPortReachable(hostname, wrapperPort),
                     recommendations = networkValidator.getRecommendations(hostname, sshPort, wrapperPort)
                 )
-                ServiceResult.success(networkReport)
+                serviceSuccess(networkReport)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to validate network configuration", e)
-            ServiceResult.failure("Failed to validate network configuration: ${e.message}")
+            serviceFailure("Failed to validate network configuration: ${e.message}")
         }
     }
     
@@ -692,7 +697,7 @@ class ServerProfileService @Inject constructor(
         
         return try {
             val profile = repository.getServerProfileById(profileId)
-                ?: return ServiceResult.failure("Server profile not found")
+                ?: return serviceFailure("Server profile not found")
             
             val exportData = profile.toExportModel()
             val jsonData = kotlinx.serialization.json.Json.encodeToString(
@@ -700,10 +705,10 @@ class ServerProfileService @Inject constructor(
                 exportData
             )
             
-            ServiceResult.success(jsonData)
+            serviceSuccess(jsonData)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to export server profile", e)
-            ServiceResult.failure("Failed to export server profile: ${e.message}")
+            serviceFailure("Failed to export server profile: ${e.message}")
         }
     }
     
@@ -736,7 +741,7 @@ class ServerProfileService @Inject constructor(
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to import server profile", e)
-            ServiceResult.failure("Failed to import server profile: ${e.message}")
+            serviceFailure("Failed to import server profile: ${e.message}")
         }
     }
 }
@@ -812,10 +817,3 @@ data class ServerProfileWithUsage(
     val usageStats: ServerProfileUsageStats
 )
 
-// Extension function for getting error summary from ValidationResult
-private fun ValidationResult.getErrorSummary(): String {
-    return when (this) {
-        is ValidationResult.Success -> "No errors"
-        is ValidationResult.Failure -> error.message
-    }
-}

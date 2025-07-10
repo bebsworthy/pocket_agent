@@ -487,4 +487,3 @@ data class BatteryStateEntity(
     val isPowerSaveMode: Boolean,
     val level: String,
 )
-

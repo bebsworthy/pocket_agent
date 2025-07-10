@@ -11,21 +11,20 @@ import org.junit.runner.RunWith
 
 /**
  * Instrumentation test for PocketAgentApplication.
- * 
+ *
  * This test verifies that the application can be properly initialized with Hilt.
  */
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class PocketAgentApplicationTest {
-    
     @get:Rule
     var hiltRule = HiltAndroidRule(this)
-    
+
     @Before
     fun setup() {
         hiltRule.inject()
     }
-    
+
     @Test
     fun useAppContext() {
         // Context of the app under test.
@@ -34,7 +33,7 @@ class PocketAgentApplicationTest {
             "Package name should be com.pocketagent.mobile"
         }
     }
-    
+
     @Test
     fun verifyApplicationClass() {
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext

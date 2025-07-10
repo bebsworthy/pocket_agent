@@ -87,10 +87,10 @@ class SshKeyEncryption @Inject constructor() {
             val encryptedData = cipher.doFinal(privateKeyData)
             
             // Create the final encrypted package
-            val package = createEncryptedPackage(iv, encryptedData)
+            val encryptedPackage = createEncryptedPackage(iv, encryptedData)
             
             // Encode to base64 for storage
-            val result = Base64.getEncoder().encodeToString(package)
+            val result = Base64.getEncoder().encodeToString(encryptedPackage)
             
             Log.d(TAG, "SSH private key encrypted successfully")
             return result

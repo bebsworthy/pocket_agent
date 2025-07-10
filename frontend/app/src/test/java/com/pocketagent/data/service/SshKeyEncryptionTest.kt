@@ -2,39 +2,47 @@ package com.pocketagent.data.service
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import io.mockk.*
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkAll
+import io.mockk.verify
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import java.security.*
+import java.security.KeyPair
+import java.security.KeyPairGenerator
+import java.security.KeyStore
 import java.security.spec.PKCS8EncodedKeySpec
-import java.util.*
+import java.util.Base64
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
 
 /**
  * Unit tests for SshKeyEncryption.
- * 
+ *
  * Tests encryption/decryption functionality, master key management,
  * and error handling scenarios.
  */
 @DisplayName("SSH Key Encryption Tests")
 class SshKeyEncryptionTest {
-
     @MockK
     private lateinit var mockKeyStore: KeyStore
-    
+
     @MockK
     private lateinit var mockSecretKey: SecretKey
-    
+
     @MockK
     private lateinit var mockCipher: Cipher
-    
+
     @MockK
     private lateinit var mockKeyGenerator: KeyGenerator
 
@@ -44,15 +52,15 @@ class SshKeyEncryptionTest {
     @BeforeEach
     fun setup() {
         MockKAnnotations.init(this)
-        
+
         // Mock static methods
         mockkStatic(KeyStore::class)
         mockkStatic(Cipher::class)
         mockkStatic(KeyGenerator::class)
         mockkStatic(Base64::class)
-        
+
         setupDefaultMocks()
-        
+
         encryption = SshKeyEncryption()
     }
 
@@ -69,7 +77,7 @@ class SshKeyEncryptionTest {
         // Arrange
         val expectedEncryptedData = "encrypted_test_data".toByteArray()
         val expectedBase64 = "ZW5jcnlwdGVkX3Rlc3RfZGF0YQ=="
-        
+
         every { mockKeyStore.containsAlias(any()) } returns true
         every { mockKeyStore.getKey(any(), any()) } returns mockSecretKey
         every { mockCipher.doFinal(any()) } returns expectedEncryptedData
@@ -126,12 +134,12 @@ class SshKeyEncryptionTest {
         val encryptedData = createTestEncryptedPackage()
         val base64EncryptedData = Base64.getEncoder().encodeToString(encryptedData)
         val decryptedKeyData = testKeyPair.private.encoded
-        
+
         every { mockKeyStore.containsAlias(any()) } returns true
         every { mockKeyStore.getKey(any(), any()) } returns mockSecretKey
         every { Base64.getDecoder().decode(base64EncryptedData) } returns encryptedData
         every { mockCipher.doFinal(any()) } returns decryptedKeyData
-        
+
         // Mock KeyFactory for private key reconstruction
         mockkStatic(KeyFactory::class)
         val mockKeyFactory = mockk<KeyFactory>()
@@ -165,7 +173,7 @@ class SshKeyEncryptionTest {
         // Arrange
         val invalidVersionData = createTestEncryptedPackage(version = 99)
         val base64Data = Base64.getEncoder().encodeToString(invalidVersionData)
-        
+
         every { Base64.getDecoder().decode(base64Data) } returns invalidVersionData
 
         // Act & Assert
@@ -180,7 +188,7 @@ class SshKeyEncryptionTest {
         // Arrange
         val encryptedData = createTestEncryptedPackage()
         val base64EncryptedData = Base64.getEncoder().encodeToString(encryptedData)
-        
+
         every { mockKeyStore.containsAlias(any()) } returns true
         every { mockKeyStore.getKey(any(), any()) } returns mockSecretKey
         every { Base64.getDecoder().decode(base64EncryptedData) } returns encryptedData
@@ -290,20 +298,20 @@ class SshKeyEncryptionTest {
         val decryptedKeyData = testKeyPair.private.encoded
         val newEncryptedData = "new_encrypted_data".toByteArray()
         val newBase64Data = "new_base64_data"
-        
+
         val oldMasterKey = mockk<SecretKey>()
-        
+
         // Mock decryption with old key
         every { Base64.getDecoder().decode(oldBase64Data) } returns oldEncryptedData
         every { Cipher.getInstance(any()) } returns mockCipher
         every { mockCipher.doFinal(any()) } returnsMany listOf(decryptedKeyData, newEncryptedData)
-        
+
         // Mock key reconstruction
         mockkStatic(KeyFactory::class)
         val mockKeyFactory = mockk<KeyFactory>()
         every { KeyFactory.getInstance("RSA") } returns mockKeyFactory
         every { mockKeyFactory.generatePrivate(any<PKCS8EncodedKeySpec>()) } returns testKeyPair.private
-        
+
         // Mock encryption with new key
         every { mockKeyStore.containsAlias(any()) } returns true
         every { mockKeyStore.getKey(any(), any()) } returns mockSecretKey
@@ -322,7 +330,7 @@ class SshKeyEncryptionTest {
         // Arrange
         val oldBase64Data = "old_encrypted_data"
         val oldMasterKey = mockk<SecretKey>()
-        
+
         every { Base64.getDecoder().decode(oldBase64Data) } throws IllegalArgumentException("Invalid data")
 
         // Act & Assert
@@ -340,12 +348,12 @@ class SshKeyEncryptionTest {
         val validEncryptedData = createTestEncryptedPackage()
         val base64Data = Base64.getEncoder().encodeToString(validEncryptedData)
         val decryptedKeyData = testKeyPair.private.encoded
-        
+
         every { mockKeyStore.containsAlias(any()) } returns true
         every { mockKeyStore.getKey(any(), any()) } returns mockSecretKey
         every { Base64.getDecoder().decode(base64Data) } returns validEncryptedData
         every { mockCipher.doFinal(any()) } returns decryptedKeyData
-        
+
         // Mock key reconstruction
         mockkStatic(KeyFactory::class)
         val mockKeyFactory = mockk<KeyFactory>()
@@ -383,7 +391,7 @@ class SshKeyEncryptionTest {
 
         // Assert
         assertEquals(32, salt.size)
-        
+
         // Generate another salt and ensure they're different
         val salt2 = SshKeyEncryptionUtils.generateSalt(32)
         assertFalse(salt.contentEquals(salt2))
@@ -448,12 +456,12 @@ class SshKeyEncryptionTest {
         // Mock KeyStore
         every { KeyStore.getInstance("AndroidKeyStore") } returns mockKeyStore
         every { mockKeyStore.load(null) } just Runs
-        
+
         // Mock Cipher
         every { Cipher.getInstance(any()) } returns mockCipher
         every { mockCipher.init(any<Int>(), any<SecretKey>(), any<GCMParameterSpec>()) } just Runs
         every { mockCipher.init(any<Int>(), any<SecretKey>()) } just Runs
-        
+
         // Mock Base64
         val mockEncoder = mockk<Base64.Encoder>()
         val mockDecoder = mockk<Base64.Decoder>()
@@ -472,7 +480,7 @@ class SshKeyEncryptionTest {
     private fun createTestEncryptedPackage(version: Int = 1): ByteArray {
         val iv = ByteArray(12) { it.toByte() }
         val encryptedData = "test_encrypted_data".toByteArray()
-        
+
         return byteArrayOf(
             // Version (4 bytes)
             (version shr 24).toByte(),
@@ -484,7 +492,7 @@ class SshKeyEncryptionTest {
             // IV (12 bytes)
             *iv,
             // Encrypted data
-            *encryptedData
+            *encryptedData,
         )
     }
 }
@@ -493,17 +501,16 @@ class SshKeyEncryptionTest {
  * Test utilities for SSH key encryption testing.
  */
 object SshKeyEncryptionTestUtils {
-    
     /**
      * Creates a test encrypted package with specified parameters.
      */
     fun createTestEncryptedPackage(
         version: Int = 1,
         ivSize: Int = 12,
-        encryptedData: ByteArray = "test_encrypted_data".toByteArray()
+        encryptedData: ByteArray = "test_encrypted_data".toByteArray(),
     ): ByteArray {
         val iv = ByteArray(ivSize) { it.toByte() }
-        
+
         return byteArrayOf(
             // Version (4 bytes)
             (version shr 24).toByte(),
@@ -518,28 +525,30 @@ object SshKeyEncryptionTestUtils {
             // IV
             *iv,
             // Encrypted data
-            *encryptedData
+            *encryptedData,
         )
     }
-    
+
     /**
      * Creates a test secret key for testing.
      */
     fun createTestSecretKey(): SecretKey {
         return object : SecretKey {
             override fun getAlgorithm() = "AES"
+
             override fun getFormat() = "RAW"
+
             override fun getEncoded() = ByteArray(32) { it.toByte() }
         }
     }
-    
+
     /**
      * Creates test key generation parameters.
      */
     fun createTestKeyGenParameterSpec(alias: String): KeyGenParameterSpec {
         return KeyGenParameterSpec.Builder(
             alias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
         )
             .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)

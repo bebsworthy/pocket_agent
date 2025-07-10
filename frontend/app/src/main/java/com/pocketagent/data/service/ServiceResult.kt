@@ -34,3 +34,20 @@ fun <T> ServiceResult<T>.getErrorOrNull(): Throwable? = exceptionOrNull()
  * Extension function to get the error message or null if successful.
  */
 fun <T> ServiceResult<T>.getErrorMessage(): String? = exceptionOrNull()?.message
+
+/**
+ * Creates a successful ServiceResult.
+ */
+fun <T> serviceSuccess(value: T): ServiceResult<T> = Result.success(value)
+
+/**
+ * Creates a failed ServiceResult with a message.
+ */
+fun <T> serviceFailure(message: String): ServiceResult<T> = 
+    Result.failure(Exception(message))
+
+/**
+ * Creates a failed ServiceResult with a throwable.
+ */
+fun <T> serviceFailure(throwable: Throwable): ServiceResult<T> = 
+    Result.failure(throwable)

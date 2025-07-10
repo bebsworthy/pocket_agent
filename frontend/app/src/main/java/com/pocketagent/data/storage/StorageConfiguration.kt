@@ -254,12 +254,11 @@ class StorageConfiguration @Inject constructor(
             val config = getConfiguration().getOrThrow()
             
             if (!config.autoBackupEnabled) {
-                return@try Result.Success(false)
+                Result.Success(false)
+            } else {
+                val timeSinceLastBackup = System.currentTimeMillis() - lastBackupTime
+                Result.Success(timeSinceLastBackup >= config.backupInterval)
             }
-            
-            val timeSinceLastBackup = System.currentTimeMillis() - lastBackupTime
-            
-            Result.Success(timeSinceLastBackup >= config.backupInterval)
         } catch (e: Exception) {
             Result.Error(e, "Failed to check backup status: ${e.message}")
         }

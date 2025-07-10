@@ -2,7 +2,6 @@ package com.pocketagent.data.service
 
 import android.util.Log
 import com.pocketagent.data.models.Project
-import com.pocketagent.data.models.ProjectStatus
 import com.pocketagent.data.models.ServerProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,7 +25,7 @@ class ProjectInitializationUtils @Inject constructor() {
     companion object {
         private const val TAG = "ProjectInitializationUtils"
         private const val DEFAULT_SCRIPTS_FOLDER = "scripts"
-        private const val DEFAULT_GITIGNORE_CONTENT = """
+        private val DEFAULT_GITIGNORE_CONTENT = """
             # Pocket Agent generated files
             .pocket-agent/
             *.log
@@ -116,7 +115,7 @@ class ProjectInitializationUtils @Inject constructor() {
     ): InitializationResult = withContext(Dispatchers.IO) {
         Log.d(TAG, "Initializing project: ${project.name} on server: ${serverProfile.name}")
         
-        val result = InitializationResult.Builder()
+        val result = InitializationResultBuilder()
         
         try {
             // Validate project path
@@ -325,7 +324,7 @@ class ProjectInitializationUtils @Inject constructor() {
         project: Project,
         serverProfile: ServerProfile,
         template: ProjectTemplate,
-        result: InitializationResult.Builder
+        result: InitializationResultBuilder
     ) {
         Log.d(TAG, "Applying template: $template to project: ${project.name}")
         
@@ -396,7 +395,7 @@ class ProjectInitializationUtils @Inject constructor() {
     private suspend fun setExecutablePermissions(
         project: Project,
         serverProfile: ServerProfile,
-        result: InitializationResult.Builder
+        result: InitializationResultBuilder
     ) {
         Log.d(TAG, "Setting executable permissions for project: ${project.name}")
         
@@ -469,7 +468,7 @@ class ProjectInitializationUtils @Inject constructor() {
     /**
      * Builder class for InitializationResult.
      */
-    private class InitializationResult.Builder {
+    private class InitializationResultBuilder {
         private var success: Boolean = false
         private var message: String = ""
         private val createdFiles: MutableList<String> = mutableListOf()
@@ -529,7 +528,7 @@ class ProjectInitializationUtils @Inject constructor() {
     ): InitializationResult = withContext(Dispatchers.IO) {
         Log.d(TAG, "Cleaning up project: ${project.name}")
         
-        val result = InitializationResult.Builder()
+        val result = InitializationResultBuilder()
         
         try {
             if (removeGeneratedFiles) {

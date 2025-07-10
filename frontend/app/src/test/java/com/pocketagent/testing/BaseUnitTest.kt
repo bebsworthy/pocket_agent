@@ -14,7 +14,7 @@ import org.mockito.MockitoAnnotations
 
 /**
  * Base class for unit tests that provides common setup and teardown.
- * 
+ *
  * Features:
  * - Coroutine testing support with TestScope
  * - Mockito initialization
@@ -23,19 +23,18 @@ import org.mockito.MockitoAnnotations
  */
 @ExperimentalCoroutinesApi
 abstract class BaseUnitTest {
-    
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
-    
+
     protected val testDispatcher = UnconfinedTestDispatcher()
     protected val testScope = TestScope(testDispatcher)
-    
+
     @Before
     open fun setUp() {
         MockitoAnnotations.openMocks(this)
         Dispatchers.setMain(testDispatcher)
     }
-    
+
     @After
     open fun tearDown() {
         Dispatchers.resetMain()
@@ -47,15 +46,14 @@ abstract class BaseUnitTest {
  */
 @ExperimentalCoroutinesApi
 abstract class BaseViewModelTest : BaseUnitTest() {
-    
     // Additional ViewModel-specific setup can be added here
-    
+
     @Before
     override fun setUp() {
         super.setUp()
         // ViewModel-specific setup
     }
-    
+
     @After
     override fun tearDown() {
         super.tearDown()

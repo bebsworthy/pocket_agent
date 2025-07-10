@@ -5,13 +5,13 @@ import java.util.UUID
 
 /**
  * Represents a Claude Code project with its associated session.
- * 
+ *
  * Projects represent individual codebases and their associated Claude Code sessions
  * running on remote servers. Each project is linked to a specific server profile
  * and contains metadata about the project path, status, and activity.
- * 
+ *
  * Entity Relationship: SSH Identity (1) → (N) Server Profile → (N) Project
- * 
+ *
  * @property id Unique identifier for the project
  * @property name User-friendly name for the project (max 100 characters)
  * @property serverProfileId Reference to the server profile hosting this project
@@ -36,7 +36,7 @@ data class Project(
     val createdAt: Long = System.currentTimeMillis(),
     val lastActiveAt: Long? = null,
     val repositoryUrl: String? = null,
-    val lastError: String? = null
+    val lastError: String? = null,
 ) {
     init {
         require(name.isNotBlank()) { "Project name cannot be blank" }
@@ -48,13 +48,13 @@ data class Project(
         require(!scriptsFolder.startsWith("/")) { "Scripts folder must be relative (not start with /)" }
         require(claudeSessionId?.isNotBlank() != false) { "Claude session ID cannot be blank if provided" }
         require(createdAt > 0) { "Created timestamp must be positive" }
-        require(lastActiveAt == null || lastActiveAt > 0) { 
-            "Last active timestamp must be positive if provided" 
+        require(lastActiveAt == null || lastActiveAt > 0) {
+            "Last active timestamp must be positive if provided"
         }
         require(repositoryUrl?.isNotBlank() != false) { "Repository URL cannot be blank if provided" }
         require(lastError?.isNotBlank() != false) { "Last error cannot be blank if provided" }
     }
-    
+
     /**
      * Check if this project was active recently (within the last 24 hours).
      */
@@ -62,37 +62,37 @@ data class Project(
         val twentyFourHoursAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000)
         return lastActiveAt != null && lastActiveAt > twentyFourHoursAgo
     }
-    
+
     /**
      * Get the full scripts path.
      */
     fun getScriptsPath(): String = "$projectPath/$scriptsFolder"
-    
+
     /**
      * Check if the project is currently active.
      */
     fun isActive(): Boolean = status == ProjectStatus.ACTIVE
-    
+
     /**
      * Check if the project is in an error state.
      */
     fun hasError(): Boolean = status == ProjectStatus.ERROR
-    
+
     /**
      * Check if the project has a Claude session.
      */
     fun hasClaudeSession(): Boolean = claudeSessionId != null
-    
+
     /**
      * Get the display name for the project.
      */
     fun getDisplayName(): String = name
-    
+
     /**
      * Get the project folder name from the path.
      */
     fun getFolderName(): String = projectPath.substringAfterLast("/")
-    
+
     /**
      * Check if the project has a repository URL.
      */
@@ -101,7 +101,7 @@ data class Project(
 
 /**
  * Represents the status of a project and its Claude Code session.
- * 
+ *
  * The project status tracks the current state of the Claude Code session
  * and helps the UI provide appropriate feedback to users.
  */
@@ -109,50 +109,57 @@ data class Project(
 enum class ProjectStatus {
     /** No active Claude Code session */
     INACTIVE,
+
     /** Currently establishing Claude Code session */
     CONNECTING,
+
     /** Claude Code session is active and ready */
     ACTIVE,
+
     /** Claude Code session is shutting down */
     DISCONNECTED,
+
     /** Project connection failed or encountered an error */
-    ERROR;
-    
+    ERROR,
+
+    ;
+
     /**
      * Check if this status represents an active connection attempt.
      */
     fun isConnecting(): Boolean = this == CONNECTING
-    
+
     /**
      * Check if this status represents an active session.
      */
     fun isActive(): Boolean = this == ACTIVE
-    
+
     /**
      * Check if this status represents an error state.
      */
     fun isError(): Boolean = this == ERROR
-    
+
     /**
      * Check if this status represents a disconnected state.
      */
     fun isDisconnected(): Boolean = this == DISCONNECTED || this == INACTIVE
-    
+
     /**
      * Get a user-friendly description of the status.
      */
-    fun getDescription(): String = when (this) {
-        INACTIVE -> "Inactive"
-        CONNECTING -> "Connecting..."
-        ACTIVE -> "Active"
-        DISCONNECTED -> "Disconnected"
-        ERROR -> "Error"
-    }
+    fun getDescription(): String =
+        when (this) {
+            INACTIVE -> "Inactive"
+            CONNECTING -> "Connecting..."
+            ACTIVE -> "Active"
+            DISCONNECTED -> "Disconnected"
+            ERROR -> "Error"
+        }
 }
 
 /**
  * Builder class for creating Project instances in tests.
- * 
+ *
  * This builder provides a fluent interface for constructing Project objects
  * with specific configurations for testing scenarios.
  */
@@ -170,30 +177,41 @@ class ProjectBuilder {
     private var lastError: String? = null
 
     fun id(id: String) = apply { this.id = id }
+
     fun name(name: String) = apply { this.name = name }
+
     fun serverProfileId(serverProfileId: String) = apply { this.serverProfileId = serverProfileId }
+
     fun projectPath(projectPath: String) = apply { this.projectPath = projectPath }
+
     fun scriptsFolder(scriptsFolder: String) = apply { this.scriptsFolder = scriptsFolder }
+
     fun claudeSessionId(claudeSessionId: String?) = apply { this.claudeSessionId = claudeSessionId }
+
     fun status(status: ProjectStatus) = apply { this.status = status }
+
     fun createdAt(timestamp: Long) = apply { this.createdAt = timestamp }
+
     fun lastActiveAt(timestamp: Long?) = apply { this.lastActiveAt = timestamp }
+
     fun repositoryUrl(repositoryUrl: String?) = apply { this.repositoryUrl = repositoryUrl }
+
     fun lastError(lastError: String?) = apply { this.lastError = lastError }
-    
-    fun build(): Project = Project(
-        id = id,
-        name = name,
-        serverProfileId = serverProfileId,
-        projectPath = projectPath,
-        scriptsFolder = scriptsFolder,
-        claudeSessionId = claudeSessionId,
-        status = status,
-        createdAt = createdAt,
-        lastActiveAt = lastActiveAt,
-        repositoryUrl = repositoryUrl,
-        lastError = lastError
-    )
+
+    fun build(): Project =
+        Project(
+            id = id,
+            name = name,
+            serverProfileId = serverProfileId,
+            projectPath = projectPath,
+            scriptsFolder = scriptsFolder,
+            claudeSessionId = claudeSessionId,
+            status = status,
+            createdAt = createdAt,
+            lastActiveAt = lastActiveAt,
+            repositoryUrl = repositoryUrl,
+            lastError = lastError,
+        )
 }
 
 /**
@@ -203,77 +221,75 @@ class ProjectBuilder {
 /**
  * Update the project status.
  */
-fun Project.withStatus(status: ProjectStatus): Project = 
+fun Project.withStatus(status: ProjectStatus): Project =
     copy(status = status, lastError = if (status != ProjectStatus.ERROR) null else lastError)
 
 /**
  * Mark as active with current timestamp.
  */
-fun Project.markAsActive(claudeSessionId: String? = null): Project = 
+fun Project.markAsActive(claudeSessionId: String? = null): Project =
     copy(
         status = ProjectStatus.ACTIVE,
         claudeSessionId = claudeSessionId ?: this.claudeSessionId,
         lastActiveAt = System.currentTimeMillis(),
-        lastError = null
+        lastError = null,
     )
 
 /**
  * Mark as inactive.
  */
-fun Project.markAsInactive(): Project = 
+fun Project.markAsInactive(): Project =
     copy(
         status = ProjectStatus.INACTIVE,
         claudeSessionId = null,
-        lastError = null
+        lastError = null,
     )
 
 /**
  * Mark as connecting.
  */
-fun Project.markAsConnecting(): Project = 
+fun Project.markAsConnecting(): Project =
     copy(
         status = ProjectStatus.CONNECTING,
-        lastError = null
+        lastError = null,
     )
 
 /**
  * Mark as disconnected.
  */
-fun Project.markAsDisconnected(): Project = 
+fun Project.markAsDisconnected(): Project =
     copy(
         status = ProjectStatus.DISCONNECTED,
         claudeSessionId = null,
-        lastError = null
+        lastError = null,
     )
 
 /**
  * Mark as error state with error message.
  */
-fun Project.markAsError(error: String): Project = 
+fun Project.markAsError(error: String): Project =
     copy(
         status = ProjectStatus.ERROR,
-        lastError = error
+        lastError = error,
     )
 
 /**
  * Update the last active timestamp.
  */
-fun Project.updateLastActive(): Project = 
-    copy(lastActiveAt = System.currentTimeMillis())
+fun Project.updateLastActive(): Project = copy(lastActiveAt = System.currentTimeMillis())
 
 /**
  * Set the repository URL.
  */
-fun Project.withRepositoryUrl(url: String?): Project = 
-    copy(repositoryUrl = url)
+fun Project.withRepositoryUrl(url: String?): Project = copy(repositoryUrl = url)
 
 /**
  * Check if the project matches the search query.
  */
-fun Project.matchesSearch(query: String): Boolean = 
-    name.contains(query, ignoreCase = true) || 
-    projectPath.contains(query, ignoreCase = true) ||
-    repositoryUrl?.contains(query, ignoreCase = true) == true
+fun Project.matchesSearch(query: String): Boolean =
+    name.contains(query, ignoreCase = true) ||
+        projectPath.contains(query, ignoreCase = true) ||
+        repositoryUrl?.contains(query, ignoreCase = true) == true
 
 /**
  * Get the age of the project in days.
@@ -297,15 +313,16 @@ fun Project.getDaysSinceLastActivity(): Long? {
 /**
  * Create a copy for export.
  */
-fun Project.toExportModel(): ProjectExport = ProjectExport(
-    id = id,
-    name = name,
-    serverProfileId = serverProfileId,
-    projectPath = projectPath,
-    scriptsFolder = scriptsFolder,
-    repositoryUrl = repositoryUrl,
-    createdAt = createdAt
-)
+fun Project.toExportModel(): ProjectExport =
+    ProjectExport(
+        id = id,
+        name = name,
+        serverProfileId = serverProfileId,
+        projectPath = projectPath,
+        scriptsFolder = scriptsFolder,
+        repositoryUrl = repositoryUrl,
+        createdAt = createdAt,
+    )
 
 /**
  * Export model for Project (without runtime status).
@@ -318,7 +335,7 @@ data class ProjectExport(
     val projectPath: String,
     val scriptsFolder: String,
     val repositoryUrl: String?,
-    val createdAt: Long
+    val createdAt: Long,
 )
 
 /**
@@ -328,7 +345,7 @@ object ProjectValidator {
     private val VALID_NAME_REGEX = Regex("^[a-zA-Z0-9\\s\\-_()\\[\\]{}]+$")
     private val VALID_PATH_REGEX = Regex("^/[a-zA-Z0-9/_.-]+$")
     private val VALID_FOLDER_REGEX = Regex("^[a-zA-Z0-9_.-]+$")
-    
+
     /**
      * Validate project name.
      */
@@ -340,7 +357,7 @@ object ProjectValidator {
             else -> Result.success(Unit)
         }
     }
-    
+
     /**
      * Validate project path.
      */
@@ -353,7 +370,7 @@ object ProjectValidator {
             else -> Result.success(Unit)
         }
     }
-    
+
     /**
      * Validate scripts folder.
      */
@@ -366,7 +383,7 @@ object ProjectValidator {
             else -> Result.success(Unit)
         }
     }
-    
+
     /**
      * Validate repository URL.
      */
@@ -374,7 +391,7 @@ object ProjectValidator {
         if (url == null) return Result.success(Unit)
         return when {
             url.isBlank() -> Result.failure(IllegalArgumentException("Repository URL cannot be blank if provided"))
-            !url.startsWith("https://") && !url.startsWith("git@") -> 
+            !url.startsWith("https://") && !url.startsWith("git@") ->
                 Result.failure(IllegalArgumentException("Repository URL must start with https:// or git@"))
             url.length > 500 -> Result.failure(IllegalArgumentException("Repository URL too long (max 500 chars)"))
             else -> Result.success(Unit)
@@ -391,32 +408,37 @@ object ProjectFactory {
      */
     fun createSample(
         name: String = "Sample Project",
-        serverProfileId: String = UUID.randomUUID().toString()
-    ): Project = ProjectBuilder()
-        .name(name)
-        .serverProfileId(serverProfileId)
-        .projectPath("/home/user/sample-project")
-        .repositoryUrl("https://github.com/user/sample-project.git")
-        .build()
-    
+        serverProfileId: String = UUID.randomUUID().toString(),
+    ): Project =
+        ProjectBuilder()
+            .name(name)
+            .serverProfileId(serverProfileId)
+            .projectPath("/home/user/sample-project")
+            .repositoryUrl("https://github.com/user/sample-project.git")
+            .build()
+
     /**
      * Create multiple sample projects.
      */
-    fun createSamples(count: Int, serverProfileId: String): List<Project> = 
+    fun createSamples(
+        count: Int,
+        serverProfileId: String,
+    ): List<Project> =
         (1..count).map { index ->
             createSample("Sample Project $index", serverProfileId)
         }
-    
+
     /**
      * Create a project with specific path.
      */
     fun createWithPath(
         name: String,
         serverProfileId: String,
-        projectPath: String
-    ): Project = ProjectBuilder()
-        .name(name)
-        .serverProfileId(serverProfileId)
-        .projectPath(projectPath)
-        .build()
+        projectPath: String,
+    ): Project =
+        ProjectBuilder()
+            .name(name)
+            .serverProfileId(serverProfileId)
+            .projectPath(projectPath)
+            .build()
 }

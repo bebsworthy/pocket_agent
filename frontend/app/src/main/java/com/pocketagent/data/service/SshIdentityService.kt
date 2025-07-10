@@ -576,32 +576,6 @@ class SshIdentityService @Inject constructor(
 }
 
 /**
- * Service result wrapper for operations.
- */
-sealed class ServiceResult<out T> {
-    data class Success<T>(val data: T) : ServiceResult<T>()
-    data class Failure(val error: String, val exception: Throwable? = null) : ServiceResult<Nothing>()
-    
-    val isSuccess: Boolean get() = this is Success
-    val isFailure: Boolean get() = this is Failure
-    
-    fun getOrNull(): T? = when (this) {
-        is Success -> data
-        is Failure -> null
-    }
-    
-    fun getErrorOrNull(): String? = when (this) {
-        is Success -> null
-        is Failure -> error
-    }
-    
-    companion object {
-        fun <T> success(data: T): ServiceResult<T> = Success(data)
-        fun failure(error: String, exception: Throwable? = null): ServiceResult<Nothing> = Failure(error, exception)
-    }
-}
-
-/**
  * SSH key formats supported for import/export.
  */
 enum class SshKeyFormat {
