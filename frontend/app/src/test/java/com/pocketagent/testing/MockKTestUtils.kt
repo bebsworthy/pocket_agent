@@ -53,11 +53,7 @@ object MockKTestUtils {
     }
 }
 
-/**
- * Extension functions for easier MockK usage.
- */
-
-// Suspend function utilities
+// Extension functions for easier MockK usage
 
 /**
  * Stub a suspend function call with MockK.
