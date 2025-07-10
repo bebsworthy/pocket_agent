@@ -43,11 +43,9 @@ fun <T> serviceSuccess(value: T): ServiceResult<T> = Result.success(value)
 /**
  * Creates a failed ServiceResult with a message.
  */
-fun <T> serviceFailure(message: String): ServiceResult<T> = 
-    Result.failure(Exception(message))
+fun <T> serviceFailure(message: String): ServiceResult<T> = Result.failure(Exception(message))
 
 /**
  * Creates a failed ServiceResult with a throwable.
  */
-fun <T> serviceFailure(throwable: Throwable): ServiceResult<T> = 
-    Result.failure(throwable)
+fun <T> serviceFailure(throwable: Throwable): ServiceResult<T> = Result.failure(throwable)
