@@ -356,6 +356,11 @@ detekt {
 
     source.setFrom("src/main/java", "src/main/kotlin")
 
+    // Reports configuration moved to task level
+}
+
+// Configure detekt reports at task level
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
     reports {
         html.required.set(true)
         xml.required.set(true)
@@ -370,10 +375,9 @@ spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
-        ktlint("1.0.1") {
-            // Disable the consecutive comments rule
-            userData(mapOf("ktlint_disabled_rules" to "standard:no-consecutive-comments"))
-        }
+        ktlint("1.0.1").setUseExperimental(true).editorConfigOverride(
+            mapOf("ktlint_disabled_rules" to "standard:no-consecutive-comments")
+        )
 
         // Custom formatting rules
         trimTrailingWhitespace()
