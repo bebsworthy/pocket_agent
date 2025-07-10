@@ -145,7 +145,7 @@ class ProjectStatusManager @Inject constructor(
                 
                 // Validate transition
                 if (!isValidTransition(currentStatus, newStatus)) {
-                    return@withLock ServiceResult.failure(
+                    return@withLock serviceFailure(
                         "Invalid status transition from $currentStatus to $newStatus"
                     )
                 }
@@ -200,17 +200,17 @@ class ProjectStatusManager @Inject constructor(
                     }
                     _statusMap.value = revertedMap
                     
-                    return@withLock ServiceResult.failure(
+                    return@withLock serviceFailure(
                         "Failed to update project status: ${projectResult.getErrorMessage()}"
                     )
                 }
                 
                 Log.d(TAG, "Project status updated successfully: $projectId -> $newStatus")
-                ServiceResult.success(newInfo)
+                serviceSuccess(newInfo)
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to update project status", e)
-                ServiceResult.failure("Failed to update project status: ${e.message}")
+                serviceFailure("Failed to update project status: ${e.message}")
             }
         }
     }
@@ -296,7 +296,7 @@ class ProjectStatusManager @Inject constructor(
     /**
      * Updates activity timestamp for an active project.
      */
-    suspend fun updateActivity(projectId: String): ServiceResult<ProjectStatusInfo> = 
+    suspend fun updateActivity(projectId: String): ServiceResult<ProjectStatusInfo> =
         withContext(Dispatchers.Default) {
             statusMutex.withLock {
                 val currentInfo = _statusMap.value[projectId]
@@ -309,9 +309,9 @@ class ProjectStatusManager @Inject constructor(
                     updatedMap[projectId] = updatedInfo
                     _statusMap.value = updatedMap
                     
-                    ServiceResult.success(updatedInfo)
+                    serviceSuccess(updatedInfo)
                 } else {
-                    ServiceResult.failure("Project is not active or not found")
+                    serviceFailure("Project is not active or not found")
                 }
             }
         }
@@ -436,7 +436,7 @@ class ProjectStatusManager @Inject constructor(
     /**
      * Performs automatic cleanup of stale status entries.
      */
-    suspend fun performStatusCleanup(): ServiceResult<StatusCleanupResult> = 
+    suspend fun performStatusCleanup(): ServiceResult<StatusCleanupResult> =
         withContext(Dispatchers.Default) {
             Log.d(TAG, "Performing status cleanup")
             
@@ -486,11 +486,11 @@ class ProjectStatusManager @Inject constructor(
                     _statusMap.value = currentMap
                     
                     Log.d(TAG, "Status cleanup completed: $cleanupCount removed, $timeoutCount timed out")
-                    ServiceResult.success(StatusCleanupResult(cleanupCount, timeoutCount))
+                    serviceSuccess(StatusCleanupResult(cleanupCount, timeoutCount))
                     
                 } catch (e: Exception) {
                     Log.e(TAG, "Status cleanup failed", e)
-                    ServiceResult.failure("Status cleanup failed: ${e.message}")
+                    serviceFailure("Status cleanup failed: ${e.message}")
                 }
             }
         }

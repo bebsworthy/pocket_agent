@@ -19,76 +19,75 @@ import org.junit.runner.RunWith
 @HiltAndroidTest
 @RunWith(AndroidJUnit4::class)
 class ExampleInstrumentationTest : BaseInstrumentationTest() {
-    
     @get:Rule
     val composeTestRule = createComposeRule()
-    
+
     @Test
     fun testBasicCompose() {
         // Given
         composeTestRule.setContent {
             MaterialTheme {
-                TestScreen()
+                testScreen()
             }
         }
-        
+
         // When & Then
         composeTestRule.onNodeWithText("Hello World").assertExists()
     }
-    
+
     @Test
     fun testComposeInteraction() {
         // Given
         var clicked = false
-        
+
         composeTestRule.setContent {
             MaterialTheme {
-                TestButtonScreen { clicked = true }
+                testButtonScreen { clicked = true }
             }
         }
-        
+
         // When
         composeTestRule.onNodeWithText("Click Me").performClick()
-        
+
         // Then
         assertThat(clicked).isTrue()
     }
-    
+
     @Test
     fun testWithComposeUtils() {
         // Given
         composeTestRule.setTestContent {
             MaterialTheme {
-                TestScreen()
+                testScreen()
             }
         }
-        
+
         // When & Then
         composeTestRule.findByText("Hello World").assertExists()
     }
-    
+
     @Test
     fun testWithTestDataFactory() {
         // Given
         val testProject = TestDataFactory.createProject(name = "Integration Test Project")
-        
+
         // When
         val hasValidName = testProject.name.isNotBlank()
-        
+
         // Then
         assertThat(hasValidName).isTrue()
         assertThat(testProject.name).isEqualTo("Integration Test Project")
     }
-    
+
     @Test
     fun testAccessibility() {
         // Given
         composeTestRule.setContent {
             MaterialTheme {
-                TestAccessibilityScreen()
+                testAccessibilityScreen()
             }
         }
-        
+
         // When & Then
         AccessibilityTestUtils.run {
             composeTestRule.assertAllNodesHaveAccessibilityLabels()
@@ -97,34 +96,36 @@ class ExampleInstrumentationTest : BaseInstrumentationTest() {
 }
 
 @Composable
-private fun TestScreen() {
+private fun testScreen() {
     Text(text = "Hello World")
 }
 
 @Composable
-private fun TestButtonScreen(onClick: () -> Unit) {
+private fun testButtonScreen(onClick: () -> Unit) {
     androidx.compose.material3.Button(onClick = onClick) {
         Text(text = "Click Me")
     }
 }
 
 @Composable
-private fun TestAccessibilityScreen() {
+private fun testAccessibilityScreen() {
     androidx.compose.foundation.layout.Column {
         androidx.compose.material3.Button(
             onClick = { },
-            modifier = androidx.compose.ui.Modifier.semantics {
-                contentDescription = "Primary action button"
-            }
+            modifier =
+                androidx.compose.ui.Modifier.semantics {
+                    contentDescription = "Primary action button"
+                },
         ) {
             Text("Action")
         }
-        
+
         Text(
             text = "Information text",
-            modifier = androidx.compose.ui.Modifier.semantics {
-                contentDescription = "Information display"
-            }
+            modifier =
+                androidx.compose.ui.Modifier.semantics {
+                    contentDescription = "Information display"
+                },
         )
     }
 }
