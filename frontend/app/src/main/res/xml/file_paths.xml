@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- External storage for SSH key import -->
+    <external-path name="external_files" path="." />
+    
+    <!-- Downloads directory for SSH key import -->
+    <external-path name="external_downloads" path="Download" />
+    
+    <!-- App specific external storage -->
+    <external-files-path name="external_app_files" path="." />
+    
+    <!-- Cache directory for temporary files -->
+    <cache-path name="cache_files" path="." />
+    
+    <!-- Internal storage for app files -->
+    <files-path name="internal_files" path="." />
+</paths>

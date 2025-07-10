@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Exclude sensitive data from backup -->
+    <exclude domain="shared_pref" path="encrypted_prefs.xml" />
+    <exclude domain="shared_pref" path="security_prefs.xml" />
+    <exclude domain="database" path="pocket_agent_db" />
+    <exclude domain="database" path="pocket_agent_db-shm" />
+    <exclude domain="database" path="pocket_agent_db-wal" />
+    <exclude domain="file" path="ssh_keys/" />
+    <exclude domain="file" path="tokens/" />
+    <exclude domain="file" path="secure_storage/" />
+    
+    <!-- Include non-sensitive app data -->
+    <include domain="shared_pref" path="app_preferences.xml" />
+    <include domain="shared_pref" path="theme_preferences.xml" />
+    <include domain="shared_pref" path="notification_preferences.xml" />
+</full-backup-content>

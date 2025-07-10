@@ -1,0 +1,210 @@
+// Additional Gradle tasks for comprehensive testing
+
+// Task to run all unit tests
+task runAllUnitTests {
+    group = 'verification'
+    description = 'Run all unit tests for the project'
+    dependsOn 'testDebugUnitTest'
+}
+
+// Task to run all instrumentation tests
+task runAllInstrumentationTests {
+    group = 'verification'
+    description = 'Run all instrumentation tests for the project'
+    dependsOn 'connectedAndroidTest'
+}
+
+// Task to run all tests (unit + instrumentation)
+task runAllTests {
+    group = 'verification'
+    description = 'Run all tests (unit and instrumentation)'
+    dependsOn 'runAllUnitTests', 'runAllInstrumentationTests'
+}
+
+// Task to generate test coverage report
+task generateTestCoverageReport {
+    group = 'verification'
+    description = 'Generate comprehensive test coverage report'
+    dependsOn 'testDebugUnitTest', 'jacocoTestReport'
+}
+
+// Task to run tests with coverage
+task testWithCoverage {
+    group = 'verification'
+    description = 'Run tests and generate coverage report'
+    dependsOn 'generateTestCoverageReport'
+}
+
+// Task to run specific test suites
+task runCommunicationTests {
+    group = 'verification'
+    description = 'Run communication layer tests'
+    dependsOn 'testDebugUnitTest'
+    doLast {
+        println "Running communication layer tests..."
+    }
+}
+
+task runUITests {
+    group = 'verification'
+    description = 'Run UI layer tests'
+    dependsOn 'connectedAndroidTest'
+    doLast {
+        println "Running UI layer tests..."
+    }
+}
+
+task runServiceTests {
+    group = 'verification'
+    description = 'Run service layer tests'
+    dependsOn 'connectedAndroidTest'
+    doLast {
+        println "Running service layer tests..."
+    }
+}
+
+// Task to clean test reports
+task cleanTestReports {
+    group = 'verification'
+    description = 'Clean all test reports'
+    doLast {
+        delete fileTree(dir: 'build/reports/tests')
+        delete fileTree(dir: 'build/reports/jacoco')
+        delete fileTree(dir: 'build/reports/androidTests')
+    }
+}
+
+// Task to run tests in CI environment
+task runCITests {
+    group = 'verification'
+    description = 'Run tests suitable for CI environment'
+    dependsOn 'runAllUnitTests'
+    
+    // Only run instrumentation tests if not in CI
+    if (!System.getenv('CI')) {
+        dependsOn 'runAllInstrumentationTests'
+    }
+}
+
+// Configure test reporting
+android {
+    testOptions {
+        unitTests.all {
+            useJUnitPlatform()
+            
+            // Configure test execution
+            maxHeapSize = "2048m"
+            jvmArgs '-XX:MaxMetaspaceSize=512m'
+            
+            // Enable parallel execution
+            maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+            
+            // Configure test reporting
+            reports {
+                html.required = true
+                junitXml.required = true
+            }
+            
+            // Configure test filtering
+            if (project.hasProperty('testFilter')) {
+                filter {
+                    includeTestsMatching project.testFilter
+                }
+            }
+        }
+    }
+}
+
+// Configure JaCoCo for coverage
+jacoco {
+    toolVersion = "0.8.8"
+}
+
+// Enhanced JaCoCo test report
+tasks.withType(JacocoReport) {
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = false
+    }
+    
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                '**/*Test*.*',
+                '**/R.class',
+                '**/R$*.class',
+                '**/BuildConfig.*',
+                '**/Manifest*.*',
+                '**/*$ViewInjector*.*',
+                '**/*$ViewBinder*.*',
+                '**/*_MembersInjector.class',
+                '**/*_Factory.class',
+                '**/*_Provide*Factory.class',
+                '**/*Module*.*',
+                '**/*Component*.*',
+                '**/*_Hilt*.*',
+                '**/Hilt_*.*',
+                '**/*_Generated*.*',
+                '**/di/**/*.*',
+                '**/dagger/**/*.*',
+                '**/*Activity*.*',
+                '**/*Fragment*.*',
+                '**/*Application*.*'
+            ])
+        }))
+    }
+}
+
+// Task to validate test coverage
+task validateCoverage {
+    group = 'verification'
+    description = 'Validate test coverage meets minimum requirements'
+    dependsOn 'jacocoTestReport'
+    
+    doLast {
+        def coverageFile = file("$buildDir/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+        if (coverageFile.exists()) {
+            def coverage = new XmlSlurper().parseText(coverageFile.text)
+            def instructionCoverage = coverage.counter.find { it.@type == 'INSTRUCTION' }
+            def covered = instructionCoverage.@covered.toInteger()
+            def missed = instructionCoverage.@missed.toInteger()
+            def coveragePercent = (covered / (covered + missed)) * 100
+            
+            println "Test Coverage: ${coveragePercent.round(2)}%"
+            
+            if (coveragePercent < 70) {
+                throw new GradleException("Test coverage (${coveragePercent.round(2)}%) is below minimum requirement (70%)")
+            }
+        }
+    }
+}
+
+// Task to run linting and tests
+task runQualityChecks {
+    group = 'verification'
+    description = 'Run all quality checks including lint and tests'
+    dependsOn 'lint', 'runAllUnitTests', 'validateCoverage'
+}
+
+// Configure test task dependencies
+tasks.named('check') {
+    dependsOn 'runAllUnitTests', 'validateCoverage'
+}
+
+// Helper task to print test configuration
+task printTestConfig {
+    group = 'help'
+    description = 'Print test configuration information'
+    doLast {
+        println """
+        Test Configuration:
+        - Test Runner: ${android.defaultConfig.testInstrumentationRunner}
+        - Min SDK: ${android.defaultConfig.minSdk}
+        - Target SDK: ${android.defaultConfig.targetSdk}
+        - Test Orchestrator: ${android.testOptions.execution}
+        - Coverage Enabled: ${android.buildTypes.debug.testCoverageEnabled}
+        - JaCoCo Version: ${jacoco.toolVersion}
+        """
+    }
+}

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme -->
+    <style name="Theme.PocketAgent" parent="Theme.Material3.DynamicColors.Dark">
+        <!-- Primary brand color -->
+        <item name="colorPrimary">@color/primary_dark</item>
+        <item name="colorPrimaryVariant">@color/primary_variant</item>
+        <item name="colorOnPrimary">@color/black</item>
+        
+        <!-- Secondary brand color -->
+        <item name="colorSecondary">@color/secondary_dark</item>
+        <item name="colorOnSecondary">@color/black</item>
+        
+        <!-- Background colors -->
+        <item name="android:colorBackground">@color/background_dark</item>
+        <item name="colorSurface">@color/surface_dark</item>
+        <item name="colorOnBackground">@color/text_primary_dark</item>
+        <item name="colorOnSurface">@color/text_primary_dark</item>
+        
+        <!-- Error colors -->
+        <item name="colorError">@color/error_dark</item>
+        <item name="colorOnError">@color/black</item>
+        
+        <!-- Status bar -->
+        <item name="android:statusBarColor">@color/background_dark</item>
+        <item name="android:windowLightStatusBar">false</item>
+        
+        <!-- Navigation bar -->
+        <item name="android:navigationBarColor">@color/surface_dark</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

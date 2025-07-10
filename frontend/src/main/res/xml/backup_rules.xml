@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Include encrypted data files -->
+    <include domain="file" path="app_data.enc"/>
+    <include domain="file" path="app_data_backup.enc"/>
+    
+    <!-- Exclude sensitive cache files -->
+    <exclude domain="file" path="cache/"/>
+    <exclude domain="file" path="tmp/"/>
+    
+    <!-- Exclude log files -->
+    <exclude domain="file" path="logs/"/>
+</full-backup-content>

@@ -1,0 +1,24 @@
+# This file contains machine-specific settings for the Android project.
+# Copy this file to local.properties and set the values for your environment.
+# local.properties is in .gitignore and should not be committed to version control.
+
+# Location of the Android SDK
+# On Windows: sdk.dir=C:\\Users\\USERNAME\\AppData\\Local\\Android\\sdk
+# On macOS: sdk.dir=/Users/USERNAME/Library/Android/sdk
+# On Linux: sdk.dir=/home/USERNAME/Android/Sdk
+sdk.dir=
+
+# Signing configuration for release builds
+# Generate a keystore with: keytool -genkey -v -keystore pocket_agent.jks -keyalg RSA -keysize 2048 -validity 10000 -alias pocket_agent
+POCKET_AGENT_STORE_FILE=
+POCKET_AGENT_STORE_PASSWORD=
+POCKET_AGENT_KEY_ALIAS=
+POCKET_AGENT_KEY_PASSWORD=
+
+# Optional: Enable/disable features for development
+DEBUG_LOGGING=true
+FEATURE_DEVELOPMENT_TOOLS=true
+
+# Optional: Network configuration for development
+DEV_SERVER_URL=ws://localhost:8080
+DEV_SERVER_SSL_ENABLED=false

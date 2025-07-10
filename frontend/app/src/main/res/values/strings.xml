@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pocket Agent</string>
+    <string name="app_description">Remote coding agent mobile interface</string>
+    
+    <!-- Common actions -->
+    <string name="action_connect">Connect</string>
+    <string name="action_disconnect">Disconnect</string>
+    <string name="action_shutdown">Shutdown</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_ok">OK</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_add">Add</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_settings">Settings</string>
+    
+    <!-- Navigation -->
+    <string name="nav_projects">Projects</string>
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_files">Files</string>
+    <string name="nav_settings">Settings</string>
+    
+    <!-- Connection status -->
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connecting">Connecting</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnecting">Disconnecting</string>
+    <string name="status_error">Error</string>
+    
+    <!-- Notifications -->
+    <string name="notification_channel_name">Pocket Agent</string>
+    <string name="notification_channel_description">Notifications from Pocket Agent</string>
+    <string name="notification_permission_request">Permission Request</string>
+    <string name="notification_task_complete">Task Complete</string>
+    <string name="notification_connection_lost">Connection Lost</string>
+    
+    <!-- Biometric authentication -->
+    <string name="biometric_prompt_title">Authenticate</string>
+    <string name="biometric_prompt_subtitle">Use your fingerprint or face to authenticate</string>
+    <string name="biometric_prompt_description">Authentication required to access secure data</string>
+    <string name="biometric_prompt_cancel">Cancel</string>
+    
+    <!-- Errors -->
+    <string name="error_generic">An error occurred</string>
+    <string name="error_network">Network error</string>
+    <string name="error_connection">Connection error</string>
+    <string name="error_authentication">Authentication failed</string>
+    <string name="error_permission_denied">Permission denied</string>
+    <string name="error_file_not_found">File not found</string>
+    <string name="error_invalid_ssh_key">Invalid SSH key</string>
+    
+    <!-- Content descriptions for accessibility -->
+    <string name="cd_connection_status">Connection status</string>
+    <string name="cd_project_status">Project status</string>
+    <string name="cd_menu_button">Menu button</string>
+    <string name="cd_back_button">Back button</string>
+    <string name="cd_settings_button">Settings button</string>
+    <string name="cd_add_button">Add button</string>
+    <string name="cd_delete_button">Delete button</string>
+    <string name="cd_edit_button">Edit button</string>
+    
+    <!-- Placeholders -->
+    <string name="placeholder_project_name">Project name</string>
+    <string name="placeholder_server_name">Server name</string>
+    <string name="placeholder_hostname">Hostname</string>
+    <string name="placeholder_username">Username</string>
+    <string name="placeholder_port">Port</string>
+    <string name="placeholder_project_path">Project path</string>
+    <string name="placeholder_message">Type a message...</string>
+    
+    <!-- Empty states -->
+    <string name="empty_projects">No projects configured</string>
+    <string name="empty_servers">No servers configured</string>
+    <string name="empty_ssh_keys">No SSH keys imported</string>
+    <string name="empty_messages">No messages yet</string>
+    <string name="empty_files">No files found</string>
+    
+    <!-- Permission explanations -->
+    <string name="permission_biometric_explanation">Biometric authentication is required to access your secure SSH keys and tokens</string>
+    <string name="permission_notification_explanation">Notifications are used to alert you when Claude needs permission or when tasks complete</string>
+    <string name="permission_storage_explanation">Storage access is needed to import SSH keys from your device</string>
+    
+    <!-- Service notifications -->
+    <string name="service_notification_title">Pocket Agent Running</string>
+    <string name="service_notification_description">Monitoring Claude Code connections</string>
+    
+    <!-- Quick actions -->
+    <string name="quick_action_run_tests">Run Tests</string>
+    <string name="quick_action_deploy">Deploy</string>
+    <string name="quick_action_git_status">Git Status</string>
+    <string name="quick_action_git_push">Git Push</string>
+    
+    <!-- Progress messages -->
+    <string name="progress_connecting">Connecting to server...</string>
+    <string name="progress_authenticating">Authenticating...</string>
+    <string name="progress_loading_project">Loading project...</string>
+    <string name="progress_importing_key">Importing SSH key...</string>
+    <string name="progress_saving">Saving...</string>
+    
+    <!-- Success messages -->
+    <string name="success_connected">Connected successfully</string>
+    <string name="success_disconnected">Disconnected successfully</string>
+    <string name="success_saved">Saved successfully</string>
+    <string name="success_key_imported">SSH key imported successfully</string>
+    <string name="success_project_created">Project created successfully</string>
+    
+    <!-- Format strings -->
+    <string name="format_last_connected">Last connected: %s</string>
+    <string name="format_project_path">Path: %s</string>
+    <string name="format_server_address">%s@%s:%d</string>
+    <string name="format_file_size">%s bytes</string>
+    <string name="format_time_ago">%s ago</string>
+</resources>

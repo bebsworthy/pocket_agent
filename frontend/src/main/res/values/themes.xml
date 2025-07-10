@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.PocketAgent" parent="Theme.Material3.DynamicColors.DayNight">
+        <!-- Primary colors -->
+        <item name="colorPrimary">@color/green_primary</item>
+        <item name="colorOnPrimary">@color/white</item>
+        
+        <!-- Background colors -->
+        <item name="colorBackground">@color/background_light</item>
+        <item name="colorOnBackground">@color/on_background_light</item>
+        
+        <!-- Surface colors -->
+        <item name="colorSurface">@color/surface_light</item>
+        <item name="colorOnSurface">@color/on_surface_light</item>
+        
+        <!-- Error colors -->
+        <item name="colorError">@color/error_light</item>
+        <item name="colorOnError">@color/white</item>
+        
+        <!-- Status bar -->
+        <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

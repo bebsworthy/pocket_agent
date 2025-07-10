@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pocket Agent</string>
+    <string name="app_description">Remote coding agent mobile interface</string>
+    
+    <!-- Serialization related strings -->
+    <string name="serialization_error_title">Data Error</string>
+    <string name="serialization_error_message">Failed to process data</string>
+    <string name="serialization_recovery_success">Data recovered successfully</string>
+    <string name="serialization_recovery_failed">Failed to recover data</string>
+    
+    <!-- JSON validation messages -->
+    <string name="json_validation_success">JSON validation passed</string>
+    <string name="json_validation_failed">JSON validation failed</string>
+    <string name="json_invalid_format">Invalid JSON format</string>
+    <string name="json_missing_fields">Missing required fields</string>
+    
+    <!-- Data model validation messages -->
+    <string name="ssh_identity_name_blank">SSH Identity name cannot be blank</string>
+    <string name="ssh_identity_name_too_long">SSH Identity name too long (max 100 chars)</string>
+    <string name="ssh_fingerprint_invalid">Invalid SSH fingerprint format</string>
+    <string name="server_profile_name_blank">Server profile name cannot be blank</string>
+    <string name="hostname_invalid">Invalid hostname format</string>
+    <string name="port_invalid">Port must be between 1 and 65535</string>
+    <string name="username_invalid">Invalid username format</string>
+    <string name="project_name_blank">Project name cannot be blank</string>
+    <string name="project_path_blank">Project path cannot be blank</string>
+    <string name="message_content_blank">Message content cannot be blank</string>
+</resources>

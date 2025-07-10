@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Standard spacing -->
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">16dp</dimen>
+    <dimen name="spacing_lg">24dp</dimen>
+    <dimen name="spacing_xl">32dp</dimen>
+    <dimen name="spacing_xxl">48dp</dimen>
+    
+    <!-- Text sizes -->
+    <dimen name="text_size_xs">10sp</dimen>
+    <dimen name="text_size_sm">12sp</dimen>
+    <dimen name="text_size_md">14sp</dimen>
+    <dimen name="text_size_lg">16sp</dimen>
+    <dimen name="text_size_xl">18sp</dimen>
+    <dimen name="text_size_xxl">20sp</dimen>
+    <dimen name="text_size_title">24sp</dimen>
+    <dimen name="text_size_headline">28sp</dimen>
+    
+    <!-- Component sizes -->
+    <dimen name="button_height">48dp</dimen>
+    <dimen name="button_height_small">36dp</dimen>
+    <dimen name="icon_size_small">16dp</dimen>
+    <dimen name="icon_size_medium">24dp</dimen>
+    <dimen name="icon_size_large">32dp</dimen>
+    <dimen name="icon_size_xl">48dp</dimen>
+    
+    <!-- Touch targets -->
+    <dimen name="touch_target_min">44dp</dimen>
+    <dimen name="touch_target_recommended">48dp</dimen>
+    
+    <!-- Card and surface elements -->
+    <dimen name="card_corner_radius">8dp</dimen>
+    <dimen name="card_elevation">4dp</dimen>
+    <dimen name="surface_corner_radius">12dp</dimen>
+    
+    <!-- Bottom navigation -->
+    <dimen name="bottom_nav_height">56dp</dimen>
+    <dimen name="bottom_nav_icon_size">24dp</dimen>
+    
+    <!-- App bar -->
+    <dimen name="app_bar_height">56dp</dimen>
+    <dimen name="app_bar_elevation">4dp</dimen>
+    
+    <!-- List items -->
+    <dimen name="list_item_height">56dp</dimen>
+    <dimen name="list_item_height_two_line">72dp</dimen>
+    <dimen name="list_item_height_three_line">88dp</dimen>
+    
+    <!-- Divider -->
+    <dimen name="divider_height">1dp</dimen>
+    
+    <!-- Progress indicators -->
+    <dimen name="progress_indicator_size">24dp</dimen>
+    <dimen name="progress_indicator_stroke_width">2dp</dimen>
+</resources>

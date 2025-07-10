@@ -1,0 +1,269 @@
+// Quality Tasks for Pocket Agent Mobile App
+// This file contains comprehensive quality-related Gradle tasks
+
+// ================================================================================================
+// Quality Check Tasks
+// ================================================================================================
+
+tasks.register('checkCodeQuality') {
+    group = 'verification'
+    description = 'Runs all code quality checks (ktlint, detekt, spotless, lint)'
+    dependsOn 'ktlintCheck', 'detekt', 'spotlessCheck', 'lint'
+    
+    doLast {
+        println "✅ All code quality checks completed successfully!"
+    }
+}
+
+tasks.register('fixCodeQuality') {
+    group = 'formatting'
+    description = 'Fixes all auto-fixable code quality issues'
+    dependsOn 'ktlintFormat', 'spotlessApply'
+    
+    doLast {
+        println "✅ Code quality fixes applied successfully!"
+        println "ℹ️  You may need to run 'checkCodeQuality' to verify remaining issues."
+    }
+}
+
+tasks.register('generateQualityReports') {
+    group = 'reporting'
+    description = 'Generates all quality reports (coverage, detekt, lint)'
+    dependsOn 'jacocoTestReport', 'detekt', 'lint'
+    
+    doLast {
+        println "📊 Quality reports generated:"
+        println "  - Code Coverage: build/reports/jacoco/jacocoTestReport/html/index.html"
+        println "  - Detekt: build/reports/detekt/detekt.html"
+        println "  - Android Lint: build/reports/lint-results.html"
+    }
+}
+
+tasks.register('qualityCheck') {
+    group = 'verification'
+    description = 'Comprehensive quality check including tests and coverage'
+    dependsOn 'checkCodeQuality', 'testDebugUnitTest', 'jacocoTestReport'
+    
+    doLast {
+        println "🎉 Comprehensive quality check completed!"
+        println "📊 Check the generated reports for detailed analysis."
+    }
+}
+
+tasks.register('prCommitCheck') {
+    group = 'verification'
+    description = 'Runs checks suitable for pre-commit validation'
+    dependsOn 'ktlintCheck', 'detekt', 'spotlessCheck', 'testDebugUnitTest'
+    
+    doLast {
+        println "✅ Pre-commit checks completed successfully!"
+    }
+}
+
+tasks.register('prPushCheck') {
+    group = 'verification'
+    description = 'Runs comprehensive checks suitable for pre-push validation'
+    dependsOn 'qualityCheck', 'lint'
+    
+    doLast {
+        println "🚀 Pre-push checks completed successfully!"
+    }
+}
+
+tasks.register('setupQualityTools') {
+    group = 'setup'
+    description = 'Initializes quality tools and creates baseline files'
+    
+    doLast {
+        // Create detekt baseline
+        println "📋 Creating Detekt baseline..."
+        project.exec {
+            commandLine './gradlew', 'detektBaseline'
+            ignoreExitValue = true
+        }
+        
+        // Create lint baseline
+        println "📋 Creating Lint baseline..."
+        project.exec {
+            commandLine './gradlew', 'lintBaseline'
+            ignoreExitValue = true
+        }
+        
+        println "✅ Quality tools setup completed!"
+        println "ℹ️  Baseline files created to suppress existing issues."
+        println "ℹ️  New code will be checked against quality rules."
+    }
+}
+
+tasks.register('cleanQualityReports') {
+    group = 'cleanup'
+    description = 'Cleans all quality-related reports and outputs'
+    
+    doLast {
+        def reportsDir = file("${project.buildDir}/reports")
+        if (reportsDir.exists()) {
+            reportsDir.deleteDir()
+            println "🧹 Quality reports cleaned."
+        }
+        
+        def detektDir = file("${project.buildDir}/reports/detekt")
+        if (detektDir.exists()) {
+            detektDir.deleteDir()
+            println "🧹 Detekt reports cleaned."
+        }
+        
+        def jacocoDir = file("${project.buildDir}/reports/jacoco")
+        if (jacocoDir.exists()) {
+            jacocoDir.deleteDir()
+            println "🧹 JaCoCo reports cleaned."
+        }
+        
+        println "✅ All quality reports cleaned successfully!"
+    }
+}
+
+tasks.register('validateQualityConfig') {
+    group = 'verification'
+    description = 'Validates quality tool configurations'
+    
+    doLast {
+        def detektConfig = file("${project.rootDir}/config/detekt/detekt.yml")
+        def lintConfig = file("${project.rootDir}/config/lint/lint.xml")
+        
+        if (!detektConfig.exists()) {
+            throw new GradleException("Detekt configuration not found at: ${detektConfig.path}")
+        }
+        
+        if (!lintConfig.exists()) {
+            throw new GradleException("Lint configuration not found at: ${lintConfig.path}")
+        }
+        
+        println "✅ Quality tool configurations validated successfully!"
+        println "  - Detekt config: ${detektConfig.path}"
+        println "  - Lint config: ${lintConfig.path}"
+    }
+}
+
+tasks.register('qualityMetrics') {
+    group = 'reporting'
+    description = 'Displays quality metrics and thresholds'
+    dependsOn 'jacocoTestReport', 'detekt'
+    
+    doLast {
+        println "📊 Quality Metrics Summary:"
+        println "=" * 50
+        
+        // Code Coverage
+        def jacocoReport = file("${project.buildDir}/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+        if (jacocoReport.exists()) {
+            println "📈 Code Coverage: Available in JaCoCo report"
+        } else {
+            println "📈 Code Coverage: Report not found"
+        }
+        
+        // Detekt Issues
+        def detektReport = file("${project.buildDir}/reports/detekt/detekt.xml")
+        if (detektReport.exists()) {
+            println "🔍 Detekt Issues: Available in Detekt report"
+        } else {
+            println "🔍 Detekt Issues: Report not found"
+        }
+        
+        // Lint Issues
+        def lintReport = file("${project.buildDir}/reports/lint-results.xml")
+        if (lintReport.exists()) {
+            println "🔧 Lint Issues: Available in Lint report"
+        } else {
+            println "🔧 Lint Issues: Report not found"
+        }
+        
+        println "=" * 50
+        println "ℹ️  Run 'generateQualityReports' to create detailed reports"
+    }
+}
+
+// ================================================================================================
+// Quality Gates
+// ================================================================================================
+
+tasks.register('qualityGate') {
+    group = 'verification'
+    description = 'Enforces quality gates for CI/CD pipeline'
+    dependsOn 'qualityCheck'
+    
+    doLast {
+        println "🚪 Quality Gate Check:"
+        println "=" * 30
+        
+        // Check if tests passed
+        def testResults = file("${project.buildDir}/test-results/testDebugUnitTest")
+        if (testResults.exists()) {
+            println "✅ Unit Tests: PASSED"
+        } else {
+            throw new GradleException("❌ Unit Tests: FAILED - No test results found")
+        }
+        
+        // Check code coverage (if available)
+        def jacocoReport = file("${project.buildDir}/reports/jacoco/jacocoTestReport/jacocoTestReport.xml")
+        if (jacocoReport.exists()) {
+            println "✅ Code Coverage: AVAILABLE"
+        } else {
+            println "⚠️  Code Coverage: NOT AVAILABLE"
+        }
+        
+        // Check Detekt issues
+        def detektReport = file("${project.buildDir}/reports/detekt/detekt.xml")
+        if (detektReport.exists()) {
+            println "✅ Static Analysis: COMPLETED"
+        } else {
+            println "⚠️  Static Analysis: NOT COMPLETED"
+        }
+        
+        println "=" * 30
+        println "🎉 Quality Gate: PASSED"
+    }
+}
+
+// ================================================================================================
+// Integration with Build Process
+// ================================================================================================
+
+// Ensure quality checks run before build
+tasks.named('preBuild') {
+    dependsOn 'checkCodeQuality'
+}
+
+// Ensure coverage report is generated after tests
+tasks.named('testDebugUnitTest') {
+    finalizedBy 'jacocoTestReport'
+}
+
+// Clean quality reports when cleaning build
+tasks.named('clean') {
+    dependsOn 'cleanQualityReports'
+}
+
+// ================================================================================================
+// Task Dependencies and Ordering
+// ================================================================================================
+
+// Ensure proper task ordering
+tasks.named('detekt') {
+    mustRunAfter 'ktlintCheck'
+}
+
+tasks.named('spotlessCheck') {
+    mustRunAfter 'ktlintCheck'
+}
+
+tasks.named('lint') {
+    mustRunAfter 'detekt', 'spotlessCheck'
+}
+
+tasks.named('testDebugUnitTest') {
+    mustRunAfter 'lint'
+}
+
+tasks.named('jacocoTestReport') {
+    mustRunAfter 'testDebugUnitTest'
+}

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup>
+        <!-- Include essential data -->
+        <include domain="file" path="app_data.enc"/>
+        <include domain="file" path="app_data_backup.enc"/>
+        
+        <!-- Exclude sensitive data -->
+        <exclude domain="file" path="ssh_keys/"/>
+        <exclude domain="file" path="tokens/"/>
+        <exclude domain="file" path="cache/"/>
+        <exclude domain="file" path="logs/"/>
+    </cloud-backup>
+    
+    <device-transfer>
+        <!-- Include user data for device transfer -->
+        <include domain="file" path="app_data.enc"/>
+        <include domain="file" path="app_data_backup.enc"/>
+        
+        <!-- Exclude device-specific data -->
+        <exclude domain="file" path="device_id"/>
+        <exclude domain="file" path="cache/"/>
+        <exclude domain="file" path="logs/"/>
+    </device-transfer>
+</data-extraction-rules>
