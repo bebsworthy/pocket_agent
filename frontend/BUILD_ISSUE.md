@@ -1,3 +1,6 @@
+> Task :app:mergeDebugJavaResource FAILED
+✅ 4 files found with path 'META-INF/versions/9/OSGI-INF/MANIFEST.MF' from inputs: org.bouncycastle:bcpkix-jdk18on, org.bouncycastle:bcutil-jdk18on, org.bouncycastle:bcprov-jdk18on, org.jspecify:jspecify
+
 > Task :app:hiltAggregateDepsRelease FAILED
 ✅ Cannot process multiple app roots in the same compilation unit: com.pocketagent.PocketAgentApplication, com.pocketagent.app.PocketAgentApplication, com.pocketagent.mobile.PocketAgentApplication
 
