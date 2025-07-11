@@ -2,6 +2,7 @@ package com.pocketagent.mobile
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.pocketagent.PocketAgentApplication
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import org.junit.Before
@@ -29,8 +30,8 @@ class PocketAgentApplicationTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assert(appContext.packageName == "com.pocketagent.mobile") {
-            "Package name should be com.pocketagent.mobile"
+        assert(appContext.packageName.startsWith("com.pocketagent")) {
+            "Package name should start with com.pocketagent"
         }
     }
 

@@ -1,3 +1,6 @@
+> Task :app:hiltAggregateDepsRelease FAILED
+✅ Cannot process multiple app roots in the same compilation unit: com.pocketagent.PocketAgentApplication, com.pocketagent.app.PocketAgentApplication, com.pocketagent.mobile.PocketAgentApplication
+
 > Task :app:compileReleaseKotlin FAILED
 ✅ e: file:///Users/boyd/wip/pocket_agent/frontend/app/src/main/java/com/pocketagent/data/repository/SecureDataRepository.kt:89:85 Unresolved reference 'getTotalEntityCount'.
 ✅ e: file:///Users/boyd/wip/pocket_agent/frontend/app/src/main/java/com/pocketagent/data/models/Extensions.kt:150:1 Platform declaration clash: The following declarations have the same JVM signature (filterByQuery(Ljava/util/List;Ljava/lang/String;)Ljava/util/List;)
