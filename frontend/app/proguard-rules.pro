@@ -73,6 +73,14 @@
 -keep class org.bouncycastle.** { *; }
 -dontwarn org.bouncycastle.**
 
+# Google Tink Crypto Library
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**
+
+# Google Error Prone annotations (referenced by Tink)
+-dontwarn com.google.errorprone.annotations.**
+-keep class com.google.errorprone.annotations.** { *; }
+
 # Keep SSH key related classes
 -keep class com.pocketagent.app.data.security.** { *; }
 -keep class com.pocketagent.app.domain.model.** { *; }

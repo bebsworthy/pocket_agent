@@ -41,6 +41,7 @@ kotlinx-coroutines = "1.10.2"
 security-crypto = "1.1.0-alpha06"
 biometric = "1.1.0"
 bouncy-castle = "1.78.1"
+errorprone-annotations = "2.35.1"
 
 # Storage
 datastore-preferences = "1.1.1"
@@ -115,6 +116,7 @@ androidx-security-crypto = { group = "androidx.security", name = "security-crypt
 androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 bouncy-castle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk18on", version.ref = "bouncy-castle" }
 bouncy-castle-bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk18on", version.ref = "bouncy-castle" }
+errorprone-annotations = { group = "com.google.errorprone", name = "error_prone_annotations", version.ref = "errorprone-annotations" }
 
 # Storage
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore-preferences" }

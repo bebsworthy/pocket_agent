@@ -59,6 +59,9 @@ android {
         }
     }
 
+    // Signing configuration commented out for development builds
+    // Uncomment and configure when ready for production release
+    /*
     signingConfigs {
         create("release") {
             // These will be set via environment variables or gradle.properties
@@ -74,6 +77,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+    */
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -154,6 +158,7 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.bouncy.castle.bcprov)
     implementation(libs.bouncy.castle.bcpkix)
+    implementation(libs.errorprone.annotations)
 
     // Storage
     implementation(libs.androidx.datastore.preferences)
