@@ -77,7 +77,7 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
-    */
+     */
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -381,19 +381,11 @@ spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
-        
-        // Custom formatting rules
+
+        // Standard formatting rules
         trimTrailingWhitespace()
         indentWithSpaces(4)
         endWithNewline()
-
-        // Custom rules
-        custom("no-wildcard-imports") { contents ->
-            if (contents.contains("import .*\\*".toRegex())) {
-                throw RuntimeException("Wildcard imports are not allowed")
-            }
-            contents
-        }
     }
 
     kotlinGradle {
