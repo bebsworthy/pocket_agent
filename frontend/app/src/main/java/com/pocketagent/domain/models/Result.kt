@@ -70,7 +70,7 @@ sealed class Result<out T> {
     /**
      * Returns the data if this is a Success result, otherwise returns the default value.
      */
-    fun getOrDefault(defaultValue: T): T = when (this) {
+    fun getOrDefault(defaultValue: @UnsafeVariance T): T = when (this) {
         is Success -> data
         else -> defaultValue
     }
@@ -78,7 +78,7 @@ sealed class Result<out T> {
     /**
      * Returns the data if this is a Success result, otherwise returns the result of the function.
      */
-    inline fun getOrElse(onError: (Throwable) -> T): T = when (this) {
+    inline fun getOrElse(onError: (Throwable) -> @UnsafeVariance T): T = when (this) {
         is Success -> data
         is Error -> onError(exception)
         is Loading -> throw IllegalStateException("Cannot get data from loading state")

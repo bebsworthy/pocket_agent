@@ -342,6 +342,7 @@ fun List<Project>.filterByEnvironment(environment: ProjectEnvironment): List<Pro
 fun List<Project>.filterByLanguage(language: String): List<Project> = 
     filter { it.metadata.language.equals(language, ignoreCase = true) }
 
+@JvmName("filterProjectsByTag")
 fun List<Project>.filterByTag(tag: String): List<Project> = 
     filter { it.hasTag(tag) }
 
@@ -351,12 +352,14 @@ fun List<ServerProfile>.filterByStatus(status: ConnectionStatus): List<ServerPro
 fun List<ServerProfile>.filterByEnvironment(environment: ServerEnvironment): List<ServerProfile> = 
     filter { it.metadata.environment == environment }
 
+@JvmName("filterServerProfilesByTag")
 fun List<ServerProfile>.filterByTag(tag: String): List<ServerProfile> = 
     filter { it.hasTag(tag) }
 
 fun List<SshIdentity>.filterByKeyType(keyType: SshKeyType): List<SshIdentity> = 
     filter { it.keyType == keyType }
 
+@JvmName("filterSshIdentitiesByTag")
 fun List<SshIdentity>.filterByTag(tag: String): List<SshIdentity> = 
     filter { it.hasTag(tag) }
 

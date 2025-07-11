@@ -469,14 +469,14 @@ class BackupManager @Inject constructor(
      */
     private suspend fun calculateBackupChecksum(files: List<String>): String {
         return try {
-            val combinedData = files.sorted().joinToString("") { filename ->
+            val combinedData = files.sorted().map { filename ->
                 val fileData = fileStorageManager.readFile(filename).getOrNull()
                 if (fileData != null) {
                     fileData.joinToString("") { "%02x".format(it) }
                 } else {
                     ""
                 }
-            }
+            }.joinToString("")
             
             val digest = java.security.MessageDigest.getInstance("SHA-256")
             val hash = digest.digest(combinedData.toByteArray())

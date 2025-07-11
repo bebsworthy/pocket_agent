@@ -3,8 +3,10 @@ package com.pocketagent.data.service
 import android.util.Log
 import com.pocketagent.data.models.Project
 import com.pocketagent.data.models.ProjectStatus
+import com.pocketagent.data.models.toExportModel
 import com.pocketagent.data.repository.DataException
 import com.pocketagent.data.repository.SecureDataRepository
+import com.pocketagent.data.repository.getMessageCount
 import com.pocketagent.data.validation.RepositoryValidationService
 import com.pocketagent.data.validation.ValidationResult
 import com.pocketagent.data.validation.validators.ProjectValidator

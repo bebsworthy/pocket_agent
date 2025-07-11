@@ -143,7 +143,7 @@ class FileStorageManager @Inject constructor(
                 // Verify checksum if requested
                 if (verifyChecksum) {
                     val checksumResult = verifyFileChecksum(filename, data)
-                    if (!checksumResult.getOrNull() == true) {
+                    if (checksumResult.getOrNull() != true) {
                         return@withContext Result.Error(
                             IOException("Checksum verification failed"),
                             "File integrity check failed"

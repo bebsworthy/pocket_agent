@@ -115,16 +115,16 @@ class AsyncValidator @Inject constructor() {
         delayMs: Long,
         rule: suspend () -> ValidationResult
     ): suspend () -> ValidationResult {
-        return {
+        return retryRule@{
             var lastError: Exception? = null
             
-            repeat(maxRetries + 1) { attempt ->
+            for (attempt in 0..maxRetries) {
                 try {
                     val result = rule()
                     if (result.isSuccess()) {
-                        return@repeat result
+                        return@retryRule result
                     } else if (attempt == maxRetries) {
-                        return@repeat result
+                        return@retryRule result
                     }
                 } catch (e: Exception) {
                     lastError = e

@@ -20,6 +20,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -121,7 +122,7 @@ class SecureDataRepository
             return try {
                 val jsonData = encryptedStorage.getJsonData(APP_DATA_KEY)
                 if (jsonData != null) {
-                    val data = json.decodeFromString(AppData.serializer(), jsonData)
+                    val data = json.decodeFromString<AppData>(jsonData)
                     dataValidator.validateAppData(data)
                     Log.d(TAG, "Successfully loaded data from storage")
                     data
@@ -154,7 +155,7 @@ class SecureDataRepository
                         val updatedData = data.copy(lastModified = System.currentTimeMillis())
 
                         // Serialize and save
-                        val jsonData = json.encodeToString(AppData.serializer(), updatedData)
+                        val jsonData = json.encodeToString(updatedData)
                         encryptedStorage.storeJsonData(APP_DATA_KEY, jsonData)
 
                         // Update cache and notify observers
@@ -732,7 +733,7 @@ class SecureDataRepository
             Log.d(TAG, "Exporting data")
 
             return withContext(Dispatchers.IO) {
-                json.encodeToString(AppData.serializer(), loadData())
+                json.encodeToString(loadData())
             }
         }
 
@@ -747,7 +748,7 @@ class SecureDataRepository
 
             try {
                 withContext(Dispatchers.IO) {
-                    val importedData = json.decodeFromString(AppData.serializer(), jsonData)
+                    val importedData = json.decodeFromString<AppData>(jsonData)
                     dataValidator.validateAppData(importedData)
                     saveData(importedData)
                     Log.d(TAG, "Data imported successfully")

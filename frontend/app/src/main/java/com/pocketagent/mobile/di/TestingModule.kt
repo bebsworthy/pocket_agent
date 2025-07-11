@@ -1,6 +1,8 @@
 package com.pocketagent.mobile.di
 
 import com.pocketagent.mobile.data.local.EncryptedJsonStorage
+import com.pocketagent.data.storage.StorageValidator
+import kotlinx.coroutines.flow.Flow
 import com.pocketagent.mobile.data.security.SecurityManager
 import com.pocketagent.mobile.data.remote.WebSocketClient
 import com.pocketagent.mobile.domain.repository.DataRepository
@@ -51,6 +53,38 @@ object TestingModule {
             
             override suspend fun hasData(key: String): Boolean {
                 return storage.containsKey(key)
+            }
+            
+            override fun observeJsonData(key: String): Flow<String?> {
+                return kotlinx.coroutines.flow.flowOf(storage[key])
+            }
+            
+            override suspend fun createBackup(): String? {
+                return "mock_backup.json"
+            }
+            
+            override suspend fun restoreBackup(backupFilename: String): Boolean {
+                return true
+            }
+            
+            override suspend fun validateStorage(): StorageValidator.ValidationReport {
+                return StorageValidator.ValidationReport(
+                    isValid = true,
+                    results = emptyList(),
+                    checkedFiles = storage.size,
+                    totalSize = storage.values.sumOf { it.length }.toLong()
+                )
+            }
+            
+            override suspend fun getStorageStats(): EncryptedJsonStorage.StorageStats {
+                return EncryptedJsonStorage.StorageStats(
+                    totalFiles = storage.size,
+                    totalSize = storage.values.sumOf { it.length }.toLong(),
+                    lastModified = System.currentTimeMillis(),
+                    backupCount = 0,
+                    backupSize = 0,
+                    isHealthy = true
+                )
             }
         }
     }

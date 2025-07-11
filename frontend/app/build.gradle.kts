@@ -198,8 +198,8 @@ dependencies {
     debugImplementation(libs.compose.ui.test.manifest)
 
     // Code Quality Tools
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.4")
-    detektPlugins("io.gitlab.arturbosch.detekt:detekt-rules-libraries:1.23.4")
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
+    detektPlugins("io.gitlab.arturbosch.detekt:detekt-rules-libraries:1.23.8")
 }
 
 // ================================================================================================
@@ -331,7 +331,7 @@ android {
 
 // Ktlint Configuration
 ktlint {
-    version.set("1.0.1")
+    version.set("1.6.0")
     android.set(true)
     ignoreFailures.set(false)
     reporters {
@@ -375,10 +375,7 @@ spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
-        ktlint("1.0.1").editorConfigOverride(
-            mapOf("ktlint_disabled_rules" to "standard:no-consecutive-comments")
-        )
-
+        
         // Custom formatting rules
         trimTrailingWhitespace()
         indentWithSpaces(4)

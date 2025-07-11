@@ -183,7 +183,7 @@ class EncryptedJsonStorageImpl @Inject constructor(
                 val encryptedData = encryptResult.getOrThrow()
                 
                 // Check storage quota
-                checkStorageQuota(encryptedData.size)
+                checkStorageQuota(encryptedData.size.toLong())
                 
                 // Store encrypted data
                 val filename = keyToFilename(key)

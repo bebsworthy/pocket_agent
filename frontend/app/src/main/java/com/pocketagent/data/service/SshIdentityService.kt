@@ -4,6 +4,7 @@ import android.util.Log
 import com.pocketagent.data.models.SshIdentity
 import com.pocketagent.data.repository.DataException
 import com.pocketagent.data.repository.SecureDataRepository
+import com.pocketagent.data.service.serviceFailure
 import com.pocketagent.data.validation.ValidationResult
 import com.pocketagent.data.validation.validators.SshIdentityValidator
 import kotlinx.coroutines.Dispatchers
@@ -74,7 +75,7 @@ class SshIdentityService @Inject constructor(
             withContext(Dispatchers.Default) {
                 // Parse and validate the private key
                 val keyPair = sshKeyParser.parsePrivateKey(privateKeyData, keyFormat, passphrase)
-                    ?: return@withContext ServiceResult.failure("Failed to parse private key")
+                    ?: return@withContext serviceFailure("Failed to parse private key")
                 
                 // Generate public key fingerprint
                 val fingerprint = generateFingerprint(keyPair.public)
@@ -82,7 +83,7 @@ class SshIdentityService @Inject constructor(
                 // Check for duplicate fingerprint
                 val existingIdentities = repository.getAllSshIdentities()
                 if (existingIdentities.any { it.publicKeyFingerprint == fingerprint }) {
-                    return@withContext ServiceResult.failure("SSH key with this fingerprint already exists")
+                    return@withContext serviceFailure("SSH key with this fingerprint already exists")
                 }
                 
                 // Encrypt the private key for storage
@@ -98,8 +99,8 @@ class SshIdentityService @Inject constructor(
                 
                 // Validate the identity
                 val validationResult = validator.validateForCreation(identity)
-                if (!validationResult.isValid) {
-                    return@withContext ServiceResult.failure("Validation failed: ${validationResult.getErrorSummary()}")
+                if (!validationResult.isSuccess()) {
+                    return@withContext serviceFailure("Validation failed: ${validationResult.getErrorSummary()}")
                 }
                 
                 // Check name uniqueness
@@ -107,8 +108,8 @@ class SshIdentityService @Inject constructor(
                     name, 
                     existingIdentities.map { it.name }
                 )
-                if (!nameValidation.isValid) {
-                    return@withContext ServiceResult.failure("Name already exists")
+                if (!nameValidation.isSuccess()) {
+                    return@withContext serviceFailure("Name already exists")
                 }
                 
                 // Save to repository
@@ -119,7 +120,7 @@ class SshIdentityService @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create SSH identity", e)
-            ServiceResult.failure("Failed to create SSH identity: ${e.message}")
+            serviceFailure("Failed to create SSH identity: ${e.message}")
         }
     }
     
@@ -134,11 +135,11 @@ class SshIdentityService @Inject constructor(
             if (identity != null) {
                 ServiceResult.success(identity)
             } else {
-                ServiceResult.failure("SSH identity not found")
+                serviceFailure("SSH identity not found")
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get SSH identity", e)
-            ServiceResult.failure("Failed to retrieve SSH identity: ${e.message}")
+            serviceFailure("Failed to retrieve SSH identity: ${e.message}")
         }
     }
     
@@ -154,7 +155,7 @@ class SshIdentityService @Inject constructor(
         
         return try {
             val existing = repository.getSshIdentityById(id)
-                ?: return ServiceResult.failure("SSH identity not found")
+                ?: return serviceFailure("SSH identity not found")
             
             val updated = existing.copy(
                 name = name ?: existing.name,
@@ -163,8 +164,8 @@ class SshIdentityService @Inject constructor(
             
             // Validate the update
             val validationResult = validator.validateForUpdate(existing, updated)
-            if (!validationResult.isValid) {
-                return ServiceResult.failure("Validation failed: ${validationResult.getErrorSummary()}")
+            if (!validationResult.isSuccess()) {
+                return serviceFailure("Validation failed: ${validationResult.getErrorSummary()}")
             }
             
             // Check name uniqueness if name changed
@@ -175,8 +176,8 @@ class SshIdentityService @Inject constructor(
                     existingIdentities.map { it.name },
                     excludeId = id
                 )
-                if (!nameValidation.isValid) {
-                    return ServiceResult.failure("Name already exists")
+                if (!nameValidation.isSuccess()) {
+                    return serviceFailure("Name already exists")
                 }
             }
             
@@ -186,7 +187,7 @@ class SshIdentityService @Inject constructor(
             ServiceResult.success(updated)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to update SSH identity", e)
-            ServiceResult.failure("Failed to update SSH identity: ${e.message}")
+            serviceFailure("Failed to update SSH identity: ${e.message}")
         }
     }
     
@@ -198,12 +199,12 @@ class SshIdentityService @Inject constructor(
         
         return try {
             val identity = repository.getSshIdentityById(id)
-                ?: return ServiceResult.failure("SSH identity not found")
+                ?: return serviceFailure("SSH identity not found")
             
             // Check for dependencies
             val serverProfiles = repository.getServerProfilesForIdentity(id)
             if (serverProfiles.isNotEmpty()) {
-                return ServiceResult.failure(
+                return serviceFailure(
                     "Cannot delete SSH identity. It is used by ${serverProfiles.size} server profile(s): ${
                         serverProfiles.take(3).joinToString(", ") { it.name }
                     }${if (serverProfiles.size > 3) "..." else ""}"
@@ -216,7 +217,7 @@ class SshIdentityService @Inject constructor(
             ServiceResult.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete SSH identity", e)
-            ServiceResult.failure("Failed to delete SSH identity: ${e.message}")
+            serviceFailure("Failed to delete SSH identity: ${e.message}")
         }
     }
     
@@ -260,7 +261,7 @@ class SshIdentityService @Inject constructor(
             ServiceResult.success(sorted)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to list SSH identities", e)
-            ServiceResult.failure("Failed to list SSH identities: ${e.message}")
+            serviceFailure("Failed to list SSH identities: ${e.message}")
         }
     }
     
@@ -291,7 +292,7 @@ class SshIdentityService @Inject constructor(
             ServiceResult.success(searchResults)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to search SSH identities", e)
-            ServiceResult.failure("Failed to search SSH identities: ${e.message}")
+            serviceFailure("Failed to search SSH identities: ${e.message}")
         }
     }
     
@@ -337,7 +338,7 @@ class SshIdentityService @Inject constructor(
             ServiceResult.success(filtered)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to filter SSH identities", e)
-            ServiceResult.failure("Failed to filter SSH identities: ${e.message}")
+            serviceFailure("Failed to filter SSH identities: ${e.message}")
         }
     }
     
@@ -370,7 +371,7 @@ class SshIdentityService @Inject constructor(
         
         return try {
             val identity = repository.getSshIdentityById(id)
-                ?: return ServiceResult.failure("SSH identity not found")
+                ?: return serviceFailure("SSH identity not found")
             
             if (includePrivateKey) {
                 // Decrypt and export private key
@@ -380,12 +381,13 @@ class SshIdentityService @Inject constructor(
             } else {
                 // Export public key only
                 val publicKey = sshKeyParser.extractPublicKey(identity.encryptedPrivateKey)
+                    ?: return serviceFailure("Failed to extract public key")
                 val exported = sshKeyParser.formatPublicKey(publicKey, format)
                 ServiceResult.success(exported)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to export SSH key", e)
-            ServiceResult.failure("Failed to export SSH key: ${e.message}")
+            serviceFailure("Failed to export SSH key: ${e.message}")
         }
     }
     
@@ -409,7 +411,7 @@ class SshIdentityService @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to generate SSH key", e)
-            ServiceResult.failure("Failed to generate SSH key: ${e.message}")
+            serviceFailure("Failed to generate SSH key: ${e.message}")
         }
     }
     
@@ -426,7 +428,7 @@ class SshIdentityService @Inject constructor(
         return try {
             withContext(Dispatchers.Default) {
                 val keyPair = sshKeyParser.parsePrivateKey(keyData, format, passphrase)
-                    ?: return@withContext ServiceResult.failure("Invalid SSH key format")
+                    ?: return@withContext serviceFailure("Invalid SSH key format")
                 
                 val fingerprint = generateFingerprint(keyPair.public)
                 val keyInfo = SshKeyInfo(
@@ -441,7 +443,7 @@ class SshIdentityService @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to validate SSH key", e)
-            ServiceResult.failure("Failed to validate SSH key: ${e.message}")
+            serviceFailure("Failed to validate SSH key: ${e.message}")
         }
     }
     
@@ -455,7 +457,7 @@ class SshIdentityService @Inject constructor(
         
         return try {
             val identity = repository.getSshIdentityById(id)
-                ?: return ServiceResult.failure("SSH identity not found")
+                ?: return serviceFailure("SSH identity not found")
             
             val updated = identity.copy(lastUsedAt = System.currentTimeMillis())
             repository.updateSshIdentity(updated)
@@ -463,7 +465,7 @@ class SshIdentityService @Inject constructor(
             ServiceResult.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to mark SSH identity as used", e)
-            ServiceResult.failure("Failed to update usage: ${e.message}")
+            serviceFailure("Failed to update usage: ${e.message}")
         }
     }
     
@@ -650,6 +652,6 @@ data class SshIdentityWithUsage(
 private fun ValidationResult.getErrorSummary(): String {
     return when (this) {
         is ValidationResult.Success -> "No errors"
-        is ValidationResult.Failure -> error.message
+        is ValidationResult.Failure -> errors.joinToString("; ") { it.message }
     }
 }

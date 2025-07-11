@@ -57,6 +57,11 @@ data class AppData(
             }
         }
     }
+
+    /**
+     * Get total count of all entities.
+     */
+    fun getTotalEntityCount(): Int = sshIdentities.size + serverProfiles.size + projects.size
 }
 
 /**
@@ -201,10 +206,6 @@ fun AppData.searchProjects(query: String): List<Project> =
  */
 fun AppData.getProjectMessages(projectId: String): List<Message> = messages[projectId] ?: emptyList()
 
-/**
- * Get total count of all entities.
- */
-fun AppData.getTotalEntityCount(): Int = sshIdentities.size + serverProfiles.size + projects.size
 
 /**
  * Check if the data contains any entities.

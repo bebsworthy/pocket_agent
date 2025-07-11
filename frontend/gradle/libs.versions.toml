@@ -5,9 +5,9 @@ kotlin = "2.2.0"
 ksp = "2.2.0-1.0.29"
 
 # Code Quality Tools
-ktlint = "1.0.1"
-detekt = "1.23.7"
-spotless = "6.25.0"
+ktlint = "1.6.0"
+detekt = "1.23.8"
+spotless = "7.1.0"
 jacoco = "0.8.11"
 sonarqube = "4.4.1.3373"
 

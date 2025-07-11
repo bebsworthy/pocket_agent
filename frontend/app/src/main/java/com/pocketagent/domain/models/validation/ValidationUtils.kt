@@ -3,6 +3,10 @@ package com.pocketagent.domain.models.validation
 import com.pocketagent.domain.models.error.ValidationException
 import com.pocketagent.domain.models.entities.*
 import com.pocketagent.domain.models.AppData
+import com.pocketagent.domain.models.UserPreferences
+import com.pocketagent.domain.models.BatteryOptimization
+import com.pocketagent.domain.models.NetworkPreferences
+import com.pocketagent.domain.models.NetworkTimeoutSettings
 import java.util.regex.Pattern
 
 /**

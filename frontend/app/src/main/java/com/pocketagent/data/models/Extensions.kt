@@ -147,21 +147,25 @@ fun AppData.cleanupOrphanedData(): AppData {
 /**
  * Filter SSH identities by search query.
  */
+@JvmName("filterSshIdentitiesByQuery")
 fun List<SshIdentity>.filterByQuery(query: String): List<SshIdentity> = filter { it.matchesSearch(query) }
 
 /**
  * Filter server profiles by search query.
  */
+@JvmName("filterServerProfilesByQuery")
 fun List<ServerProfile>.filterByQuery(query: String): List<ServerProfile> = filter { it.matchesSearch(query) }
 
 /**
  * Filter projects by search query.
  */
+@JvmName("filterProjectsByQuery")
 fun List<Project>.filterByQuery(query: String): List<Project> = filter { it.matchesSearch(query) }
 
 /**
  * Filter messages by search query.
  */
+@JvmName("filterMessagesByQuery")
 fun List<Message>.filterByQuery(query: String): List<Message> = filter { it.matchesSearch(query) }
 
 /**

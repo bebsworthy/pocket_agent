@@ -70,8 +70,11 @@ object ServiceModule {
      */
     @Provides
     @Singleton
-    fun provideServerConnectionTester(sshIdentityService: SshIdentityService): ServerConnectionTester {
-        return ServerConnectionTester(sshIdentityService)
+    fun provideServerConnectionTester(
+        sshIdentityService: SshIdentityService,
+        serverProfileService: ServerProfileService
+    ): ServerConnectionTester {
+        return ServerConnectionTester(sshIdentityService, serverProfileService)
     }
 
     /**

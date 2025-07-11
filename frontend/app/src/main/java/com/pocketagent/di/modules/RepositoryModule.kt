@@ -101,7 +101,7 @@ class SecureDataRepositoryWithMigration(
      * Initializes the repository with automatic migration support.
      */
     suspend fun initialize() {
-        repository.initializeWithMigration(migrationManager)
+        repository.initialize()
     }
     
     /**

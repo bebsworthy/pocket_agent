@@ -4,8 +4,11 @@ import android.util.Log
 import com.pocketagent.data.models.ConnectionStatus
 import com.pocketagent.data.models.ServerProfile
 import com.pocketagent.data.models.markAsConnected
+import com.pocketagent.data.models.toExportModel
 import com.pocketagent.data.repository.DataException
 import com.pocketagent.data.repository.SecureDataRepository
+import com.pocketagent.data.service.serviceFailure
+import com.pocketagent.data.service.serviceSuccess
 import com.pocketagent.data.validation.ValidationResult
 import com.pocketagent.data.validation.validators.ServerProfileValidator
 import kotlinx.coroutines.Dispatchers
@@ -13,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
@@ -631,7 +635,7 @@ class ServerProfileService @Inject constructor(
             withContext(Dispatchers.IO) {
                 val report = networkValidator.validateConfiguration(hostname, sshPort, wrapperPort)
                 val networkReport = NetworkValidationReport(
-                    isValid = report.isValid,
+                    isValid = report.isSuccess(),
                     hostnameResolvable = networkValidator.canResolveHostname(hostname),
                     sshPortReachable = networkValidator.isPortReachable(hostname, sshPort),
                     wrapperPortReachable = networkValidator.isPortReachable(hostname, wrapperPort),
@@ -684,7 +688,7 @@ class ServerProfileService @Inject constructor(
     fun observeConnectionStatuses(): Flow<Map<String, ConnectionStatus>> {
         return repository.observeServerProfiles().map { profiles ->
             profiles.associate { it.id to it.status }
-        }.flowOn(Dispatchers.Default)
+        }
     }
     
     // Import/Export

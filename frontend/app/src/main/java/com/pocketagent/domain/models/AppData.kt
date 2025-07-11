@@ -110,7 +110,7 @@ data class AppData(
      * Gets total storage size estimate in bytes.
      */
     fun getEstimatedStorageSize(): Long {
-        val baseSize = toString().toByteArray().size
+        val baseSize = toString().toByteArray().size.toLong()
         val messagesSize = messages.values.flatten().sumOf { it.getSize() }
         return baseSize + messagesSize
     }

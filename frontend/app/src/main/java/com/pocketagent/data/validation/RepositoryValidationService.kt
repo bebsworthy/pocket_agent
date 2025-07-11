@@ -5,7 +5,7 @@ import com.pocketagent.data.models.Message
 import com.pocketagent.data.models.Project
 import com.pocketagent.data.models.ServerProfile
 import com.pocketagent.data.models.SshIdentity
-import com.pocketagent.data.validation.validators.AsyncValidator
+import com.pocketagent.data.validation.AsyncValidator
 import com.pocketagent.data.validation.validators.BusinessRuleValidator
 import com.pocketagent.data.validation.validators.MessageValidator
 import com.pocketagent.data.validation.validators.ProjectValidator

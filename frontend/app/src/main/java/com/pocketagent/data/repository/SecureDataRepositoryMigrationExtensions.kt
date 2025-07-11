@@ -39,7 +39,7 @@ suspend fun SecureDataRepository.initializeWithMigration(
 
     return try {
         // First, try to load existing data
-        val currentData =
+        val currentData: AppData =
             try {
                 loadData()
             } catch (e: Exception) {
@@ -98,7 +98,7 @@ suspend fun SecureDataRepository.validateAndRepairData(migrationManager: DataMig
     Log.d(TAG, "Starting data validation and repair")
 
     return try {
-        val currentData = loadData()
+        val currentData: AppData = loadData()
 
         // Validate data integrity
         val integrityResult = migrationManager.validateDataIntegrity(currentData)
@@ -179,7 +179,7 @@ suspend fun SecureDataRepository.createMigrationBackup(
     Log.d(TAG, "Creating migration-compatible backup")
 
     return try {
-        val currentData = loadData()
+        val currentData: AppData = loadData()
         migrationManager.createManualBackup(currentData, description)
     } catch (e: Exception) {
         Log.e(TAG, "Failed to create migration backup", e)
@@ -201,7 +201,7 @@ suspend fun SecureDataRepository.restoreFromMigrationBackup(
     Log.d(TAG, "Restoring from migration backup: $backupFilename")
 
     return try {
-        val currentData = loadData()
+        val currentData: AppData = loadData()
         val rollbackResult = migrationManager.rollbackLastMigration(currentData, backupFilename)
 
         if (rollbackResult.success) {
@@ -234,7 +234,7 @@ suspend fun SecureDataRepository.restoreFromMigrationBackup(
  */
 suspend fun SecureDataRepository.getMigrationStatus(migrationManager: DataMigrationManager): MigrationStatus {
     return try {
-        val currentData = loadData()
+        val currentData: AppData = loadData()
         val isUpToDate = !migrationManager.isMigrationNeeded(currentData)
         val history = migrationManager.getMigrationHistory()
         val lastMigration = history.maxByOrNull { it.timestamp }

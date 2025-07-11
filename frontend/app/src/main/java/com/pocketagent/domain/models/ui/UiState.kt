@@ -3,6 +3,8 @@ package com.pocketagent.domain.models.ui
 import com.pocketagent.domain.models.entities.*
 import com.pocketagent.domain.models.responses.PermissionRequest
 import com.pocketagent.domain.models.responses.ServerEvent
+import com.pocketagent.domain.models.UserPreferences
+import com.pocketagent.domain.models.DeviceInfo
 
 /**
  * Base class for all UI state models.

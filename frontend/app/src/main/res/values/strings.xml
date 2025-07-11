@@ -86,6 +86,9 @@
     <!-- Service notifications -->
     <string name="service_notification_title">Pocket Agent Running</string>
     <string name="service_notification_description">Monitoring Claude Code connections</string>
+    <string name="notification_channel_monitoring">Background Monitoring</string>
+    <string name="service_monitoring_title">Background Monitoring Active</string>
+    <string name="service_monitoring_description">Monitoring Claude Code connections and project status</string>
     
     <!-- Quick actions -->
     <string name="quick_action_run_tests">Run Tests</string>
