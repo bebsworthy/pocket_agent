@@ -7,7 +7,6 @@ plugins {
     alias(libs.plugins.ktlint) apply false
     alias(libs.plugins.detekt) apply false
     alias(libs.plugins.spotless) apply false
-    alias(libs.plugins.jacoco) apply false
     alias(libs.plugins.sonarqube) apply false
 }
 
