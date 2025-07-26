@@ -112,7 +112,9 @@ abstract class NetworkModule {
         @Provides
         @Singleton
         @ConnectionTimeout
-        fun provideConnectionTimeout(): Long = 30_000L
+        fun provideConnectionTimeout(): Long {
+            return 30_000L
+        }
 
         /**
          * Provides the WebSocket ping interval in milliseconds.
@@ -122,7 +124,9 @@ abstract class NetworkModule {
         @Provides
         @Singleton
         @PingInterval
-        fun providePingInterval(): Long = 30_000L
+        fun providePingInterval(): Long {
+            return 30_000L
+        }
 
         /**
          * Provides the maximum number of reconnection attempts.
@@ -132,7 +136,9 @@ abstract class NetworkModule {
         @Provides
         @Singleton
         @MaxReconnectAttempts
-        fun provideMaxReconnectAttempts(): Int = 5
+        fun provideMaxReconnectAttempts(): Int {
+            return 5
+        }
 
         /**
          * Provides the base delay for exponential backoff reconnection.
@@ -142,7 +148,9 @@ abstract class NetworkModule {
         @Provides
         @Singleton
         @ReconnectBaseDelay
-        fun provideReconnectBaseDelay(): Long = 1_000L
+        fun provideReconnectBaseDelay(): Long {
+            return 1_000L
+        }
     }
 }
 

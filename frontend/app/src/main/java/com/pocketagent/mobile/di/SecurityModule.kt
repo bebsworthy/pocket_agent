@@ -101,7 +101,9 @@ abstract class SecurityModule {
         @Provides
         @Singleton
         @KeystoreAlias
-        fun provideKeystoreAlias(): String = "pocket_agent_master_key"
+        fun provideKeystoreAlias(): String {
+            return "pocket_agent_master_key"
+        }
 
         /**
          * Provides the SSH keystore alias prefix.
@@ -111,7 +113,9 @@ abstract class SecurityModule {
         @Provides
         @Singleton
         @SshKeystoreAlias
-        fun provideSshKeystoreAlias(): String = "pocket_agent_ssh_key_"
+        fun provideSshKeystoreAlias(): String {
+            return "pocket_agent_ssh_key_"
+        }
 
         /**
          * Provides the token vault alias for token encryption.
@@ -121,7 +125,9 @@ abstract class SecurityModule {
         @Provides
         @Singleton
         @TokenVaultAlias
-        fun provideTokenVaultAlias(): String = "pocket_agent_token_vault"
+        fun provideTokenVaultAlias(): String {
+            return "pocket_agent_token_vault"
+        }
     }
 }
 

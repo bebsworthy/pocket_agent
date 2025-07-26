@@ -98,7 +98,9 @@ abstract class DataModule {
         @Provides
         @Singleton
         @StorageFileName
-        fun provideStorageFileName(): String = "pocket_agent_data.json"
+        fun provideStorageFileName(): String {
+            return "pocket_agent_data.json"
+        }
 
         /**
          * Provides the preferences name for encrypted preferences.
@@ -108,7 +110,9 @@ abstract class DataModule {
         @Provides
         @Singleton
         @PreferencesName
-        fun providePreferencesName(): String = "pocket_agent_prefs"
+        fun providePreferencesName(): String {
+            return "pocket_agent_prefs"
+        }
     }
 }
 
