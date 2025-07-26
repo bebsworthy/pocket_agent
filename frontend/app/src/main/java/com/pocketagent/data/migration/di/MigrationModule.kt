@@ -57,14 +57,13 @@ object MigrationModule {
         encryptedStorage: EncryptedJsonStorage,
         migrationRegistry: MigrationRegistry,
         dataValidator: DataValidator,
-    ): DataMigrationManager {
-        return DataMigrationManager(
+    ): DataMigrationManager =
+        DataMigrationManager(
             context = context,
             encryptedStorage = encryptedStorage,
             migrationRegistry = migrationRegistry,
             dataValidator = dataValidator,
         )
-    }
 
     // Individual Migration Providers
 
@@ -118,8 +117,8 @@ object MigrationConfigurationModule {
     @Singleton
     fun provideMigrationConfiguration(
         @ApplicationContext context: Context,
-    ): MigrationConfiguration {
-        return MigrationConfiguration(
+    ): MigrationConfiguration =
+        MigrationConfiguration(
             autoMigrationEnabled = true,
             backupBeforeMigration = true,
             maxBackupFiles = 5,
@@ -127,7 +126,6 @@ object MigrationConfigurationModule {
             enableProgressReporting = true,
             validateAfterMigration = true,
         )
-    }
 }
 
 /**
@@ -157,21 +155,20 @@ data class MigrationConfiguration(
         /**
          * Creates a configuration optimized for testing.
          */
-        fun testing(): MigrationConfiguration {
-            return MigrationConfiguration(
+        fun testing(): MigrationConfiguration =
+            MigrationConfiguration(
                 backupBeforeMigration = false,
                 maxBackupFiles = 1,
                 migrationTimeoutMs = 5_000L,
                 enableProgressReporting = false,
                 validateAfterMigration = true,
             )
-        }
 
         /**
          * Creates a configuration for development with verbose logging.
          */
-        fun development(): MigrationConfiguration {
-            return MigrationConfiguration(
+        fun development(): MigrationConfiguration =
+            MigrationConfiguration(
                 autoMigrationEnabled = true,
                 backupBeforeMigration = true,
                 maxBackupFiles = 10,
@@ -179,6 +176,5 @@ data class MigrationConfiguration(
                 enableProgressReporting = true,
                 validateAfterMigration = true,
             )
-        }
     }
 }

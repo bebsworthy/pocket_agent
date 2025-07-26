@@ -18,7 +18,6 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -26,7 +25,7 @@ class MainActivity : ComponentActivity() {
                 // A surface container using the 'background' color from the theme
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     GreetingScreen(name = "Pocket Agent")
                 }
@@ -36,33 +35,40 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun GreetingScreen(name: String, modifier: Modifier = Modifier) {
+@Suppress("FunctionName")
+fun GreetingScreen(
+    name: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = "Hello $name!",
-        modifier = modifier
+        modifier = modifier,
     )
 }
 
 @Composable
+@Suppress("FunctionName")
 fun PocketAgentTheme(
     darkTheme: Boolean = androidx.compose.foundation.isSystemInDarkTheme(),
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = if (darkTheme) {
-        androidx.compose.material3.darkColorScheme()
-    } else {
-        androidx.compose.material3.lightColorScheme()
-    }
+    val colorScheme =
+        if (darkTheme) {
+            androidx.compose.material3.darkColorScheme()
+        } else {
+            androidx.compose.material3.lightColorScheme()
+        }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = MaterialTheme.typography,
-        content = content
+        content = content,
     )
 }
 
 @Preview(showBackground = true)
 @Composable
+@Suppress("FunctionName")
 fun GreetingPreview() {
     PocketAgentTheme {
         GreetingScreen("Android")

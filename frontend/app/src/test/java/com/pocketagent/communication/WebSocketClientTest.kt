@@ -38,7 +38,8 @@ class WebSocketClientTest : BaseUnitTest() {
         mockWebServer.start()
 
         val okHttpClient =
-            OkHttpClient.Builder()
+            OkHttpClient
+                .Builder()
                 .readTimeout(1, TimeUnit.SECONDS)
                 .build()
 
@@ -257,21 +258,19 @@ interface MessageProtocol {
 /**
  * Test data factory extensions for communication layer.
  */
-private fun TestDataFactory.createCommandMessage(command: String): Any {
-    return mapOf(
+private fun TestDataFactory.createCommandMessage(command: String): Any =
+    mapOf(
         "type" to "command",
         "command" to command,
         "isShellCommand" to false,
     )
-}
 
-private fun TestDataFactory.createClaudeMessage(content: String): Any {
-    return mapOf(
+private fun TestDataFactory.createClaudeMessage(content: String): Any =
+    mapOf(
         "type" to "claude_response",
         "content" to content,
         "conversationId" to "test-conversation",
     )
-}
 
 /**
  * Test WebSocket listener for mocking.

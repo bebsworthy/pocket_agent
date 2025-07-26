@@ -1,15 +1,16 @@
 package com.pocketagent.domain.models.entities
 
+import com.pocketagent.common.constants.SizeConstants
+import com.pocketagent.common.constants.ValidationConstants
 import com.pocketagent.domain.models.error.ValidationException
-import java.time.LocalDateTime
 import java.util.UUID
 
 /**
  * Represents an SSH identity with encrypted private key stored in the app.
- * 
+ *
  * SSH identities are used for authentication to multiple servers and provide
  * secure access to remote development environments.
- * 
+ *
  * @property id Unique identifier for the SSH identity
  * @property name User-friendly name for the identity
  * @property encryptedPrivateKey Encrypted SSH private key data
@@ -32,8 +33,8 @@ data class SshIdentity(
     val lastUsedAt: Long? = null,
     val isActive: Boolean = true,
     val keyType: SshKeyType = SshKeyType.RSA,
-    val keySize: Int = 2048,
-    val metadata: SshIdentityMetadata = SshIdentityMetadata()
+    val keySize: Int = ValidationConstants.RSA_VALID_KEY_SIZE_2048,
+    val metadata: SshIdentityMetadata = SshIdentityMetadata(),
 ) {
     init {
         validateName(name)
@@ -41,46 +42,46 @@ data class SshIdentity(
         validateKeySize(keySize, keyType)
         validateEncryptedPrivateKey(encryptedPrivateKey)
     }
-    
+
     /**
      * Updates the last used timestamp.
      */
     fun markAsUsed(): SshIdentity = copy(lastUsedAt = System.currentTimeMillis())
-    
+
     /**
      * Deactivates the SSH identity.
      */
     fun deactivate(): SshIdentity = copy(isActive = false)
-    
+
     /**
      * Reactivates the SSH identity.
      */
     fun reactivate(): SshIdentity = copy(isActive = true)
-    
+
     /**
      * Updates the description.
      */
     fun updateDescription(newDescription: String?): SshIdentity = copy(description = newDescription)
-    
+
     /**
      * Checks if the identity is expired based on metadata.
      */
     fun isExpired(): Boolean = metadata.expiresAt?.let { it < System.currentTimeMillis() } ?: false
-    
+
     /**
      * Gets the display name for the identity.
      */
     fun getDisplayName(): String = name.ifBlank { "SSH Identity $id" }
-    
+
     /**
      * Gets the short fingerprint for display.
      */
-    fun getShortFingerprint(): String = publicKeyFingerprint.takeLast(16)
-    
+    fun getShortFingerprint(): String = publicKeyFingerprint.takeLast(ValidationConstants.SSH_FINGERPRINT_DISPLAY_LENGTH)
+
     companion object {
-        const val MAX_NAME_LENGTH = 100
-        const val MIN_NAME_LENGTH = 1
-        
+        const val MAX_NAME_LENGTH = SizeConstants.MAX_NAME_LENGTH
+        const val MIN_NAME_LENGTH = SizeConstants.MIN_NAME_LENGTH
+
         private fun validateName(name: String) {
             if (name.isBlank()) {
                 throw ValidationException("name", name, "SSH Identity name cannot be blank")
@@ -92,26 +93,46 @@ data class SshIdentity(
                 throw ValidationException("name", name, "SSH Identity name too short (min $MIN_NAME_LENGTH chars)")
             }
         }
-        
+
         private fun validateFingerprint(fingerprint: String) {
             val fingerprintRegex = Regex("^(SHA256:|MD5:)?[A-Fa-f0-9:]+$")
             if (!fingerprint.matches(fingerprintRegex)) {
                 throw ValidationException("publicKeyFingerprint", fingerprint, "Invalid fingerprint format")
             }
         }
-        
-        private fun validateKeySize(size: Int, type: SshKeyType) {
-            val validSizes = when (type) {
-                SshKeyType.RSA -> listOf(2048, 3072, 4096)
-                SshKeyType.ECDSA -> listOf(256, 384, 521)
-                SshKeyType.Ed25519 -> listOf(256)
-                SshKeyType.DSA -> listOf(1024, 2048, 3072)
-            }
+
+        private fun validateKeySize(
+            size: Int,
+            type: SshKeyType,
+        ) {
+            val validSizes =
+                when (type) {
+                    SshKeyType.RSA ->
+                        listOf(
+                            ValidationConstants.RSA_VALID_KEY_SIZE_2048,
+                            ValidationConstants.RSA_VALID_KEY_SIZE_3072,
+                            ValidationConstants.RSA_VALID_KEY_SIZE_4096,
+                        )
+                    SshKeyType.ECDSA ->
+                        listOf(
+                            ValidationConstants.ECDSA_VALID_KEY_SIZE_256,
+                            ValidationConstants.ECDSA_VALID_KEY_SIZE_384,
+                            ValidationConstants.ECDSA_VALID_KEY_SIZE_521,
+                        )
+                    SshKeyType.Ed25519 -> listOf(ValidationConstants.ED25519_VALID_KEY_SIZE)
+                    SshKeyType.DSA ->
+                        listOf(
+                            ValidationConstants.DSA_VALID_KEY_SIZE_1024,
+                            ValidationConstants.DSA_VALID_KEY_SIZE_2048,
+                            ValidationConstants.DSA_VALID_KEY_SIZE_3072,
+                        )
+                }
             if (size !in validSizes) {
-                throw ValidationException("keySize", size, "Invalid key size $size for type $type. Valid sizes: $validSizes")
+                val message = "Invalid key size $size for type $type. Valid sizes: $validSizes"
+                throw ValidationException("keySize", size, message)
             }
         }
-        
+
         private fun validateEncryptedPrivateKey(encryptedKey: String) {
             if (encryptedKey.isBlank()) {
                 throw ValidationException("encryptedPrivateKey", encryptedKey, "Encrypted private key cannot be blank")
@@ -128,12 +149,12 @@ enum class SshKeyType {
     RSA,
     ECDSA,
     Ed25519,
-    DSA
+    DSA,
 }
 
 /**
  * Metadata associated with an SSH identity.
- * 
+ *
  * @property tags User-defined tags for organizing identities
  * @property source Source of the key (imported, generated, etc.)
  * @property expiresAt Optional expiration timestamp
@@ -147,7 +168,7 @@ data class SshIdentityMetadata(
     val expiresAt: Long? = null,
     val usageCount: Int = 0,
     val lastServerUsed: String? = null,
-    val isBackedUp: Boolean = false
+    val isBackedUp: Boolean = false,
 )
 
 /**
@@ -156,7 +177,7 @@ data class SshIdentityMetadata(
 enum class SshKeySource {
     IMPORTED,
     GENERATED,
-    RESTORED
+    RESTORED,
 }
 
 /**
@@ -172,54 +193,65 @@ class SshIdentityBuilder {
     private var lastUsedAt: Long? = null
     private var isActive: Boolean = true
     private var keyType: SshKeyType = SshKeyType.RSA
-    private var keySize: Int = 2048
+    private var keySize: Int = ValidationConstants.RSA_VALID_KEY_SIZE_2048
     private var metadata: SshIdentityMetadata = SshIdentityMetadata()
-    
+
     fun id(id: String) = apply { this.id = id }
+
     fun name(name: String) = apply { this.name = name }
+
     fun encryptedPrivateKey(key: String) = apply { this.encryptedPrivateKey = key }
+
     fun publicKeyFingerprint(fingerprint: String) = apply { this.publicKeyFingerprint = fingerprint }
+
     fun description(description: String?) = apply { this.description = description }
+
     fun createdAt(createdAt: Long) = apply { this.createdAt = createdAt }
+
     fun lastUsedAt(lastUsedAt: Long?) = apply { this.lastUsedAt = lastUsedAt }
+
     fun isActive(isActive: Boolean) = apply { this.isActive = isActive }
+
     fun keyType(keyType: SshKeyType) = apply { this.keyType = keyType }
+
     fun keySize(keySize: Int) = apply { this.keySize = keySize }
+
     fun metadata(metadata: SshIdentityMetadata) = apply { this.metadata = metadata }
-    
-    fun build(): SshIdentity = SshIdentity(
-        id = id,
-        name = name,
-        encryptedPrivateKey = encryptedPrivateKey,
-        publicKeyFingerprint = publicKeyFingerprint,
-        description = description,
-        createdAt = createdAt,
-        lastUsedAt = lastUsedAt,
-        isActive = isActive,
-        keyType = keyType,
-        keySize = keySize,
-        metadata = metadata
-    )
+
+    fun build(): SshIdentity =
+        SshIdentity(
+            id = id,
+            name = name,
+            encryptedPrivateKey = encryptedPrivateKey,
+            publicKeyFingerprint = publicKeyFingerprint,
+            description = description,
+            createdAt = createdAt,
+            lastUsedAt = lastUsedAt,
+            isActive = isActive,
+            keyType = keyType,
+            keySize = keySize,
+            metadata = metadata,
+        )
 }
 
 /**
  * Extension functions for SshIdentity.
  */
-fun SshIdentity.toBuilder(): SshIdentityBuilder = SshIdentityBuilder()
-    .id(id)
-    .name(name)
-    .encryptedPrivateKey(encryptedPrivateKey)
-    .publicKeyFingerprint(publicKeyFingerprint)
-    .description(description)
-    .createdAt(createdAt)
-    .lastUsedAt(lastUsedAt)
-    .isActive(isActive)
-    .keyType(keyType)
-    .keySize(keySize)
-    .metadata(metadata)
+fun SshIdentity.toBuilder(): SshIdentityBuilder =
+    SshIdentityBuilder()
+        .id(id)
+        .name(name)
+        .encryptedPrivateKey(encryptedPrivateKey)
+        .publicKeyFingerprint(publicKeyFingerprint)
+        .description(description)
+        .createdAt(createdAt)
+        .lastUsedAt(lastUsedAt)
+        .isActive(isActive)
+        .keyType(keyType)
+        .keySize(keySize)
+        .metadata(metadata)
 
 /**
  * Creates a new SSH identity builder.
  */
-fun sshIdentity(block: SshIdentityBuilder.() -> Unit): SshIdentity = 
-    SshIdentityBuilder().apply(block).build()
+fun sshIdentity(block: SshIdentityBuilder.() -> Unit): SshIdentity = SshIdentityBuilder().apply(block).build()

@@ -86,25 +86,24 @@ object TestConfiguration {
     /**
      * Creates a test configuration for different environments.
      */
-    fun createTestConfig(isCI: Boolean = IS_CI_ENVIRONMENT): TestConfig {
-        return TestConfig(
+    fun createTestConfig(isCI: Boolean = IS_CI_ENVIRONMENT): TestConfig =
+        TestConfig(
             timeoutMs = if (isCI) LONG_TIMEOUT_MS else DEFAULT_TIMEOUT_MS,
             retryAttempts = if (isCI) MAX_RETRY_ATTEMPTS else 1,
             enableLogging = !isCI,
             parallelExecution = !isCI,
         )
-    }
-
-    /**
-     * Configuration for test execution.
-     */
-    data class TestConfig(
-        val timeoutMs: Long,
-        val retryAttempts: Int,
-        val enableLogging: Boolean,
-        val parallelExecution: Boolean,
-    )
 }
+
+/**
+ * Configuration for test execution.
+ */
+data class TestConfig(
+    val timeoutMs: Long,
+    val retryAttempts: Int,
+    val enableLogging: Boolean,
+    val parallelExecution: Boolean,
+)
 
 /**
  * Test environment setup and configuration.

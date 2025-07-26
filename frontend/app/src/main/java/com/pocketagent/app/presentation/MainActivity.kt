@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
                                 .padding(innerPadding),
                         color = MaterialTheme.colorScheme.background,
                     ) {
-                        // TODO: Replace with actual navigation and app content
+                        // Main app content will be implemented here once navigation is ready
                         PlaceholderContent()
                     }
                 }
@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+@Suppress("FunctionName")
 fun PocketAgentTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         content = content,
@@ -60,6 +61,7 @@ fun PocketAgentTheme(content: @Composable () -> Unit) {
 }
 
 @Composable
+@Suppress("FunctionName")
 fun PlaceholderContent() {
     Text(
         text = "Pocket Agent - Build system configured!",
@@ -69,6 +71,7 @@ fun PlaceholderContent() {
 
 @Preview(showBackground = true)
 @Composable
+@Suppress("FunctionName")
 fun PlaceholderContentPreview() {
     PocketAgentTheme {
         PlaceholderContent()

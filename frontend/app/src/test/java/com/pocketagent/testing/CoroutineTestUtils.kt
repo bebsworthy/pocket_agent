@@ -40,16 +40,12 @@ object CoroutineTestUtils {
     /**
      * Creates a test scope with UnconfinedTestDispatcher.
      */
-    fun createTestScope(): TestScope {
-        return TestScope(UnconfinedTestDispatcher())
-    }
+    fun createTestScope(): TestScope = TestScope(UnconfinedTestDispatcher())
 
     /**
      * Creates a test scope with StandardTestDispatcher.
      */
-    fun createStandardTestScope(): TestScope {
-        return TestScope(StandardTestDispatcher())
-    }
+    fun createStandardTestScope(): TestScope = TestScope(StandardTestDispatcher())
 
     /**
      * Runs a test with a given TestScope.
@@ -274,9 +270,7 @@ fun TestScope.runTest(testBody: suspend TestScope.() -> Unit) {
 }
 
 @ExperimentalCoroutinesApi
-fun TestScope.launch(block: suspend kotlinx.coroutines.CoroutineScope.() -> Unit): kotlinx.coroutines.Job {
-    return this.launch { block() }
-}
+fun TestScope.launch(block: suspend kotlinx.coroutines.CoroutineScope.() -> Unit): kotlinx.coroutines.Job = this.launch { block() }
 
 @ExperimentalCoroutinesApi
 suspend fun TestScope.delay(timeMillis: Long) {

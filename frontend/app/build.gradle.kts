@@ -61,6 +61,7 @@ android {
 
     // Signing configuration commented out for development builds
     // Uncomment and configure when ready for production release
+
     /*
     signingConfigs {
         create("release") {
@@ -382,17 +383,18 @@ spotless {
         target("**/*.kt")
         targetExclude("**/build/**/*.kt")
 
+        // Use ktlint for comprehensive formatting (aligns with Detekt expectations)
+        ktlint("1.6.0")
+
         // Standard formatting rules
         trimTrailingWhitespace()
-        indentWithSpaces(4)
         endWithNewline()
     }
 
     kotlinGradle {
         target("*.gradle.kts")
-        ktlint("1.0.1")
+        ktlint("1.6.0")
         trimTrailingWhitespace()
-        indentWithSpaces(4)
         endWithNewline()
     }
 }

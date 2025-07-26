@@ -48,11 +48,10 @@ class MigrationRegistry
         suspend fun findMigration(
             fromVersion: Int,
             toVersion: Int,
-        ): DataMigration? {
-            return registryMutex.withLock {
+        ): DataMigration? =
+            registryMutex.withLock {
                 migrations[Pair(fromVersion, toVersion)]
             }
-        }
 
         /**
          * Finds the migration path from one version to another.
@@ -86,11 +85,10 @@ class MigrationRegistry
          *
          * @return List of all registered migrations sorted by version
          */
-        suspend fun getAllMigrations(): List<DataMigration> {
-            return registryMutex.withLock {
+        suspend fun getAllMigrations(): List<DataMigration> =
+            registryMutex.withLock {
                 migrations.values.sortedBy { it.fromVersion }
             }
-        }
 
         /**
          * Gets migrations that can be applied from a specific version.
@@ -98,12 +96,12 @@ class MigrationRegistry
          * @param fromVersion The version to find migrations from
          * @return List of migrations that can be applied from the specified version
          */
-        suspend fun getMigrationsFromVersion(fromVersion: Int): List<DataMigration> {
-            return registryMutex.withLock {
-                migrations.values.filter { it.fromVersion == fromVersion }
+        suspend fun getMigrationsFromVersion(fromVersion: Int): List<DataMigration> =
+            registryMutex.withLock {
+                migrations.values
+                    .filter { it.fromVersion == fromVersion }
                     .sortedBy { it.toVersion }
             }
-        }
 
         /**
          * Gets migrations that can be applied to a specific version.
@@ -111,12 +109,12 @@ class MigrationRegistry
          * @param toVersion The target version
          * @return List of migrations that result in the specified version
          */
-        suspend fun getMigrationsToVersion(toVersion: Int): List<DataMigration> {
-            return registryMutex.withLock {
-                migrations.values.filter { it.toVersion == toVersion }
+        suspend fun getMigrationsToVersion(toVersion: Int): List<DataMigration> =
+            registryMutex.withLock {
+                migrations.values
+                    .filter { it.toVersion == toVersion }
                     .sortedBy { it.fromVersion }
             }
-        }
 
         /**
          * Checks if a migration path exists between two versions.
@@ -128,43 +126,43 @@ class MigrationRegistry
         suspend fun hasMigrationPath(
             fromVersion: Int,
             toVersion: Int,
-        ): Boolean {
-            return findMigrationPath(fromVersion, toVersion).isNotEmpty() || fromVersion == toVersion
-        }
+        ): Boolean = findMigrationPath(fromVersion, toVersion).isNotEmpty() || fromVersion == toVersion
 
         /**
          * Gets the highest available version that can be migrated to.
          *
          * @return The highest available version, or 1 if no migrations are registered
          */
-        suspend fun getHighestVersion(): Int {
-            return registryMutex.withLock {
+        suspend fun getHighestVersion(): Int =
+            registryMutex.withLock {
                 migrations.values.maxOfOrNull { it.toVersion } ?: 1
             }
-        }
 
         /**
          * Gets the lowest available version that can be migrated from.
          *
          * @return The lowest available version, or 1 if no migrations are registered
          */
-        suspend fun getLowestVersion(): Int {
-            return registryMutex.withLock {
+        suspend fun getLowestVersion(): Int =
+            registryMutex.withLock {
                 migrations.values.minOfOrNull { it.fromVersion } ?: 1
             }
-        }
 
         /**
          * Validates that all registered migrations form a valid migration chain.
          *
          * @return ValidationResult indicating whether the migration chain is valid
          */
-        suspend fun validateMigrationChain(): ValidationResult {
-            return registryMutex.withLock {
+        suspend fun validateMigrationChain(): ValidationResult =
+            registryMutex.withLock {
                 val errors = mutableListOf<String>()
 
                 // Check for gaps in migration chain
-                val versions = migrations.values.flatMap { listOf(it.fromVersion, it.toVersion) }.toSet().sorted()
+                val versions =
+                    migrations.values
+                        .flatMap { listOf(it.fromVersion, it.toVersion) }
+                        .toSet()
+                        .sorted()
 
                 for (i in 0 until versions.size - 1) {
                     val currentVersion = versions[i]
@@ -189,7 +187,6 @@ class MigrationRegistry
                     errors = errors,
                 )
             }
-        }
 
         /**
          * Clears all registered migrations.

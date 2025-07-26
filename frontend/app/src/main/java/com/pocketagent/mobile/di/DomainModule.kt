@@ -1,6 +1,5 @@
 package com.pocketagent.mobile.di
 
-import com.pocketagent.mobile.domain.repository.DataRepository
 import com.pocketagent.mobile.domain.repository.MessageRepository
 import com.pocketagent.mobile.domain.repository.ProjectRepository
 import com.pocketagent.mobile.domain.repository.ServerProfileRepository
@@ -33,144 +32,143 @@ import javax.inject.Singleton
 
 /**
  * Domain layer dependency injection module.
- * 
+ *
  * This module provides dependencies for the domain layer including use cases
  * and domain services.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object DomainModule {
-    
     // Authentication Use Cases
     @Provides
     @Singleton
     fun provideAuthenticateUserUseCase(
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): AuthenticateUserUseCase = AuthenticateUserUseCase(dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideValidateBiometricUseCase(
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): ValidateBiometricUseCase = ValidateBiometricUseCase(dispatcher)
-    
+
     // SSH Identity Use Cases
     @Provides
     @Singleton
     fun provideGetSshIdentitiesUseCase(
         repository: SshIdentityRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): GetSshIdentitiesUseCase = GetSshIdentitiesUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideCreateSshIdentityUseCase(
         repository: SshIdentityRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): CreateSshIdentityUseCase = CreateSshIdentityUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideDeleteSshIdentityUseCase(
         repository: SshIdentityRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): DeleteSshIdentityUseCase = DeleteSshIdentityUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideValidateSshKeyUseCase(
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): ValidateSshKeyUseCase = ValidateSshKeyUseCase(dispatcher)
-    
+
     // Server Profile Use Cases
     @Provides
     @Singleton
     fun provideGetServerProfilesUseCase(
         repository: ServerProfileRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): GetServerProfilesUseCase = GetServerProfilesUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideCreateServerProfileUseCase(
         repository: ServerProfileRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): CreateServerProfileUseCase = CreateServerProfileUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideUpdateServerProfileUseCase(
         repository: ServerProfileRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): UpdateServerProfileUseCase = UpdateServerProfileUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideDeleteServerProfileUseCase(
         repository: ServerProfileRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): DeleteServerProfileUseCase = DeleteServerProfileUseCase(repository, dispatcher)
-    
+
     // Project Use Cases
     @Provides
     @Singleton
     fun provideGetProjectsUseCase(
         repository: ProjectRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): GetProjectsUseCase = GetProjectsUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideCreateProjectUseCase(
         repository: ProjectRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): CreateProjectUseCase = CreateProjectUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideUpdateProjectUseCase(
         repository: ProjectRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): UpdateProjectUseCase = UpdateProjectUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideDeleteProjectUseCase(
         repository: ProjectRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): DeleteProjectUseCase = DeleteProjectUseCase(repository, dispatcher)
-    
+
     // Connection Use Cases
     @Provides
     @Singleton
     fun provideConnectToProjectUseCase(
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): ConnectToProjectUseCase = ConnectToProjectUseCase(dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideDisconnectFromProjectUseCase(
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): DisconnectFromProjectUseCase = DisconnectFromProjectUseCase(dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideGetConnectionStatusUseCase(
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): GetConnectionStatusUseCase = GetConnectionStatusUseCase(dispatcher)
-    
+
     // Message Use Cases
     @Provides
     @Singleton
     fun provideGetMessagesUseCase(
         repository: MessageRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): GetMessagesUseCase = GetMessagesUseCase(repository, dispatcher)
-    
+
     @Provides
     @Singleton
     fun provideSendMessageUseCase(
         repository: MessageRepository,
-        @IoDispatcher dispatcher: CoroutineDispatcher
+        @IoDispatcher dispatcher: CoroutineDispatcher,
     ): SendMessageUseCase = SendMessageUseCase(repository, dispatcher)
 }

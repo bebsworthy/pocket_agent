@@ -26,11 +26,10 @@ class CoroutineErrorHandler
         /**
          * Creates a general-purpose exception handler for application coroutines.
          */
-        fun createGeneralExceptionHandler(): CoroutineExceptionHandler {
-            return CoroutineExceptionHandler { _, throwable ->
+        fun createGeneralExceptionHandler(): CoroutineExceptionHandler =
+            CoroutineExceptionHandler { _, throwable ->
                 handleException(throwable, "General")
             }
-        }
 
         /**
          * Creates a WebSocket-specific exception handler.
@@ -39,29 +38,26 @@ class CoroutineErrorHandler
             onConnectionError: () -> Unit = {},
             onTimeoutError: () -> Unit = {},
             onUnknownError: (Throwable) -> Unit = {},
-        ): CoroutineExceptionHandler {
-            return CoroutineExceptionHandler { _, throwable ->
+        ): CoroutineExceptionHandler =
+            CoroutineExceptionHandler { _, throwable ->
                 handleWebSocketException(throwable, onConnectionError, onTimeoutError, onUnknownError)
             }
-        }
 
         /**
          * Creates a background service exception handler.
          */
-        fun createBackgroundServiceExceptionHandler(onServiceRestart: () -> Unit = {}): CoroutineExceptionHandler {
-            return CoroutineExceptionHandler { _, throwable ->
+        fun createBackgroundServiceExceptionHandler(onServiceRestart: () -> Unit = {}): CoroutineExceptionHandler =
+            CoroutineExceptionHandler { _, throwable ->
                 handleBackgroundServiceException(throwable, onServiceRestart)
             }
-        }
 
         /**
          * Creates a repository exception handler.
          */
-        fun createRepositoryExceptionHandler(): CoroutineExceptionHandler {
-            return CoroutineExceptionHandler { _, throwable ->
+        fun createRepositoryExceptionHandler(): CoroutineExceptionHandler =
+            CoroutineExceptionHandler { _, throwable ->
                 handleRepositoryException(throwable)
             }
-        }
 
         /**
          * Handles general exceptions with appropriate logging and recovery.
@@ -81,8 +77,8 @@ class CoroutineErrorHandler
             when (throwable) {
                 is OutOfMemoryError -> {
                     Log.e(TAG, "Out of memory error - attempting cleanup")
-                    // Trigger garbage collection
-                    System.gc()
+                    // Memory pressure detected - let system handle cleanup naturally
+                    // Consider clearing local caches or releasing resources instead
                     // Potentially restart critical services
                 }
                 is SecurityException -> {
@@ -207,8 +203,8 @@ object ErrorHandlingUtils {
     suspend fun <T> safeCall(
         onError: (Throwable) -> T,
         block: suspend () -> T,
-    ): T {
-        return try {
+    ): T =
+        try {
             block()
         } catch (throwable: Throwable) {
             when (throwable) {
@@ -216,7 +212,6 @@ object ErrorHandlingUtils {
                 else -> onError(throwable)
             }
         }
-    }
 
     /**
      * Executes a suspending function with retry logic.
@@ -252,8 +247,8 @@ object ErrorHandlingUtils {
     /**
      * Checks if an exception is recoverable (should be retried).
      */
-    fun isRecoverableException(throwable: Throwable): Boolean {
-        return when (throwable) {
+    fun isRecoverableException(throwable: Throwable): Boolean =
+        when (throwable) {
             is CancellationException -> false
             is OutOfMemoryError -> false
             is SocketTimeoutException -> true
@@ -262,7 +257,6 @@ object ErrorHandlingUtils {
             is java.io.IOException -> true
             else -> false
         }
-    }
 }
 
 /**

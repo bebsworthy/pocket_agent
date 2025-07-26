@@ -26,15 +26,32 @@ data class Message(
     val isPartial: Boolean = false,
     val metadata: Map<String, String> = emptyMap(),
 ) {
+    companion object {
+        const val MAX_CONTENT_LENGTH = 50_000
+        const val MAX_METADATA_ENTRIES = 20
+        const val MAX_METADATA_KEY_LENGTH = 100
+        const val MAX_METADATA_VALUE_LENGTH = 1_000
+        const val DEFAULT_PREVIEW_LENGTH = 100
+        const val MINUTE_IN_MILLIS = 60 * 1000L
+        const val DAY_IN_MILLIS = 24 * 60 * 60 * 1000L
+
+        // Display priorities for MessageType
+        const val PRIORITY_ERROR = 1
+        const val PRIORITY_STATUS = 2
+        const val PRIORITY_SYSTEM = 3
+        const val PRIORITY_USER = 4
+        const val PRIORITY_CLAUDE = 5
+    }
+
     init {
         require(content.isNotBlank()) { "Message content cannot be blank" }
-        require(content.length <= 50000) { "Message content too long (max 50000 chars)" }
+        require(content.length <= MAX_CONTENT_LENGTH) { "Message content too long (max $MAX_CONTENT_LENGTH chars)" }
         require(timestamp > 0) { "Timestamp must be positive" }
-        require(metadata.size <= 20) { "Too many metadata entries (max 20)" }
+        require(metadata.size <= MAX_METADATA_ENTRIES) { "Too many metadata entries (max $MAX_METADATA_ENTRIES)" }
         metadata.forEach { (key, value) ->
             require(key.isNotBlank()) { "Metadata key cannot be blank" }
-            require(key.length <= 100) { "Metadata key too long (max 100 chars)" }
-            require(value.length <= 1000) { "Metadata value too long (max 1000 chars)" }
+            require(key.length <= MAX_METADATA_KEY_LENGTH) { "Metadata key too long (max $MAX_METADATA_KEY_LENGTH chars)" }
+            require(value.length <= MAX_METADATA_VALUE_LENGTH) { "Metadata value too long (max $MAX_METADATA_VALUE_LENGTH chars)" }
         }
     }
 
@@ -86,14 +103,21 @@ data class Message(
     /**
      * Get a truncated version of the content for display.
      */
-    fun getPreviewContent(maxLength: Int = 100): String = if (content.length <= maxLength) content else content.take(maxLength) + "..."
+    fun getPreviewContent(maxLength: Int = DEFAULT_PREVIEW_LENGTH): String =
+        if (content.length <=
+            maxLength
+        ) {
+            content
+        } else {
+            content.take(maxLength) + "..."
+        }
 
     /**
      * Get the age of the message in minutes.
      */
     fun getAgeInMinutes(): Long {
         val now = System.currentTimeMillis()
-        return (now - timestamp) / (60 * 1000)
+        return (now - timestamp) / MINUTE_IN_MILLIS
     }
 }
 
@@ -164,11 +188,11 @@ enum class MessageType {
      */
     fun getDisplayPriority(): Int =
         when (this) {
-            ERROR_MESSAGE -> 1
-            STATUS_UPDATE -> 2
-            SYSTEM_MESSAGE -> 3
-            USER_INPUT -> 4
-            CLAUDE_RESPONSE -> 5
+            ERROR_MESSAGE -> Message.PRIORITY_ERROR
+            STATUS_UPDATE -> Message.PRIORITY_STATUS
+            SYSTEM_MESSAGE -> Message.PRIORITY_SYSTEM
+            USER_INPUT -> Message.PRIORITY_USER
+            CLAUDE_RESPONSE -> Message.PRIORITY_CLAUDE
         }
 }
 
@@ -214,9 +238,9 @@ class MessageBuilder {
         )
 }
 
-/**
- * Extension functions for Message operations.
- */
+// ================================
+// Extension functions for Message operations
+// ================================
 
 /**
  * Create a copy with updated content.
@@ -317,30 +341,39 @@ object MessageValidator {
     /**
      * Validate message content.
      */
-    fun validateContent(content: String): Result<Unit> {
-        return when {
+    fun validateContent(content: String): Result<Unit> =
+        when {
             content.isBlank() -> Result.failure(IllegalArgumentException("Content cannot be blank"))
-            content.length > 50000 -> Result.failure(IllegalArgumentException("Content too long (max 50000 chars)"))
+            content.length > Message.MAX_CONTENT_LENGTH ->
+                Result.failure(
+                    IllegalArgumentException("Content too long (max ${Message.MAX_CONTENT_LENGTH} chars)"),
+                )
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate metadata.
      */
     fun validateMetadata(metadata: Map<String, String>): Result<Unit> {
         return when {
-            metadata.size > 20 -> Result.failure(IllegalArgumentException("Too many metadata entries (max 20)"))
+            metadata.size > Message.MAX_METADATA_ENTRIES ->
+                Result.failure(
+                    IllegalArgumentException("Too many metadata entries (max ${Message.MAX_METADATA_ENTRIES})"),
+                )
             else -> {
                 metadata.forEach { (key, value) ->
                     if (key.isBlank()) {
                         return Result.failure(IllegalArgumentException("Metadata key cannot be blank"))
                     }
-                    if (key.length > 100) {
-                        return Result.failure(IllegalArgumentException("Metadata key too long (max 100 chars)"))
+                    if (key.length > Message.MAX_METADATA_KEY_LENGTH) {
+                        return Result.failure(
+                            IllegalArgumentException("Metadata key too long (max ${Message.MAX_METADATA_KEY_LENGTH} chars)"),
+                        )
                     }
-                    if (value.length > 1000) {
-                        return Result.failure(IllegalArgumentException("Metadata value too long (max 1000 chars)"))
+                    if (value.length > Message.MAX_METADATA_VALUE_LENGTH) {
+                        return Result.failure(
+                            IllegalArgumentException("Metadata value too long (max ${Message.MAX_METADATA_VALUE_LENGTH} chars)"),
+                        )
                     }
                 }
                 Result.success(Unit)

@@ -2,6 +2,7 @@ package com.pocketagent.data.repository
 
 import android.util.Log
 import com.pocketagent.data.migration.DataMigrationManager
+import com.pocketagent.data.migration.FailedMigrationConfig
 import com.pocketagent.data.migration.MigrationResult
 import com.pocketagent.data.migration.MigrationVersion
 import com.pocketagent.data.migration.di.MigrationConfiguration
@@ -42,8 +43,14 @@ suspend fun SecureDataRepository.initializeWithMigration(
         val currentData: AppData =
             try {
                 loadData()
-            } catch (e: Exception) {
-                Log.d(TAG, "No existing data found or failed to load, starting with empty data")
+            } catch (e: DataException.CorruptedDataException) {
+                Log.d(TAG, "Corrupted data found, starting with empty data", e)
+                AppData(version = 0) // Version 0 indicates new/empty data
+            } catch (e: DataException.InitializationException) {
+                Log.d(TAG, "Initialization failed, starting with empty data", e)
+                AppData(version = 0) // Version 0 indicates new/empty data
+            } catch (e: DataException) {
+                Log.d(TAG, "Data exception occurred, starting with empty data", e)
                 AppData(version = 0) // Version 0 indicates new/empty data
             }
 
@@ -79,9 +86,15 @@ suspend fun SecureDataRepository.initializeWithMigration(
 
         Log.d(TAG, "Repository initialization with migration completed successfully")
         migrationResult
-    } catch (e: Exception) {
-        Log.e(TAG, "Failed to initialize repository with migration", e)
+    } catch (e: DataException) {
+        Log.e(TAG, "Failed to initialize repository with migration - data error", e)
         throw DataException.InitializationException("Repository initialization with migration failed", e)
+    } catch (e: IllegalStateException) {
+        Log.e(TAG, "Failed to initialize repository with migration - invalid state", e)
+        throw DataException.InitializationException("Repository initialization with migration failed due to invalid state", e)
+    } catch (e: SecurityException) {
+        Log.e(TAG, "Failed to initialize repository with migration - security error", e)
+        throw DataException.InitializationException("Repository initialization with migration failed due to security error", e)
     }
 }
 
@@ -150,12 +163,27 @@ suspend fun SecureDataRepository.validateAndRepairData(migrationManager: DataMig
                 )
             }
         }
-    } catch (e: Exception) {
-        Log.e(TAG, "Data validation and repair failed", e)
-
+    } catch (e: DataException) {
+        Log.e(TAG, "Data validation and repair failed - data error", e)
         DataRepairResult(
             repairNeeded = true,
-            issuesFound = listOf("Validation failed: ${e.message}"),
+            issuesFound = listOf("Data validation failed: ${e.message}"),
+            issuesRepaired = emptyList(),
+            migrationResult = null,
+        )
+    } catch (e: IllegalStateException) {
+        Log.e(TAG, "Data validation and repair failed - invalid state", e)
+        DataRepairResult(
+            repairNeeded = true,
+            issuesFound = listOf("Invalid state during validation: ${e.message}"),
+            issuesRepaired = emptyList(),
+            migrationResult = null,
+        )
+    } catch (e: SecurityException) {
+        Log.e(TAG, "Data validation and repair failed - security error", e)
+        DataRepairResult(
+            repairNeeded = true,
+            issuesFound = listOf("Security error during validation: ${e.message}"),
             issuesRepaired = emptyList(),
             migrationResult = null,
         )
@@ -217,11 +245,13 @@ suspend fun SecureDataRepository.restoreFromMigrationBackup(
         Log.e(TAG, "Error during backup restoration", e)
 
         MigrationResult.failure(
-            fromVersion = 0,
-            toVersion = 0,
-            message = "Backup restoration failed: ${e.message}",
-            executionTimeMs = 0,
-            exception = e,
+            FailedMigrationConfig(
+                fromVersion = 0,
+                toVersion = 0,
+                message = "Backup restoration failed: ${e.message}",
+                executionTimeMs = 0,
+                exception = e,
+            )
         )
     }
 }
@@ -232,8 +262,8 @@ suspend fun SecureDataRepository.restoreFromMigrationBackup(
  * @param migrationManager The migration manager to use
  * @return MigrationStatus with current version and migration information
  */
-suspend fun SecureDataRepository.getMigrationStatus(migrationManager: DataMigrationManager): MigrationStatus {
-    return try {
+suspend fun SecureDataRepository.getMigrationStatus(migrationManager: DataMigrationManager): MigrationStatus =
+    try {
         val currentData: AppData = loadData()
         val isUpToDate = !migrationManager.isMigrationNeeded(currentData)
         val history = migrationManager.getMigrationHistory()
@@ -261,7 +291,6 @@ suspend fun SecureDataRepository.getMigrationStatus(migrationManager: DataMigrat
             migrationHistoryCount = 0,
         )
     }
-}
 
 /**
  * Observes migration progress.
@@ -271,9 +300,7 @@ suspend fun SecureDataRepository.getMigrationStatus(migrationManager: DataMigrat
  */
 fun SecureDataRepository.observeMigrationProgress(
     migrationManager: DataMigrationManager,
-): Flow<com.pocketagent.data.migration.MigrationProgress?> {
-    return migrationManager.migrationProgress
-}
+): Flow<com.pocketagent.data.migration.MigrationProgress?> = migrationManager.migrationProgress
 
 /**
  * Checks if a migration is currently in progress.
@@ -281,9 +308,7 @@ fun SecureDataRepository.observeMigrationProgress(
  * @param migrationManager The migration manager to check
  * @return Flow of boolean indicating if migration is in progress
  */
-fun SecureDataRepository.isMigrationInProgress(migrationManager: DataMigrationManager): Flow<Boolean> {
-    return migrationManager.isMigrating
-}
+fun SecureDataRepository.isMigrationInProgress(migrationManager: DataMigrationManager): Flow<Boolean> = migrationManager.isMigrating
 
 /**
  * Result of data repair operations.
@@ -326,8 +351,8 @@ data class MigrationStatus(
  * This is a lightweight check that can be used during app startup to determine
  * if migration UI should be shown to the user.
  */
-suspend fun SecureDataRepository.quickMigrationCheck(): Boolean {
-    return try {
+suspend fun SecureDataRepository.quickMigrationCheck(): Boolean =
+    try {
         // Quick check by looking at the data version only
         val dataFlow = dataFlow.first()
         val currentVersion = dataFlow?.version ?: 0
@@ -336,4 +361,3 @@ suspend fun SecureDataRepository.quickMigrationCheck(): Boolean {
         Log.w(TAG, "Quick migration check failed, assuming migration needed", e)
         true // Assume migration is needed if we can't determine version
     }
-}

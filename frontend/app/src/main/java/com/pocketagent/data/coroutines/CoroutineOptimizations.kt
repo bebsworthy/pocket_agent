@@ -46,57 +46,52 @@ class CoroutineOptimizations
         /**
          * Creates an optimized dispatcher for WebSocket operations.
          */
-        fun createWebSocketDispatcher(): CoroutineDispatcher {
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        fun createWebSocketDispatcher(): CoroutineDispatcher =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 // Use ForkJoinPool for better performance on newer Android versions
                 ForkJoinPool(WEBSOCKET_THREAD_POOL_SIZE).asCoroutineDispatcher()
             } else {
                 // Fallback to ThreadPoolExecutor for older versions
                 Executors.newFixedThreadPool(WEBSOCKET_THREAD_POOL_SIZE).asCoroutineDispatcher()
             }
-        }
 
         /**
          * Creates an optimized dispatcher for background operations.
          */
-        fun createBackgroundDispatcher(): CoroutineDispatcher {
-            return Executors.newFixedThreadPool(BACKGROUND_THREAD_POOL_SIZE).asCoroutineDispatcher()
-        }
+        fun createBackgroundDispatcher(): CoroutineDispatcher =
+            Executors.newFixedThreadPool(BACKGROUND_THREAD_POOL_SIZE).asCoroutineDispatcher()
 
         /**
          * Optimizes a flow for high-frequency updates.
          */
-        fun <T> Flow<T>.optimizeForHighFrequency(): Flow<T> {
-            return this
+        fun <T> Flow<T>.optimizeForHighFrequency(): Flow<T> =
+            this
                 .distinctUntilChanged()
                 .conflate()
                 .buffer(BUFFER_SIZE_LARGE)
-        }
 
         /**
          * Optimizes a flow for low-frequency updates.
          */
-        fun <T> Flow<T>.optimizeForLowFrequency(): Flow<T> {
-            return this
+        fun <T> Flow<T>.optimizeForLowFrequency(): Flow<T> =
+            this
                 .distinctUntilChanged()
                 .buffer(BUFFER_SIZE_SMALL)
-        }
 
         /**
          * Optimizes a flow for UI updates.
          */
-        fun <T> Flow<T>.optimizeForUI(): Flow<T> {
-            return this
+        fun <T> Flow<T>.optimizeForUI(): Flow<T> =
+            this
                 .distinctUntilChanged()
                 .sample(SAMPLE_RATE_MS)
                 .buffer(BUFFER_SIZE_MEDIUM)
-        }
 
         /**
          * Optimizes a flow for WebSocket messages.
          */
-        fun <T> Flow<T>.optimizeForWebSocket(): Flow<T> {
-            return this
+        fun <T> Flow<T>.optimizeForWebSocket(): Flow<T> =
+            this
                 .buffer(BUFFER_SIZE_LARGE)
                 .catch { throwable ->
                     // Log WebSocket errors but don't stop the flow
@@ -104,54 +99,49 @@ class CoroutineOptimizations
                     // Re-throw to allow upstream handling
                     throw throwable
                 }
-        }
 
         /**
          * Optimizes a flow for background processing.
          */
-        fun <T> Flow<T>.optimizeForBackground(): Flow<T> {
-            return this
+        fun <T> Flow<T>.optimizeForBackground(): Flow<T> =
+            this
                 .distinctUntilChanged()
                 .buffer(BUFFER_SIZE_MEDIUM)
                 .onEach {
                     // Yield to allow other coroutines to run
                     yield()
                 }
-        }
 
         /**
          * Applies dispatcher-specific optimizations.
          */
-        fun <T> Flow<T>.optimizeForDispatcher(dispatcher: CoroutineDispatcher): Flow<T> {
-            return this
+        fun <T> Flow<T>.optimizeForDispatcher(dispatcher: CoroutineDispatcher): Flow<T> =
+            this
                 .flowOn(dispatcher)
                 .buffer(BUFFER_SIZE_MEDIUM)
-        }
 
         /**
          * Applies memory-conscious optimizations.
          */
-        fun <T> Flow<T>.optimizeForMemory(): Flow<T> {
-            return this
+        fun <T> Flow<T>.optimizeForMemory(): Flow<T> =
+            this
                 .distinctUntilChanged()
                 .buffer(BUFFER_SIZE_SMALL)
                 .onEach {
                     // Yield to allow garbage collection
                     yield()
                 }
-        }
 
         /**
          * Applies CPU-intensive operation optimizations.
          */
-        fun <T> Flow<T>.optimizeForCPU(): Flow<T> {
-            return this
+        fun <T> Flow<T>.optimizeForCPU(): Flow<T> =
+            this
                 .buffer(BUFFER_SIZE_SMALL)
                 .onEach {
                     // Yield frequently to prevent blocking
                     yield()
                 }
-        }
     }
 
 /**
@@ -197,15 +187,14 @@ class CoroutinePerformanceMonitor
         fun <T> measureExecutionTimeBlocking(
             operation: String,
             block: () -> T,
-        ): T {
-            return runBlocking {
+        ): T =
+            runBlocking {
                 measureExecutionTime(operation) {
                     withContext(kotlinx.coroutines.Dispatchers.Default) {
                         block()
                     }
                 }
             }
-        }
 
         /**
          * Gets performance statistics.
@@ -258,11 +247,10 @@ class CoroutinePoolManager
         fun getOrCreateScope(
             name: String,
             dispatcher: CoroutineDispatcher = kotlinx.coroutines.Dispatchers.Default,
-        ): CoroutineScope {
-            return scopePool.getOrPut(name) {
+        ): CoroutineScope =
+            scopePool.getOrPut(name) {
                 CoroutineScope(kotlinx.coroutines.SupervisorJob() + dispatcher)
             }
-        }
 
         /**
          * Launches a coroutine in a named scope.
@@ -310,16 +298,12 @@ class CoroutinePoolManager
         /**
          * Gets active job count.
          */
-        fun getActiveJobCount(): Int {
-            return jobPool.values.count { it.isActive }
-        }
+        fun getActiveJobCount(): Int = jobPool.values.count { it.isActive }
 
         /**
          * Gets active scope count.
          */
-        fun getActiveScopeCount(): Int {
-            return scopePool.size
-        }
+        fun getActiveScopeCount(): Int = scopePool.size
 
         /**
          * Cleans up completed jobs.
@@ -400,8 +384,8 @@ class CoroutineBatcher<T> {
 fun CoroutineScope.launchOptimized(
     dispatcher: CoroutineDispatcher,
     block: suspend CoroutineScope.() -> Unit,
-): Job {
-    return this.launch(dispatcher) {
+): Job =
+    this.launch(dispatcher) {
         try {
             block()
         } catch (throwable: Throwable) {
@@ -409,13 +393,12 @@ fun CoroutineScope.launchOptimized(
             throw throwable
         }
     }
-}
 
 /**
  * Utility for memory-conscious coroutine execution.
  */
-suspend fun <T> executeWithMemoryOptimization(block: suspend () -> T): T {
-    return withContext(kotlinx.coroutines.Dispatchers.Default) {
+suspend fun <T> executeWithMemoryOptimization(block: suspend () -> T): T =
+    withContext(kotlinx.coroutines.Dispatchers.Default) {
         try {
             block()
         } finally {
@@ -425,4 +408,3 @@ suspend fun <T> executeWithMemoryOptimization(block: suspend () -> T): T {
             }
         }
     }
-}

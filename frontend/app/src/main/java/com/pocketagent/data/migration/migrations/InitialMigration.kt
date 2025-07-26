@@ -58,22 +58,19 @@ class InitialMigration
             return initialData
         }
 
-        override suspend fun canMigrate(data: AppData): Boolean {
-            return data.version == 0
-        }
+        override suspend fun canMigrate(data: AppData): Boolean = data.version == 0
 
         override suspend fun getEstimatedSteps(data: AppData): Int = 3
 
         override suspend fun validateMigration(
             originalData: AppData,
             migratedData: AppData,
-        ): Boolean {
-            return super.validateMigration(originalData, migratedData) &&
+        ): Boolean =
+            super.validateMigration(originalData, migratedData) &&
                 migratedData.sshIdentities.isEmpty() &&
                 migratedData.serverProfiles.isEmpty() &&
                 migratedData.projects.isEmpty() &&
                 migratedData.messages.isEmpty()
-        }
     }
 
 /**
@@ -120,9 +117,7 @@ class Version1To2Migration
             return migratedData
         }
 
-        override suspend fun canMigrate(data: AppData): Boolean {
-            return data.version == fromVersion
-        }
+        override suspend fun canMigrate(data: AppData): Boolean = data.version == fromVersion
 
         override suspend fun rollback(
             data: AppData,
@@ -218,17 +213,15 @@ class DataRepairMigration
             )
         }
 
-        override suspend fun canMigrate(data: AppData): Boolean {
-            return data.version == fromVersion
-        }
+        override suspend fun canMigrate(data: AppData): Boolean = data.version == fromVersion
 
         override suspend fun getEstimatedSteps(data: AppData): Int = 5
 
         override suspend fun validateMigration(
             originalData: AppData,
             migratedData: AppData,
-        ): Boolean {
-            return super.validateMigration(originalData, migratedData) &&
+        ): Boolean =
+            super.validateMigration(originalData, migratedData) &&
                 // Ensure no orphaned relationships remain
                 migratedData.serverProfiles.all { server ->
                     migratedData.sshIdentities.any { it.id == server.sshIdentityId }
@@ -239,5 +232,4 @@ class DataRepairMigration
                 migratedData.messages.keys.all { projectId ->
                     projectId == "system" || migratedData.projects.any { it.id == projectId }
                 }
-        }
     }

@@ -6,7 +6,10 @@ import com.pocketagent.data.validation.ValidationResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.net.*
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Socket
+import java.net.UnknownHostException
 import java.util.regex.Pattern
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -340,8 +343,8 @@ class NetworkConfigurationValidator
         /**
          * Tests if hostname can be resolved via DNS.
          */
-        suspend fun canResolveHostname(hostname: String): Boolean {
-            return try {
+        suspend fun canResolveHostname(hostname: String): Boolean =
+            try {
                 withContext(Dispatchers.IO) {
                     withTimeoutOrNull(DNS_TIMEOUT_MS) {
                         InetAddress.getByName(hostname)
@@ -355,7 +358,6 @@ class NetworkConfigurationValidator
                 Log.e(TAG, "DNS resolution error for $hostname", e)
                 false
             }
-        }
 
         /**
          * Tests if a port is reachable on the given hostname.
@@ -363,8 +365,8 @@ class NetworkConfigurationValidator
         suspend fun isPortReachable(
             hostname: String,
             port: Int,
-        ): Boolean {
-            return try {
+        ): Boolean =
+            try {
                 withContext(Dispatchers.IO) {
                     withTimeoutOrNull(PORT_TEST_TIMEOUT_MS) {
                         Socket().use { socket ->
@@ -380,7 +382,6 @@ class NetworkConfigurationValidator
                 Log.w(TAG, "Port $port not reachable on $hostname: ${e.message}")
                 false
             }
-        }
 
         /**
          * Gets network configuration recommendations.
@@ -394,7 +395,8 @@ class NetworkConfigurationValidator
 
             // Hostname recommendations
             if (isValidIpAddress(hostname)) {
-                if (hostname.startsWith("192.168.") || hostname.startsWith("10.") ||
+                if (hostname.startsWith("192.168.") ||
+                    hostname.startsWith("10.") ||
                     hostname.startsWith("172.")
                 ) {
                     recommendations.add("Using private IP address - ensure network connectivity from client")
@@ -477,8 +479,7 @@ class NetworkConfigurationValidator
         /**
          * Checks if a string represents a valid IP address.
          */
-        private fun isValidIpAddress(address: String): Boolean {
-            return IP_V4_PATTERN.matcher(address).matches() ||
+        private fun isValidIpAddress(address: String): Boolean =
+            IP_V4_PATTERN.matcher(address).matches() ||
                 IP_V6_PATTERN.matcher(address).matches()
-        }
     }

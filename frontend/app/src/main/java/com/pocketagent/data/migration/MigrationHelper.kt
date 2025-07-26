@@ -187,8 +187,8 @@ class MigrationHelper
          * @param repository The repository to check
          * @return MigrationStatusInfo with current status details
          */
-        suspend fun getMigrationStatus(repository: SecureDataRepository): MigrationStatusInfo {
-            return try {
+        suspend fun getMigrationStatus(repository: SecureDataRepository): MigrationStatusInfo =
+            try {
                 val status = repository.getMigrationStatus(migrationManager)
                 val history = migrationManager.getMigrationHistory()
 
@@ -228,25 +228,20 @@ class MigrationHelper
                     recentMigrations = emptyList(),
                 )
             }
-        }
 
         /**
          * Observes migration progress.
          *
          * @return Flow of migration progress updates
          */
-        fun observeMigrationProgress(): Flow<MigrationProgress?> {
-            return migrationManager.migrationProgress
-        }
+        fun observeMigrationProgress(): Flow<MigrationProgress?> = migrationManager.migrationProgress
 
         /**
          * Checks if a migration is currently in progress.
          *
          * @return Flow of boolean indicating if migration is in progress
          */
-        fun isMigrationInProgress(): Flow<Boolean> {
-            return migrationManager.isMigrating
-        }
+        fun isMigrationInProgress(): Flow<Boolean> = migrationManager.isMigrating
 
         /**
          * Waits for any current migration to complete.
@@ -263,22 +258,21 @@ class MigrationHelper
          *
          * @return List of available backup filenames
          */
-        suspend fun listAvailableBackups(): List<String> {
-            return try {
+        suspend fun listAvailableBackups(): List<String> =
+            try {
                 migrationManager.listBackups()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to list backups", e)
                 emptyList()
             }
-        }
 
         /**
          * Gets migration history.
          *
          * @return List of migration history entries
          */
-        suspend fun getMigrationHistory(): List<MigrationHistoryEntry> {
-            return try {
+        suspend fun getMigrationHistory(): List<MigrationHistoryEntry> =
+            try {
                 migrationManager.getMigrationHistory().map { entry ->
                     MigrationHistoryEntry(
                         timestamp = entry.timestamp,
@@ -293,7 +287,6 @@ class MigrationHelper
                 Log.e(TAG, "Failed to get migration history", e)
                 emptyList()
             }
-        }
 
         private class ProgressCallbackObserver(
             private val callback: (MigrationProgress) -> Unit,

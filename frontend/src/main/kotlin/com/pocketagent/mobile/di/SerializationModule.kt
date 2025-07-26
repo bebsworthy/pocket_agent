@@ -23,7 +23,9 @@ object SerializationModule {
      */
     @Provides
     @Singleton
-    fun provideJsonConfig(): JsonConfig = JsonConfig()
+    fun provideJsonConfig(): JsonConfig {
+        return JsonConfig()
+    }
     
     /**
      * Provides the standard JSON instance for general use
@@ -31,7 +33,9 @@ object SerializationModule {
     @Provides
     @Singleton
     @StandardJson
-    fun provideStandardJson(jsonConfig: JsonConfig): Json = jsonConfig.json
+    fun provideStandardJson(jsonConfig: JsonConfig): Json {
+        return jsonConfig.json
+    }
     
     /**
      * Provides the compact JSON instance for network communication
@@ -39,7 +43,9 @@ object SerializationModule {
     @Provides
     @Singleton
     @CompactJson
-    fun provideCompactJson(jsonConfig: JsonConfig): Json = jsonConfig.compactJson
+    fun provideCompactJson(jsonConfig: JsonConfig): Json {
+        return jsonConfig.compactJson
+    }
     
     /**
      * Provides the strict JSON instance for data validation
@@ -47,7 +53,9 @@ object SerializationModule {
     @Provides
     @Singleton
     @StrictJson
-    fun provideStrictJson(jsonConfig: JsonConfig): Json = jsonConfig.strictJson
+    fun provideStrictJson(jsonConfig: JsonConfig): Json {
+        return jsonConfig.strictJson
+    }
     
     /**
      * Provides serialization utilities

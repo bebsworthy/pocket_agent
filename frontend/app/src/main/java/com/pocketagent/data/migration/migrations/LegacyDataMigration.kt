@@ -53,8 +53,8 @@ class LegacyDataMigration
         override suspend fun migrate(
             data: AppData,
             progressCallback: ((MigrationProgress) -> Unit)?,
-        ): AppData {
-            return withContext(Dispatchers.IO) {
+        ): AppData =
+            withContext(Dispatchers.IO) {
                 reportProgress(1, 8, "Scanning for legacy data sources", progressCallback)
 
                 val legacySources = findLegacyDataSources()
@@ -98,11 +98,8 @@ class LegacyDataMigration
 
                 updateDataVersion(migratedData)
             }
-        }
 
-        override suspend fun canMigrate(data: AppData): Boolean {
-            return findLegacyDataSources().isNotEmpty()
-        }
+        override suspend fun canMigrate(data: AppData): Boolean = findLegacyDataSources().isNotEmpty()
 
         override suspend fun getEstimatedSteps(data: AppData): Int = 8
 
@@ -156,6 +153,7 @@ class LegacyDataMigration
             reportProgress(2, 3, "Reading tables and converting data", progressCallback)
 
             // Example of what the real implementation might look like:
+
         /*
         val db = SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READONLY)
         try {
@@ -314,10 +312,9 @@ class LegacyDataMigration
         override suspend fun validateMigration(
             originalData: AppData,
             migratedData: AppData,
-        ): Boolean {
-            return super.validateMigration(originalData, migratedData) &&
+        ): Boolean =
+            super.validateMigration(originalData, migratedData) &&
                 migratedData.version == toVersion
-        }
     }
 
 /**
@@ -342,8 +339,8 @@ class LegacyDataCleanupMigration
         override suspend fun migrate(
             data: AppData,
             progressCallback: ((MigrationProgress) -> Unit)?,
-        ): AppData {
-            return withContext(Dispatchers.IO) {
+        ): AppData =
+            withContext(Dispatchers.IO) {
                 reportProgress(1, 5, "Identifying legacy files to clean up", progressCallback)
 
                 val filesToCleanup = mutableListOf<File>()
@@ -407,7 +404,6 @@ class LegacyDataCleanupMigration
                 // Return data unchanged
                 data
             }
-        }
 
         override suspend fun canMigrate(data: AppData): Boolean {
             // Can always run cleanup migration

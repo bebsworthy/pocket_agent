@@ -147,7 +147,8 @@ class ProjectServiceTest : BaseUnitTest() {
             // Given
             every { mockValidator.validateForCreation(any()) } returns
                 ValidationResult.Failure(
-                    com.pocketagent.data.validation.ValidationError.fieldError("Invalid name", "name", "INVALID_NAME"),
+                    com.pocketagent.data.validation.ValidationError
+                        .fieldError("Invalid name", "name", "INVALID_NAME"),
                 )
 
             // When
@@ -173,7 +174,8 @@ class ProjectServiceTest : BaseUnitTest() {
             coEvery { mockRepository.getAllProjects() } returns listOf(existingProject)
             every { mockValidator.validateNameUniqueness("Duplicate Name", listOf("Duplicate Name")) } returns
                 ValidationResult.Failure(
-                    com.pocketagent.data.validation.ValidationError.businessRuleError("Duplicate name", "name", "DUPLICATE_NAME"),
+                    com.pocketagent.data.validation.ValidationError
+                        .businessRuleError("Duplicate name", "name", "DUPLICATE_NAME"),
                 )
 
             // When
@@ -205,7 +207,8 @@ class ProjectServiceTest : BaseUnitTest() {
                 )
             } returns
                 ValidationResult.Failure(
-                    com.pocketagent.data.validation.ValidationError.businessRuleError("Duplicate path", "projectPath", "DUPLICATE_PATH"),
+                    com.pocketagent.data.validation.ValidationError
+                        .businessRuleError("Duplicate path", "projectPath", "DUPLICATE_PATH"),
                 )
 
             // When
@@ -254,7 +257,8 @@ class ProjectServiceTest : BaseUnitTest() {
             // Given
             coEvery { mockRepositoryValidationService.validateRepositoryUrl("invalid-url") } returns
                 ValidationResult.Failure(
-                    com.pocketagent.data.validation.ValidationError.fieldError("Invalid URL", "repositoryUrl", "INVALID_URL"),
+                    com.pocketagent.data.validation.ValidationError
+                        .fieldError("Invalid URL", "repositoryUrl", "INVALID_URL"),
                 )
 
             // When
@@ -350,7 +354,8 @@ class ProjectServiceTest : BaseUnitTest() {
             // Given
             every { mockValidator.validateForUpdate(any(), any()) } returns
                 ValidationResult.Failure(
-                    com.pocketagent.data.validation.ValidationError.fieldError("Invalid update", "name", "INVALID_UPDATE"),
+                    com.pocketagent.data.validation.ValidationError
+                        .fieldError("Invalid update", "name", "INVALID_UPDATE"),
                 )
 
             // When
@@ -375,7 +380,8 @@ class ProjectServiceTest : BaseUnitTest() {
             coEvery { mockRepository.getAllProjects() } returns listOf(testProject, existingProject)
             every { mockValidator.validateNameUniqueness("Existing Name", listOf("Existing Name"), testProjectId) } returns
                 ValidationResult.Failure(
-                    com.pocketagent.data.validation.ValidationError.businessRuleError("Duplicate name", "name", "DUPLICATE_NAME"),
+                    com.pocketagent.data.validation.ValidationError
+                        .businessRuleError("Duplicate name", "name", "DUPLICATE_NAME"),
                 )
 
             // When
@@ -593,7 +599,8 @@ class ProjectServiceTest : BaseUnitTest() {
             // Given
             every { mockValidator.validateStatusTransition(ProjectStatus.INACTIVE, ProjectStatus.ACTIVE) } returns
                 ValidationResult.Failure(
-                    com.pocketagent.data.validation.ValidationError.businessRuleError("Invalid transition", "status", "INVALID_TRANSITION"),
+                    com.pocketagent.data.validation.ValidationError
+                        .businessRuleError("Invalid transition", "status", "INVALID_TRANSITION"),
                 )
 
             // When

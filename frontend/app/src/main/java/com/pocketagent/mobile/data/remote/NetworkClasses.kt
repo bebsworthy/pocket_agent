@@ -13,42 +13,52 @@ interface WebSocketClient {
 }
 
 @Singleton
-class WebSocketClientImpl @Inject constructor() : WebSocketClient {
-    // Implementation will be added in Task 1.1: Setup OkHttp3 WebSocket Client
-}
+class WebSocketClientImpl
+    @Inject
+    constructor() : WebSocketClient {
+        // Implementation will be added in Task 1.1: Setup OkHttp3 WebSocket Client
+    }
 
 interface WebSocketConnectionManager {
     // Interface will be defined in Task 1.2: Implement Connection State Management
 }
 
 @Singleton
-class WebSocketConnectionManagerImpl @Inject constructor() : WebSocketConnectionManager {
-    // Implementation will be added in Task 1.2: Implement Connection State Management
-}
+class WebSocketConnectionManagerImpl
+    @Inject
+    constructor() : WebSocketConnectionManager {
+        // Implementation will be added in Task 1.2: Implement Connection State Management
+    }
 
 interface MessageHandler {
     // Interface will be defined in Task 1.3: Create Message Protocol Framework
 }
 
 @Singleton
-class MessageHandlerImpl @Inject constructor() : MessageHandler {
-    // Implementation will be added in Task 1.3: Create Message Protocol Framework
-}
+class MessageHandlerImpl
+    @Inject
+    constructor() : MessageHandler {
+        // Implementation will be added in Task 1.3: Create Message Protocol Framework
+    }
 
 interface AuthenticationHandler {
     // Interface will be defined in Task 2.1: Implement SSH Key Authentication
 }
 
 @Singleton
-class AuthenticationHandlerImpl @Inject constructor() : AuthenticationHandler {
-    // Implementation will be added in Task 2.1: Implement SSH Key Authentication
-}
+class AuthenticationHandlerImpl
+    @Inject
+    constructor() : AuthenticationHandler {
+        // Implementation will be added in Task 2.1: Implement SSH Key Authentication
+    }
 
 interface ConnectionHealthMonitor {
     // Interface will be defined in Task 1.4: Add Connection Health Monitoring
 }
 
 @Singleton
-class ConnectionHealthMonitorImpl @Inject constructor() : ConnectionHealthMonitor {
-    // Implementation will be added in Task 1.4: Add Connection Health Monitoring
-}
+class ConnectionHealthMonitorImpl
+    @Inject
+    constructor() : ConnectionHealthMonitor {
+        // Implementation will be added in Task 1.4: Add Connection Health Monitoring
+    }

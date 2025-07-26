@@ -59,8 +59,8 @@ data class SshIdentity(
     /**
      * Get a short version of the fingerprint for display.
      */
-    fun getShortFingerprint(): String {
-        return when {
+    fun getShortFingerprint(): String =
+        when {
             publicKeyFingerprint.startsWith("SHA256:") -> {
                 publicKeyFingerprint.substring(7, minOf(publicKeyFingerprint.length, 19))
             }
@@ -69,7 +69,6 @@ data class SshIdentity(
             }
             else -> publicKeyFingerprint.take(12)
         }
-    }
 }
 
 /**
@@ -112,10 +111,6 @@ class SshIdentityBuilder {
             lastUsedAt = lastUsedAt,
         )
 }
-
-/**
- * Extension functions for SshIdentity operations.
- */
 
 /**
  * Update the last used timestamp to current time.
@@ -190,37 +185,34 @@ object SshIdentityValidator {
     /**
      * Validate SSH identity name.
      */
-    fun validateName(name: String): Result<Unit> {
-        return when {
+    fun validateName(name: String): Result<Unit> =
+        when {
             name.isBlank() -> Result.failure(IllegalArgumentException("Name cannot be blank"))
             name.length > 100 -> Result.failure(IllegalArgumentException("Name too long (max 100 chars)"))
             !VALID_NAME_REGEX.matches(name) -> Result.failure(IllegalArgumentException("Name contains invalid characters"))
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate public key fingerprint format.
      */
-    fun validateFingerprint(fingerprint: String): Result<Unit> {
-        return when {
+    fun validateFingerprint(fingerprint: String): Result<Unit> =
+        when {
             fingerprint.isBlank() -> Result.failure(IllegalArgumentException("Fingerprint cannot be blank"))
             !FINGERPRINT_HEX_REGEX.matches(fingerprint) && !FINGERPRINT_SHA256_REGEX.matches(fingerprint) ->
                 Result.failure(IllegalArgumentException("Invalid fingerprint format"))
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate description length.
      */
-    fun validateDescription(description: String?): Result<Unit> {
-        return when {
+    fun validateDescription(description: String?): Result<Unit> =
+        when {
             description != null && description.length > 500 ->
                 Result.failure(IllegalArgumentException("Description too long (max 500 chars)"))
             else -> Result.success(Unit)
         }
-    }
 }
 
 /**

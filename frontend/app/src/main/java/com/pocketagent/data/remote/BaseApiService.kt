@@ -19,8 +19,8 @@ abstract class BaseApiService {
      * @param apiCall The API call to execute
      * @return Result wrapped API response
      */
-    protected suspend fun <T> handleApiCall(apiCall: suspend () -> Response<T>): Result<T> {
-        return try {
+    protected suspend fun <T> handleApiCall(apiCall: suspend () -> Response<T>): Result<T> =
+        try {
             val response = apiCall()
             if (response.isSuccessful) {
                 response.body()?.let { body ->
@@ -37,7 +37,6 @@ abstract class BaseApiService {
         } catch (e: Exception) {
             Result.Error(e, "API call failed: ${e.message}")
         }
-    }
 
     /**
      * Handles API calls and returns a Flow for reactive programming.

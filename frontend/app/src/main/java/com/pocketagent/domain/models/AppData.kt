@@ -1,15 +1,18 @@
 package com.pocketagent.domain.models
 
-import com.pocketagent.domain.models.entities.*
+import com.pocketagent.domain.models.entities.Message
+import com.pocketagent.domain.models.entities.Project
+import com.pocketagent.domain.models.entities.ServerProfile
+import com.pocketagent.domain.models.entities.SshIdentity
 import com.pocketagent.domain.models.error.ValidationException
 import java.util.UUID
 
 /**
  * Root data model containing all app entities.
- * 
+ *
  * This is the main data structure that gets serialized and encrypted for storage.
  * It contains all SSH identities, server profiles, projects, and messages.
- * 
+ *
  * @property version Data schema version for migration purposes
  * @property sshIdentities List of SSH identities
  * @property serverProfiles List of server profiles
@@ -25,87 +28,85 @@ data class AppData(
     val projects: List<Project> = emptyList(),
     val messages: Map<String, List<Message>> = emptyMap(), // projectId -> messages
     val lastModified: Long = System.currentTimeMillis(),
-    val metadata: AppMetadata = AppMetadata()
+    val metadata: AppMetadata = AppMetadata(),
 ) {
     init {
         validateData()
     }
-    
+
     /**
      * Gets all SSH identities sorted by name.
      */
     fun getSshIdentitiesSorted(): List<SshIdentity> = sshIdentities.sortedBy { it.name }
-    
+
     /**
      * Gets all server profiles sorted by name.
      */
     fun getServerProfilesSorted(): List<ServerProfile> = serverProfiles.sortedBy { it.name }
-    
+
     /**
      * Gets all projects sorted by last active time.
      */
     fun getProjectsSorted(): List<Project> = projects.sortedByDescending { it.lastActiveAt ?: it.createdAt }
-    
+
     /**
      * Gets active projects.
      */
     fun getActiveProjects(): List<Project> = projects.filter { it.isActive }
-    
+
     /**
      * Gets connected projects.
      */
     fun getConnectedProjects(): List<Project> = projects.filter { it.isConnected() }
-    
+
     /**
      * Gets SSH identity by ID.
      */
     fun getSshIdentityById(id: String): SshIdentity? = sshIdentities.find { it.id == id }
-    
+
     /**
      * Gets server profile by ID.
      */
     fun getServerProfileById(id: String): ServerProfile? = serverProfiles.find { it.id == id }
-    
+
     /**
      * Gets project by ID.
      */
     fun getProjectById(id: String): Project? = projects.find { it.id == id }
-    
+
     /**
      * Gets projects for a specific server profile.
      */
-    fun getProjectsForServer(serverProfileId: String): List<Project> = 
-        projects.filter { it.serverProfileId == serverProfileId }
-    
+    fun getProjectsForServer(serverProfileId: String): List<Project> = projects.filter { it.serverProfileId == serverProfileId }
+
     /**
      * Gets server profiles for a specific SSH identity.
      */
-    fun getServerProfilesForIdentity(identityId: String): List<ServerProfile> = 
-        serverProfiles.filter { it.sshIdentityId == identityId }
-    
+    fun getServerProfilesForIdentity(identityId: String): List<ServerProfile> = serverProfiles.filter { it.sshIdentityId == identityId }
+
     /**
      * Gets messages for a specific project.
      */
-    fun getMessagesForProject(projectId: String): List<Message> = 
-        messages[projectId] ?: emptyList()
-    
+    fun getMessagesForProject(projectId: String): List<Message> = messages[projectId] ?: emptyList()
+
     /**
      * Gets recent messages for a project.
      */
-    fun getRecentMessagesForProject(projectId: String, limit: Int = 100): List<Message> = 
-        (messages[projectId] ?: emptyList()).takeLast(limit)
-    
+    fun getRecentMessagesForProject(
+        projectId: String,
+        limit: Int = 100,
+    ): List<Message> = (messages[projectId] ?: emptyList()).takeLast(limit)
+
     /**
      * Gets total message count.
      */
     fun getTotalMessageCount(): Int = messages.values.sumOf { it.size }
-    
+
     /**
      * Gets total count of all entities.
      */
-    fun getTotalEntityCount(): Int = 
-        sshIdentities.size + serverProfiles.size + projects.size + getTotalMessageCount()
-    
+    fun getTotalEntityCount(): Int = sshIdentities.size + serverProfiles.size + projects.size + getTotalMessageCount()
+
     /**
      * Gets total storage size estimate in bytes.
      */
@@ -114,19 +115,17 @@ data class AppData(
         val messagesSize = messages.values.flatten().sumOf { it.getSize() }
         return baseSize + messagesSize
     }
-    
+
     /**
      * Checks if an SSH identity is in use.
      */
-    fun isSshIdentityInUse(identityId: String): Boolean = 
-        serverProfiles.any { it.sshIdentityId == identityId }
-    
+    fun isSshIdentityInUse(identityId: String): Boolean = serverProfiles.any { it.sshIdentityId == identityId }
+
     /**
      * Checks if a server profile is in use.
      */
-    fun isServerProfileInUse(serverProfileId: String): Boolean = 
-        projects.any { it.serverProfileId == serverProfileId }
-    
+    fun isServerProfileInUse(serverProfileId: String): Boolean = projects.any { it.serverProfileId == serverProfileId }
+
     /**
      * Validates the data integrity.
      */
@@ -136,32 +135,34 @@ data class AppData(
         if (identityNames.size != identityNames.toSet().size) {
             throw ValidationException("sshIdentities", identityNames, "Duplicate SSH identity names found")
         }
-        
+
         val serverNames = serverProfiles.map { it.name }
         if (serverNames.size != serverNames.toSet().size) {
             throw ValidationException("serverProfiles", serverNames, "Duplicate server profile names found")
         }
-        
+
         val projectNames = projects.map { it.name }
         if (projectNames.size != projectNames.toSet().size) {
             throw ValidationException("projects", projectNames, "Duplicate project names found")
         }
-        
+
         // Validate relationships
         val identityIds = sshIdentities.map { it.id }.toSet()
         serverProfiles.forEach { server ->
             if (server.sshIdentityId !in identityIds) {
-                throw ValidationException("serverProfiles", server.name, "Server '${server.name}' references non-existent SSH identity")
+                val message = "Server '${server.name}' references non-existent SSH identity"
+                throw ValidationException("serverProfiles", server.name, message)
             }
         }
-        
+
         val serverIds = serverProfiles.map { it.id }.toSet()
         projects.forEach { project ->
             if (project.serverProfileId !in serverIds) {
-                throw ValidationException("projects", project.name, "Project '${project.name}' references non-existent server profile")
+                val message = "Project '${project.name}' references non-existent server profile"
+                throw ValidationException("projects", project.name, message)
             }
         }
-        
+
         // Validate message project references
         val projectIds = projects.map { it.id }.toSet()
         messages.keys.forEach { projectId ->
@@ -170,31 +171,33 @@ data class AppData(
             }
         }
     }
-    
+
     companion object {
         const val CURRENT_VERSION = 1
         const val MAX_MESSAGES_PER_PROJECT = 1000
-        
+
         /**
          * Creates empty app data.
          */
         fun empty(): AppData = AppData()
-        
+
         /**
          * Creates app data with initial setup.
          */
-        fun withInitialSetup(deviceId: String? = null): AppData = AppData(
-            metadata = AppMetadata(
-                deviceId = deviceId ?: UUID.randomUUID().toString(),
-                createdAt = System.currentTimeMillis()
+        fun withInitialSetup(deviceId: String? = null): AppData =
+            AppData(
+                metadata =
+                    AppMetadata(
+                        deviceId = deviceId ?: UUID.randomUUID().toString(),
+                        createdAt = System.currentTimeMillis(),
+                    ),
             )
-        )
     }
 }
 
 /**
  * Application metadata.
- * 
+ *
  * @property createdAt Timestamp when the app data was created
  * @property deviceId Unique device identifier
  * @property backupEnabled Whether backup is enabled
@@ -212,12 +215,12 @@ data class AppMetadata(
     val dataSchemaVersion: Int = 1,
     val lastBackupAt: Long? = null,
     val deviceInfo: DeviceInfo = DeviceInfo(),
-    val preferences: UserPreferences = UserPreferences()
+    val preferences: UserPreferences = UserPreferences(),
 )
 
 /**
  * Device information.
- * 
+ *
  * @property manufacturer Device manufacturer
  * @property model Device model
  * @property osVersion Android OS version
@@ -233,7 +236,7 @@ data class DeviceInfo(
     val apiLevel: Int = 0,
     val screenSize: ScreenSize = ScreenSize.NORMAL,
     val totalMemory: Long = 0,
-    val availableStorage: Long = 0
+    val availableStorage: Long = 0,
 )
 
 /**
@@ -243,12 +246,12 @@ enum class ScreenSize {
     SMALL,
     NORMAL,
     LARGE,
-    XLARGE
+    XLARGE,
 }
 
 /**
  * User preferences.
- * 
+ *
  * @property theme App theme preference
  * @property language App language preference
  * @property notificationsEnabled Whether notifications are enabled
@@ -266,7 +269,7 @@ data class UserPreferences(
     val autoBackup: Boolean = true,
     val batteryOptimization: BatteryOptimization = BatteryOptimization(),
     val networkPreferences: NetworkPreferences = NetworkPreferences(),
-    val debugMode: Boolean = false
+    val debugMode: Boolean = false,
 )
 
 /**
@@ -275,12 +278,12 @@ data class UserPreferences(
 enum class AppTheme {
     LIGHT,
     DARK,
-    SYSTEM
+    SYSTEM,
 }
 
 /**
  * Battery optimization preferences.
- * 
+ *
  * @property adaptivePolling Whether to adapt polling based on battery level
  * @property lowBatteryThreshold Battery level threshold for low battery mode
  * @property backgroundSyncEnabled Whether background sync is enabled
@@ -290,12 +293,12 @@ data class BatteryOptimization(
     val adaptivePolling: Boolean = true,
     val lowBatteryThreshold: Int = 20,
     val backgroundSyncEnabled: Boolean = true,
-    val powerSaveMode: Boolean = false
+    val powerSaveMode: Boolean = false,
 )
 
 /**
  * Network preferences.
- * 
+ *
  * @property wifiPreferred Whether to prefer WiFi over cellular
  * @property cellularDataEnabled Whether cellular data is enabled
  * @property roamingEnabled Whether roaming is enabled
@@ -307,12 +310,12 @@ data class NetworkPreferences(
     val cellularDataEnabled: Boolean = true,
     val roamingEnabled: Boolean = false,
     val compressionEnabled: Boolean = true,
-    val timeoutSettings: NetworkTimeoutSettings = NetworkTimeoutSettings()
+    val timeoutSettings: NetworkTimeoutSettings = NetworkTimeoutSettings(),
 )
 
 /**
  * Network timeout settings.
- * 
+ *
  * @property connectionTimeout Connection timeout in milliseconds
  * @property readTimeout Read timeout in milliseconds
  * @property writeTimeout Write timeout in milliseconds
@@ -320,7 +323,7 @@ data class NetworkPreferences(
 data class NetworkTimeoutSettings(
     val connectionTimeout: Long = 30_000, // 30 seconds
     val readTimeout: Long = 60_000, // 1 minute
-    val writeTimeout: Long = 60_000 // 1 minute
+    val writeTimeout: Long = 60_000, // 1 minute
 )
 
 /**
@@ -334,57 +337,70 @@ class AppDataBuilder {
     private var messages: Map<String, List<Message>> = emptyMap()
     private var lastModified: Long = System.currentTimeMillis()
     private var metadata: AppMetadata = AppMetadata()
-    
+
     fun version(version: Int) = apply { this.version = version }
+
     fun sshIdentities(identities: List<SshIdentity>) = apply { this.sshIdentities = identities }
+
     fun serverProfiles(profiles: List<ServerProfile>) = apply { this.serverProfiles = profiles }
+
     fun projects(projects: List<Project>) = apply { this.projects = projects }
+
     fun messages(messages: Map<String, List<Message>>) = apply { this.messages = messages }
+
     fun lastModified(timestamp: Long) = apply { this.lastModified = timestamp }
+
     fun metadata(metadata: AppMetadata) = apply { this.metadata = metadata }
-    
-    fun addSshIdentity(identity: SshIdentity) = apply { 
-        this.sshIdentities = this.sshIdentities + identity 
-    }
-    
-    fun addServerProfile(profile: ServerProfile) = apply { 
-        this.serverProfiles = this.serverProfiles + profile 
-    }
-    
-    fun addProject(project: Project) = apply { 
-        this.projects = this.projects + project 
-    }
-    
-    fun addMessage(projectId: String, message: Message) = apply {
+
+    fun addSshIdentity(identity: SshIdentity) =
+        apply {
+            this.sshIdentities = this.sshIdentities + identity
+        }
+
+    fun addServerProfile(profile: ServerProfile) =
+        apply {
+            this.serverProfiles = this.serverProfiles + profile
+        }
+
+    fun addProject(project: Project) =
+        apply {
+            this.projects = this.projects + project
+        }
+
+    fun addMessage(
+        projectId: String,
+        message: Message,
+    ) = apply {
         val currentMessages = this.messages[projectId] ?: emptyList()
         this.messages = this.messages + (projectId to (currentMessages + message))
     }
-    
-    fun build(): AppData = AppData(
-        version = version,
-        sshIdentities = sshIdentities,
-        serverProfiles = serverProfiles,
-        projects = projects,
-        messages = messages,
-        lastModified = lastModified,
-        metadata = metadata
-    )
+
+    fun build(): AppData =
+        AppData(
+            version = version,
+            sshIdentities = sshIdentities,
+            serverProfiles = serverProfiles,
+            projects = projects,
+            messages = messages,
+            lastModified = lastModified,
+            metadata = metadata,
+        )
 }
 
 /**
  * Extension functions for AppData.
  */
-fun AppData.toBuilder(): AppDataBuilder = AppDataBuilder()
-    .version(version)
-    .sshIdentities(sshIdentities)
-    .serverProfiles(serverProfiles)
-    .projects(projects)
-    .messages(messages)
-    .lastModified(lastModified)
-    .metadata(metadata)
+fun AppData.toBuilder(): AppDataBuilder =
+    AppDataBuilder()
+        .version(version)
+        .sshIdentities(sshIdentities)
+        .serverProfiles(serverProfiles)
+        .projects(projects)
+        .messages(messages)
+        .lastModified(lastModified)
+        .metadata(metadata)
 
 /**
  * Creates a new app data builder.
  */
-fun appData(block: AppDataBuilder.() -> Unit): AppData = 
-    AppDataBuilder().apply(block).build()
+fun appData(block: AppDataBuilder.() -> Unit): AppData = AppDataBuilder().apply(block).build()

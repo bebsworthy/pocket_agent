@@ -1,5 +1,6 @@
 package com.pocketagent.mobile.data.serialization
 
+import kotlinx.serialization.SerializationException as KotlinxSerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.modules.contextual
@@ -98,10 +99,11 @@ class JsonConfig @Inject constructor() {
         return try {
             json.parseToJsonElement(jsonString)
             true
-        } catch (e: Exception) {
+        } catch (e: KotlinxSerializationException) {
+            false
+        } catch (e: IllegalArgumentException) {
             false
         }
-    }
     
     /**
      * Safely parses JSON with error handling
@@ -110,10 +112,11 @@ class JsonConfig @Inject constructor() {
         return try {
             val result = json.decodeFromString<T>(jsonString)
             Result.success(result)
-        } catch (e: Exception) {
+        } catch (e: KotlinxSerializationException) {
             Result.failure(SerializationException("Failed to parse JSON", e))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(SerializationException("Invalid JSON format", e))
         }
-    }
     
     /**
      * Safely serializes object to JSON with error handling
@@ -122,10 +125,11 @@ class JsonConfig @Inject constructor() {
         return try {
             val result = json.encodeToString(obj)
             Result.success(result)
-        } catch (e: Exception) {
+        } catch (e: KotlinxSerializationException) {
             Result.failure(SerializationException("Failed to serialize object", e))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(SerializationException("Invalid object for serialization", e))
         }
-    }
     
     /**
      * Serializes object to compact JSON for network transmission
@@ -134,10 +138,11 @@ class JsonConfig @Inject constructor() {
         return try {
             val result = compactJson.encodeToString(obj)
             Result.success(result)
-        } catch (e: Exception) {
+        } catch (e: KotlinxSerializationException) {
             Result.failure(SerializationException("Failed to serialize to compact JSON", e))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(SerializationException("Invalid object for compact JSON serialization", e))
         }
-    }
     
     /**
      * Deserializes from compact JSON
@@ -146,10 +151,11 @@ class JsonConfig @Inject constructor() {
         return try {
             val result = compactJson.decodeFromString<T>(jsonString)
             Result.success(result)
-        } catch (e: Exception) {
+        } catch (e: KotlinxSerializationException) {
             Result.failure(SerializationException("Failed to deserialize from compact JSON", e))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(SerializationException("Invalid compact JSON format", e))
         }
-    }
     
     /**
      * Validates object against strict JSON serialization rules
@@ -159,8 +165,10 @@ class JsonConfig @Inject constructor() {
             val jsonString = strictJson.encodeToString(obj)
             val result = strictJson.decodeFromString<T>(jsonString)
             Result.success(result)
-        } catch (e: Exception) {
+        } catch (e: KotlinxSerializationException) {
             Result.failure(SerializationException("Strict validation failed", e))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(SerializationException("Invalid object for strict validation", e))
         }
     }
 }

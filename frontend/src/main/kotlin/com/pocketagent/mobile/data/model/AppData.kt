@@ -8,7 +8,7 @@ import java.util.UUID
  * Root data model containing all app entities
  */
 @Serializable
-data class AppData(
+internal data class AppData(
     val version: Int = 1,
     val sshIdentities: List<SshIdentity> = emptyList(),
     val serverProfiles: List<ServerProfile> = emptyList(),
@@ -22,7 +22,7 @@ data class AppData(
  * Application metadata
  */
 @Serializable
-data class AppMetadata(
+internal data class AppMetadata(
     val createdAt: Long = System.currentTimeMillis(),
     val deviceId: String = UUID.randomUUID().toString(),
     val backupEnabled: Boolean = true,
@@ -34,7 +34,7 @@ data class AppMetadata(
  * SSH Identity model representing an imported SSH private key
  */
 @Serializable
-data class SshIdentity(
+internal data class SshIdentity(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val encryptedPrivateKey: String, // Already encrypted by SshKeyImportManager
@@ -56,7 +56,7 @@ data class SshIdentity(
  * Server Profile model representing a development server connection
  */
 @Serializable
-data class ServerProfile(
+internal data class ServerProfile(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val hostname: String,
@@ -95,7 +95,7 @@ enum class ConnectionStatus {
  * Project model representing a Claude Code session
  */
 @Serializable
-data class Project(
+internal data class Project(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val serverProfileId: String,
@@ -134,7 +134,7 @@ enum class ProjectStatus {
  * Project-specific settings
  */
 @Serializable
-data class ProjectSettings(
+internal data class ProjectSettings(
     val maxTurns: Int = 50,
     val allowedTools: List<String> = emptyList(),
     val autoApprovePatterns: List<String> = emptyList(),
@@ -146,7 +146,7 @@ data class ProjectSettings(
  * Message model for chat history
  */
 @Serializable
-data class Message(
+internal data class Message(
     val id: String = UUID.randomUUID().toString(),
     val content: String,
     val type: MessageType,
@@ -178,7 +178,7 @@ enum class MessageType {
  * Message attachment model
  */
 @Serializable
-data class MessageAttachment(
+internal data class MessageAttachment(
     val id: String = UUID.randomUUID().toString(),
     val type: AttachmentType,
     val name: String,

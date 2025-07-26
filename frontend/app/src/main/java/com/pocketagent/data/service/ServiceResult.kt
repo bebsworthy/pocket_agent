@@ -2,7 +2,7 @@ package com.pocketagent.data.service
 
 /**
  * Service result wrapper for consistent error handling across service layer.
- * 
+ *
  * This typealias provides a consistent interface for service operations,
  * wrapping the Kotlin Result type to provide standardized success/failure handling.
  */

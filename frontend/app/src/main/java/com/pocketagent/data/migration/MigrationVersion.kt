@@ -22,13 +22,9 @@ data class MigrationVersion(
         require(description.isNotBlank()) { "Migration description cannot be blank" }
     }
 
-    override fun compareTo(other: MigrationVersion): Int {
-        return version.compareTo(other.version)
-    }
+    override fun compareTo(other: MigrationVersion): Int = version.compareTo(other.version)
 
-    override fun toString(): String {
-        return "v$version: $name"
-    }
+    override fun toString(): String = "v$version: $name"
 
     companion object {
         /**
@@ -43,22 +39,44 @@ data class MigrationVersion(
             version: Int,
             name: String,
             description: String,
-        ): MigrationVersion {
-            return MigrationVersion(version, name, description)
-        }
+        ): MigrationVersion = MigrationVersion(version, name, description)
 
         /**
          * Gets the current migration version.
          */
-        fun current(): MigrationVersion {
-            return MigrationVersion(
+        fun current(): MigrationVersion =
+            MigrationVersion(
                 version = CURRENT_VERSION,
                 name = "Initial Version",
                 description = "Initial data structure with SSH identities, server profiles, and projects",
             )
-        }
     }
 }
+
+/**
+ * Configuration for successful migration results.
+ */
+data class SuccessfulMigrationConfig(
+    val fromVersion: Int,
+    val toVersion: Int,
+    val message: String,
+    val executionTimeMs: Long,
+    val backupCreated: Boolean = false,
+    val backupFilename: String? = null,
+)
+
+/**
+ * Configuration for failed migration results.
+ */
+data class FailedMigrationConfig(
+    val fromVersion: Int,
+    val toVersion: Int,
+    val message: String,
+    val executionTimeMs: Long,
+    val exception: Throwable? = null,
+    val backupCreated: Boolean = false,
+    val backupFilename: String? = null,
+)
 
 /**
  * Represents the result of a migration operation.
@@ -86,48 +104,31 @@ data class MigrationResult(
      * Creates a successful migration result.
      */
     companion object {
-        fun success(
-            fromVersion: Int,
-            toVersion: Int,
-            message: String,
-            executionTimeMs: Long,
-            backupCreated: Boolean = false,
-            backupFilename: String? = null,
-        ): MigrationResult {
-            return MigrationResult(
+        fun success(config: SuccessfulMigrationConfig): MigrationResult =
+            MigrationResult(
                 success = true,
-                fromVersion = fromVersion,
-                toVersion = toVersion,
-                message = message,
-                executionTimeMs = executionTimeMs,
-                backupCreated = backupCreated,
-                backupFilename = backupFilename,
+                fromVersion = config.fromVersion,
+                toVersion = config.toVersion,
+                message = config.message,
+                executionTimeMs = config.executionTimeMs,
+                backupCreated = config.backupCreated,
+                backupFilename = config.backupFilename,
             )
-        }
 
         /**
          * Creates a failed migration result.
          */
-        fun failure(
-            fromVersion: Int,
-            toVersion: Int,
-            message: String,
-            executionTimeMs: Long,
-            exception: Throwable? = null,
-            backupCreated: Boolean = false,
-            backupFilename: String? = null,
-        ): MigrationResult {
-            return MigrationResult(
+        fun failure(config: FailedMigrationConfig): MigrationResult =
+            MigrationResult(
                 success = false,
-                fromVersion = fromVersion,
-                toVersion = toVersion,
-                message = message,
-                executionTimeMs = executionTimeMs,
-                backupCreated = backupCreated,
-                backupFilename = backupFilename,
-                exception = exception,
+                fromVersion = config.fromVersion,
+                toVersion = config.toVersion,
+                message = config.message,
+                executionTimeMs = config.executionTimeMs,
+                backupCreated = config.backupCreated,
+                backupFilename = config.backupFilename,
+                exception = config.exception,
             )
-        }
     }
 }
 
@@ -155,19 +156,16 @@ data class MigrationProgress(
     /**
      * Creates the next progress step.
      */
-    fun nextStep(stepDescription: String): MigrationProgress {
-        return copy(
+    fun nextStep(stepDescription: String): MigrationProgress =
+        copy(
             currentStep = currentStep + 1,
             stepDescription = stepDescription,
         )
-    }
 
     /**
      * Checks if the migration is complete.
      */
     fun isComplete(): Boolean = currentStep >= totalSteps
 
-    override fun toString(): String {
-        return "Step $currentStep/$totalSteps ($progressPercent%): $stepDescription"
-    }
+    override fun toString(): String = "Step $currentStep/$totalSteps ($progressPercent%): $stepDescription"
 }

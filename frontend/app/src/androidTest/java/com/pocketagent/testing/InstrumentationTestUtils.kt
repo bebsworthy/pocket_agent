@@ -22,37 +22,30 @@ object InstrumentationTestUtils {
     /**
      * Gets the test application context.
      */
-    fun getContext(): Context {
-        return ApplicationProvider.getApplicationContext()
-    }
+    fun getContext(): Context = ApplicationProvider.getApplicationContext()
 
     /**
      * Gets the target context (app under test).
      */
-    fun getTargetContext(): Context {
-        return InstrumentationRegistry.getInstrumentation().targetContext
-    }
+    fun getTargetContext(): Context = InstrumentationRegistry.getInstrumentation().targetContext
 
     /**
      * Gets the test context (test app).
      */
-    fun getTestContext(): Context {
-        return InstrumentationRegistry.getInstrumentation().context
-    }
+    fun getTestContext(): Context = InstrumentationRegistry.getInstrumentation().context
 
     /**
      * Gets the UiDevice instance for UI automation.
      */
-    fun getUiDevice(): UiDevice {
-        return UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-    }
+    fun getUiDevice(): UiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
     /**
      * Initializes WorkManager for testing.
      */
     fun initializeWorkManager(context: Context = getContext()) {
         val config =
-            Configuration.Builder()
+            Configuration
+                .Builder()
                 .setMinimumLoggingLevel(android.util.Log.DEBUG)
                 .setExecutor(SynchronousExecutor())
                 .build()
@@ -63,9 +56,7 @@ object InstrumentationTestUtils {
     /**
      * Gets the WorkManager instance for testing.
      */
-    fun getWorkManager(context: Context = getContext()): WorkManager {
-        return WorkManager.getInstance(context)
-    }
+    fun getWorkManager(context: Context = getContext()): WorkManager = WorkManager.getInstance(context)
 
     /**
      * Waits for idle state.
@@ -93,7 +84,8 @@ object InstrumentationTestUtils {
             }
 
             // Clear shared preferences
-            context.getSharedPreferences("default", Context.MODE_PRIVATE)
+            context
+                .getSharedPreferences("default", Context.MODE_PRIVATE)
                 .edit()
                 .clear()
                 .apply()
@@ -198,9 +190,7 @@ abstract class MockWebServerTestBase {
     /**
      * Gets the WebSocket URL for testing.
      */
-    protected fun getWebSocketUrl(): String {
-        return baseUrl.replace("http://", "ws://") + "ws"
-    }
+    protected fun getWebSocketUrl(): String = baseUrl.replace("http://", "ws://") + "ws"
 }
 
 /**
@@ -240,7 +230,8 @@ object PermissionTestUtils {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
         val allowButton =
             uiDevice.findObject(
-                androidx.test.uiautomator.UiSelector()
+                androidx.test.uiautomator
+                    .UiSelector()
                     .textContains("Allow")
                     .className("android.widget.Button"),
             )
@@ -257,7 +248,8 @@ object PermissionTestUtils {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
         val denyButton =
             uiDevice.findObject(
-                androidx.test.uiautomator.UiSelector()
+                androidx.test.uiautomator
+                    .UiSelector()
                     .textContains("Deny")
                     .className("android.widget.Button"),
             )
@@ -294,7 +286,8 @@ object NotificationTestUtils {
     fun findNotificationByTitle(title: String): androidx.test.uiautomator.UiObject? {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
         return uiDevice.findObject(
-            androidx.test.uiautomator.UiSelector()
+            androidx.test.uiautomator
+                .UiSelector()
                 .textContains(title)
                 .className("android.widget.TextView"),
         )
@@ -346,7 +339,8 @@ object SystemUiTestUtils {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
         val dialog =
             uiDevice.findObject(
-                androidx.test.uiautomator.UiSelector()
+                androidx.test.uiautomator
+                    .UiSelector()
                     .className("android.app.AlertDialog"),
             )
         return dialog.waitForExists(timeoutMillis)
@@ -359,7 +353,8 @@ object SystemUiTestUtils {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
         val okButton =
             uiDevice.findObject(
-                androidx.test.uiautomator.UiSelector()
+                androidx.test.uiautomator
+                    .UiSelector()
                     .textMatches("OK|ok")
                     .className("android.widget.Button"),
             )
@@ -378,7 +373,8 @@ object SystemUiTestUtils {
         val uiDevice = InstrumentationTestUtils.getUiDevice()
         val cancelButton =
             uiDevice.findObject(
-                androidx.test.uiautomator.UiSelector()
+                androidx.test.uiautomator
+                    .UiSelector()
                     .textMatches("Cancel|cancel")
                     .className("android.widget.Button"),
             )

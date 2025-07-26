@@ -234,7 +234,7 @@ class SerializationErrorHandler @Inject constructor() {
 /**
  * Data class representing a serialization error
  */
-data class SerializationError(
+internal data class SerializationError(
     val operation: String,
     val errorType: SerializationErrorType,
     val message: String,
@@ -260,8 +260,8 @@ enum class SerializationErrorType {
  * Result of recovery attempts
  */
 sealed class RecoveryResult {
-    data class Success(val recoveredData: String) : RecoveryResult()
-    data class Failed(val reason: String) : RecoveryResult()
+    internal data class Success(val recoveredData: String) : RecoveryResult()
+    internal data class Failed(val reason: String) : RecoveryResult()
 }
 
 /**

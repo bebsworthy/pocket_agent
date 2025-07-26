@@ -19,7 +19,7 @@ sealed class WebSocketMessage {
  */
 @Serializable
 @SerialName("auth_challenge")
-data class AuthChallenge(
+internal data class AuthChallenge(
     override val type: String = "auth_challenge",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -29,7 +29,7 @@ data class AuthChallenge(
 
 @Serializable
 @SerialName("auth_response")
-data class AuthResponse(
+internal data class AuthResponse(
     override val type: String = "auth_response",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -41,7 +41,7 @@ data class AuthResponse(
 
 @Serializable
 @SerialName("auth_success")
-data class AuthSuccess(
+internal data class AuthSuccess(
     override val type: String = "auth_success",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -51,7 +51,7 @@ data class AuthSuccess(
 
 @Serializable
 @SerialName("auth_failure")
-data class AuthFailure(
+internal data class AuthFailure(
     override val type: String = "auth_failure",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -64,7 +64,7 @@ data class AuthFailure(
  */
 @Serializable
 @SerialName("command")
-data class CommandMessage(
+internal data class CommandMessage(
     override val type: String = "command",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -76,7 +76,7 @@ data class CommandMessage(
 
 @Serializable
 @SerialName("project_init")
-data class ProjectInitMessage(
+internal data class ProjectInitMessage(
     override val type: String = "project_init",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -91,7 +91,7 @@ data class ProjectInitMessage(
  */
 @Serializable
 @SerialName("claude_response")
-data class ClaudeResponse(
+internal data class ClaudeResponse(
     override val type: String = "claude_response",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -103,7 +103,7 @@ data class ClaudeResponse(
 
 @Serializable
 @SerialName("command_output")
-data class CommandOutput(
+internal data class CommandOutput(
     override val type: String = "command_output",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -116,7 +116,7 @@ data class CommandOutput(
 
 @Serializable
 @SerialName("progress_update")
-data class ProgressUpdate(
+internal data class ProgressUpdate(
     override val type: String = "progress_update",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -127,7 +127,7 @@ data class ProgressUpdate(
 ) : WebSocketMessage()
 
 @Serializable
-data class SubOperation(
+internal data class SubOperation(
     val name: String,
     val status: SubOperationStatus,
     val progress: Int = 0,
@@ -147,7 +147,7 @@ enum class SubOperationStatus {
  */
 @Serializable
 @SerialName("permission_request")
-data class PermissionRequest(
+internal data class PermissionRequest(
     override val type: String = "permission_request",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -160,7 +160,7 @@ data class PermissionRequest(
 
 @Serializable
 @SerialName("permission_response")
-data class PermissionResponse(
+internal data class PermissionResponse(
     override val type: String = "permission_response",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -175,7 +175,7 @@ data class PermissionResponse(
  */
 @Serializable
 @SerialName("session_resume")
-data class SessionResume(
+internal data class SessionResume(
     override val type: String = "session_resume",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -186,7 +186,7 @@ data class SessionResume(
 
 @Serializable
 @SerialName("session_status")
-data class SessionStatus(
+internal data class SessionStatus(
     override val type: String = "session_status",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -199,7 +199,7 @@ data class SessionStatus(
 
 @Serializable
 @SerialName("session_terminate")
-data class SessionTerminate(
+internal data class SessionTerminate(
     override val type: String = "session_terminate",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -212,7 +212,7 @@ data class SessionTerminate(
  */
 @Serializable
 @SerialName("clone_progress")
-data class CloneProgress(
+internal data class CloneProgress(
     override val type: String = "clone_progress",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -223,7 +223,7 @@ data class CloneProgress(
 
 @Serializable
 @SerialName("project_init_complete")
-data class ProjectInitComplete(
+internal data class ProjectInitComplete(
     override val type: String = "project_init_complete",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -237,7 +237,7 @@ data class ProjectInitComplete(
  */
 @Serializable
 @SerialName("error")
-data class ErrorMessage(
+internal data class ErrorMessage(
     override val type: String = "error",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -249,7 +249,7 @@ data class ErrorMessage(
 
 @Serializable
 @SerialName("heartbeat")
-data class Heartbeat(
+internal data class Heartbeat(
     override val type: String = "heartbeat",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -258,7 +258,7 @@ data class Heartbeat(
 
 @Serializable
 @SerialName("pong")
-data class Pong(
+internal data class Pong(
     override val type: String = "pong",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -270,7 +270,7 @@ data class Pong(
  */
 @Serializable
 @SerialName("file_list_request")
-data class FileListRequest(
+internal data class FileListRequest(
     override val type: String = "file_list_request",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -281,7 +281,7 @@ data class FileListRequest(
 
 @Serializable
 @SerialName("file_list_response")
-data class FileListResponse(
+internal data class FileListResponse(
     override val type: String = "file_list_response",
     override val id: String = UUID.randomUUID().toString(),
     override val timestamp: Long = System.currentTimeMillis(),
@@ -291,7 +291,7 @@ data class FileListResponse(
 ) : WebSocketMessage()
 
 @Serializable
-data class FileInfo(
+internal data class FileInfo(
     val name: String,
     val path: String,
     val size: Long,

@@ -1,23 +1,27 @@
 package com.pocketagent.data.models
 
+import android.util.Log
+import com.pocketagent.data.service.ServiceException
+import com.pocketagent.domain.models.error.ValidationException
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-/**
+// ========== AppData Extensions ==========
+
+/*
  * Extension functions for common data model operations.
  *
  * This file provides utility functions for working with data models,
  * including serialization, validation, filtering, and transformations.
  */
 
-// ========== AppData Extensions ==========
-
 /**
  * Validate all relationships in the AppData structure.
  */
-fun AppData.validateRelationships(): Result<Unit> {
-    return try {
+fun AppData.validateRelationships(): Result<Unit> =
+    try {
         // This will throw if validation fails
         AppData(
             version = version,
@@ -29,10 +33,19 @@ fun AppData.validateRelationships(): Result<Unit> {
             metadata = metadata,
         )
         Result.success(Unit)
-    } catch (e: Exception) {
+    } catch (e: IllegalArgumentException) {
+        Log.w("AppDataExtensions", "Invalid argument during validation", e)
+        Result.failure(e)
+    } catch (e: ValidationException) {
+        Log.w("AppDataExtensions", "Validation failed for AppData", e)
+        Result.failure(e)
+    } catch (e: SerializationException) {
+        Log.w("AppDataExtensions", "Serialization error during validation", e)
+        Result.failure(e)
+    } catch (e: RuntimeException) {
+        Log.e("AppDataExtensions", "Runtime error during validation", e)
         Result.failure(e)
     }
-}
 
 /**
  * Get all active projects across all servers.
@@ -327,60 +340,96 @@ data class DataStateSummary(
 /**
  * Validate SSH identity data.
  */
-fun SshIdentity.validate(): Result<Unit> {
-    return try {
+fun SshIdentity.validate(): Result<Unit> =
+    try {
         SshIdentityValidator.validateName(name).getOrThrow()
         SshIdentityValidator.validateFingerprint(publicKeyFingerprint).getOrThrow()
         SshIdentityValidator.validateDescription(description).getOrThrow()
         Result.success(Unit)
-    } catch (e: Exception) {
+    } catch (e: IllegalArgumentException) {
+        Log.w("SshIdentityExtensions", "Invalid argument in SSH identity validation", e)
+        Result.failure(e)
+    } catch (e: ValidationException) {
+        Log.w("SshIdentityExtensions", "Validation failed for SSH identity", e)
+        Result.failure(e)
+    } catch (e: ServiceException) {
+        Log.w("SshIdentityExtensions", "Service error in SSH identity validation", e)
+        Result.failure(e)
+    } catch (e: RuntimeException) {
+        Log.e("SshIdentityExtensions", "Runtime error in SSH identity validation", e)
         Result.failure(e)
     }
-}
 
 /**
  * Validate server profile data.
  */
-fun ServerProfile.validate(): Result<Unit> {
-    return try {
+fun ServerProfile.validate(): Result<Unit> =
+    try {
         ServerProfileValidator.validateName(name).getOrThrow()
         ServerProfileValidator.validateHostname(hostname).getOrThrow()
         ServerProfileValidator.validateUsername(username).getOrThrow()
         ServerProfileValidator.validatePort(port).getOrThrow()
         ServerProfileValidator.validatePort(wrapperPort).getOrThrow()
         Result.success(Unit)
-    } catch (e: Exception) {
+    } catch (e: IllegalArgumentException) {
+        Log.w("ServerProfileExtensions", "Invalid argument in server profile validation", e)
+        Result.failure(e)
+    } catch (e: ValidationException) {
+        Log.w("ServerProfileExtensions", "Validation failed for server profile", e)
+        Result.failure(e)
+    } catch (e: ServiceException) {
+        Log.w("ServerProfileExtensions", "Service error in server profile validation", e)
+        Result.failure(e)
+    } catch (e: RuntimeException) {
+        Log.e("ServerProfileExtensions", "Runtime error in server profile validation", e)
         Result.failure(e)
     }
-}
 
 /**
  * Validate project data.
  */
-fun Project.validate(): Result<Unit> {
-    return try {
+fun Project.validate(): Result<Unit> =
+    try {
         ProjectValidator.validateName(name).getOrThrow()
         ProjectValidator.validateProjectPath(projectPath).getOrThrow()
         ProjectValidator.validateScriptsFolder(scriptsFolder).getOrThrow()
         ProjectValidator.validateRepositoryUrl(repositoryUrl).getOrThrow()
         Result.success(Unit)
-    } catch (e: Exception) {
+    } catch (e: IllegalArgumentException) {
+        Log.w("ProjectExtensions", "Invalid argument in project validation", e)
+        Result.failure(e)
+    } catch (e: ValidationException) {
+        Log.w("ProjectExtensions", "Validation failed for project", e)
+        Result.failure(e)
+    } catch (e: ServiceException) {
+        Log.w("ProjectExtensions", "Service error in project validation", e)
+        Result.failure(e)
+    } catch (e: RuntimeException) {
+        Log.e("ProjectExtensions", "Runtime error in project validation", e)
         Result.failure(e)
     }
-}
 
 /**
  * Validate message data.
  */
-fun Message.validate(): Result<Unit> {
-    return try {
+fun Message.validate(): Result<Unit> =
+    try {
         MessageValidator.validateContent(content).getOrThrow()
         MessageValidator.validateMetadata(metadata).getOrThrow()
         Result.success(Unit)
-    } catch (e: Exception) {
+    } catch (e: IllegalArgumentException) {
+        Log.w("MessageExtensions", "Invalid argument in message validation", e)
+        Result.failure(e)
+    } catch (e: ValidationException) {
+        Log.w("MessageExtensions", "Validation failed for message", e)
+        Result.failure(e)
+    } catch (e: ServiceException) {
+        Log.w("MessageExtensions", "Service error in message validation", e)
+        Result.failure(e)
+    } catch (e: RuntimeException) {
+        Log.e("MessageExtensions", "Runtime error in message validation", e)
         Result.failure(e)
     }
-}
 
 // ========== Utility Extensions ==========
 

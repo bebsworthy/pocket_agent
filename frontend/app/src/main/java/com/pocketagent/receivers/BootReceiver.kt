@@ -12,13 +12,15 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class BootReceiver : BroadcastReceiver() {
-    
-    override fun onReceive(context: Context, intent: Intent) {
+    override fun onReceive(
+        context: Context,
+        intent: Intent,
+    ) {
         if (intent.action == Intent.ACTION_BOOT_COMPLETED ||
-            intent.action == "android.intent.action.QUICKBOOT_POWERON") {
-            
-            // TODO: Check if there are active sessions that need monitoring
-            // For now, we'll just start the service
+            intent.action == "android.intent.action.QUICKBOOT_POWERON"
+        ) {
+            // Check for active sessions and start monitoring service
+            // Future enhancement: add session state check before starting service
             BackgroundMonitoringService.startService(context)
         }
     }

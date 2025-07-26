@@ -2,7 +2,11 @@ package com.pocketagent.mobile.data.serialization
 
 import com.pocketagent.mobile.data.model.AppData
 import com.pocketagent.mobile.data.model.WebSocketMessage
+import kotlinx.serialization.SerializationException as KotlinxSerializationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 
@@ -16,8 +20,10 @@ import kotlinx.serialization.decodeFromString
 inline fun <reified T> T.toJson(json: Json = Json.Default): Result<String> {
     return try {
         Result.success(json.encodeToString(this))
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to serialize ${T::class.simpleName}", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid object for serialization: ${T::class.simpleName}", e))
     }
 }
 
@@ -27,8 +33,10 @@ inline fun <reified T> T.toJson(json: Json = Json.Default): Result<String> {
 inline fun <reified T> String.fromJson(json: Json = Json.Default): Result<T> {
     return try {
         Result.success(json.decodeFromString<T>(this))
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to deserialize ${T::class.simpleName}", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid JSON format for ${T::class.simpleName}", e))
     }
 }
 
@@ -39,8 +47,10 @@ inline fun <reified T> T.toCompactJson(): Result<String> {
     return try {
         val compactJson = Json { prettyPrint = false }
         Result.success(compactJson.encodeToString(this))
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to serialize to compact JSON", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid object for compact JSON serialization", e))
     }
 }
 
@@ -91,8 +101,10 @@ fun AppData.toValidatedJson(): Result<String> {
         
         // Serialize after validation
         toJson()
-    } catch (e: Exception) {
+    } catch (e: IllegalArgumentException) {
         Result.failure(SerializationException("AppData validation failed", e))
+    } catch (e: KotlinxSerializationException) {
+        Result.failure(SerializationException("AppData serialization failed", e))
     }
 }
 
@@ -107,8 +119,10 @@ fun WebSocketMessage.toNetworkJson(): Result<String> {
             encodeDefaults = true
         }
         Result.success(networkJson.encodeToString(this))
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to serialize WebSocket message", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid WebSocket message for serialization", e))
     }
 }
 
@@ -118,7 +132,9 @@ fun WebSocketMessage.toNetworkJson(): Result<String> {
 inline fun <reified T> String.parseJsonOrDefault(default: T, json: Json = Json.Default): T {
     return try {
         json.decodeFromString<T>(this)
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
+        default
+    } catch (e: IllegalArgumentException) {
         default
     }
 }
@@ -130,7 +146,9 @@ fun String.isValidJson(): Boolean {
     return try {
         Json.parseToJsonElement(this)
         true
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
+        false
+    } catch (e: IllegalArgumentException) {
         false
     }
 }
@@ -143,8 +161,10 @@ fun String.prettifyJson(): Result<String> {
         val element = Json.parseToJsonElement(this)
         val prettyJson = Json { prettyPrint = true }
         Result.success(prettyJson.encodeToString(element))
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to prettify JSON", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid JSON format for prettification", e))
     }
 }
 
@@ -156,8 +176,10 @@ fun String.minifyJson(): Result<String> {
         val element = Json.parseToJsonElement(this)
         val minifiedJson = Json { prettyPrint = false }
         Result.success(minifiedJson.encodeToString(element))
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to minify JSON", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid JSON format for minification", e))
     }
 }
 
@@ -191,8 +213,10 @@ fun String.extractJsonField(fieldName: String): Result<String> {
         val field = jsonObject[fieldName]?.jsonPrimitive?.content
             ?: return Result.failure(SerializationException("Field '$fieldName' not found"))
         Result.success(field)
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to extract field '$fieldName'", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid JSON format for field extraction", e))
     }
 }
 
@@ -213,8 +237,10 @@ fun String.validateRequiredFields(requiredFields: List<String>): Result<Boolean>
         }
         
         Result.success(true)
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to validate required fields", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid JSON format for field validation", e))
     }
 }
 
@@ -237,8 +263,10 @@ fun String.mergeWith(other: String): Result<String> {
         
         val mergedObject = JsonObject(mergedMap)
         Result.success(Json.encodeToString(mergedObject))
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to merge JSON objects", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid JSON format for merging", e))
     }
 }
 
@@ -256,7 +284,9 @@ fun String.removeJsonFields(fieldsToRemove: List<String>): Result<String> {
         
         val filteredObject = JsonObject(filteredMap)
         Result.success(Json.encodeToString(filteredObject))
-    } catch (e: Exception) {
+    } catch (e: KotlinxSerializationException) {
         Result.failure(SerializationException("Failed to remove JSON fields", e))
+    } catch (e: IllegalArgumentException) {
+        Result.failure(SerializationException("Invalid JSON format for field removal", e))
     }
 }

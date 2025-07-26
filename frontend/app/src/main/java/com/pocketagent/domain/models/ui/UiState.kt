@@ -1,10 +1,14 @@
 package com.pocketagent.domain.models.ui
 
-import com.pocketagent.domain.models.entities.*
-import com.pocketagent.domain.models.responses.PermissionRequest
-import com.pocketagent.domain.models.responses.ServerEvent
-import com.pocketagent.domain.models.UserPreferences
 import com.pocketagent.domain.models.DeviceInfo
+import com.pocketagent.domain.models.UserPreferences
+import com.pocketagent.domain.models.entities.ConnectionStatus
+import com.pocketagent.domain.models.entities.Message
+import com.pocketagent.domain.models.entities.MessageAttachment
+import com.pocketagent.domain.models.entities.Project
+import com.pocketagent.domain.models.entities.ServerProfile
+import com.pocketagent.domain.models.entities.SshIdentity
+import com.pocketagent.domain.models.responses.PermissionRequest
 
 /**
  * Base class for all UI state models.
@@ -16,7 +20,7 @@ sealed class UiState {
 
 /**
  * UI state for the projects list screen.
- * 
+ *
  * @property isLoading Whether the screen is loading
  * @property error Error message if any
  * @property projects List of projects
@@ -34,12 +38,12 @@ data class ProjectsUiState(
     val searchQuery: String = "",
     val filterType: ProjectFilterType = ProjectFilterType.ALL,
     val sortOrder: ProjectSortOrder = ProjectSortOrder.LAST_ACTIVE,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
 ) : UiState()
 
 /**
  * UI state for the project details screen.
- * 
+ *
  * @property isLoading Whether the screen is loading
  * @property error Error message if any
  * @property project Current project
@@ -61,12 +65,12 @@ data class ProjectDetailsUiState(
     val recentMessages: List<Message> = emptyList(),
     val quickActions: List<QuickAction> = emptyList(),
     val isConnecting: Boolean = false,
-    val isDisconnecting: Boolean = false
+    val isDisconnecting: Boolean = false,
 ) : UiState()
 
 /**
  * UI state for the chat screen.
- * 
+ *
  * @property isLoading Whether the screen is loading
  * @property error Error message if any
  * @property messages List of chat messages
@@ -90,12 +94,12 @@ data class ChatUiState(
     val attachments: List<MessageAttachment> = emptyList(),
     val permissionRequest: PermissionRequest? = null,
     val canSendMessage: Boolean = false,
-    val isConnected: Boolean = false
+    val isConnected: Boolean = false,
 ) : UiState()
 
 /**
  * UI state for the files screen.
- * 
+ *
  * @property isLoading Whether the screen is loading
  * @property error Error message if any
  * @property currentPath Current directory path
@@ -117,12 +121,12 @@ data class FilesUiState(
     val isGitRepository: Boolean = false,
     val breadcrumbs: List<Breadcrumb> = emptyList(),
     val sortOrder: FileSortOrder = FileSortOrder.NAME,
-    val showHidden: Boolean = false
+    val showHidden: Boolean = false,
 ) : UiState()
 
 /**
  * UI state for the server profiles screen.
- * 
+ *
  * @property isLoading Whether the screen is loading
  * @property error Error message if any
  * @property serverProfiles List of server profiles
@@ -140,12 +144,12 @@ data class ServerProfilesUiState(
     val testingConnection: ServerProfile? = null,
     val connectionResults: Map<String, ConnectionTestResult> = emptyMap(),
     val isCreatingProfile: Boolean = false,
-    val isEditingProfile: Boolean = false
+    val isEditingProfile: Boolean = false,
 ) : UiState()
 
 /**
  * UI state for the SSH identities screen.
- * 
+ *
  * @property isLoading Whether the screen is loading
  * @property error Error message if any
  * @property sshIdentities List of SSH identities
@@ -161,12 +165,12 @@ data class SshIdentitiesUiState(
     val selectedIdentity: SshIdentity? = null,
     val isImporting: Boolean = false,
     val importProgress: ImportProgress? = null,
-    val usageMap: Map<String, Int> = emptyMap()
+    val usageMap: Map<String, Int> = emptyMap(),
 ) : UiState()
 
 /**
  * UI state for the settings screen.
- * 
+ *
  * @property isLoading Whether the screen is loading
  * @property error Error message if any
  * @property preferences User preferences
@@ -184,12 +188,12 @@ data class SettingsUiState(
     val storageInfo: StorageInfo = StorageInfo(),
     val isSaving: Boolean = false,
     val isExporting: Boolean = false,
-    val isImporting: Boolean = false
+    val isImporting: Boolean = false,
 ) : UiState()
 
 /**
  * UI state for the dashboard screen.
- * 
+ *
  * @property isLoading Whether the screen is loading
  * @property error Error message if any
  * @property activeProjects List of active projects
@@ -205,7 +209,7 @@ data class DashboardUiState(
     val recentActivity: List<ActivityItem> = emptyList(),
     val notifications: List<NotificationItem> = emptyList(),
     val systemStatus: SystemStatus = SystemStatus(),
-    val quickActions: List<QuickAction> = emptyList()
+    val quickActions: List<QuickAction> = emptyList(),
 ) : UiState()
 
 /**
@@ -217,7 +221,7 @@ enum class ProjectFilterType {
     INACTIVE,
     CONNECTED,
     DISCONNECTED,
-    ERROR
+    ERROR,
 }
 
 /**
@@ -227,7 +231,7 @@ enum class ProjectSortOrder {
     NAME,
     LAST_ACTIVE,
     CREATED,
-    STATUS
+    STATUS,
 }
 
 /**
@@ -237,12 +241,12 @@ enum class FileSortOrder {
     NAME,
     SIZE,
     MODIFIED,
-    TYPE
+    TYPE,
 }
 
 /**
  * Quick action model.
- * 
+ *
  * @property id Action ID
  * @property name Action name
  * @property description Action description
@@ -258,7 +262,7 @@ data class QuickAction(
     val icon: String,
     val type: QuickActionType,
     val enabled: Boolean = true,
-    val data: Map<String, String> = emptyMap()
+    val data: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -269,12 +273,12 @@ enum class QuickActionType {
     SHELL_COMMAND,
     SCRIPT,
     FILE_OPERATION,
-    GIT_OPERATION
+    GIT_OPERATION,
 }
 
 /**
  * File item model for UI.
- * 
+ *
  * @property name File name
  * @property path Full file path
  * @property size File size in bytes
@@ -294,7 +298,7 @@ data class FileItem(
     val permissions: String? = null,
     val gitStatus: FileGitStatus = FileGitStatus.UNTRACKED,
     val icon: String = "",
-    val mimeType: String? = null
+    val mimeType: String? = null,
 )
 
 /**
@@ -309,12 +313,12 @@ enum class FileGitStatus {
     RENAMED,
     COPIED,
     CONFLICTED,
-    IGNORED
+    IGNORED,
 }
 
 /**
  * Breadcrumb navigation item.
- * 
+ *
  * @property name Display name
  * @property path Full path
  * @property isLast Whether this is the last item
@@ -322,12 +326,12 @@ enum class FileGitStatus {
 data class Breadcrumb(
     val name: String,
     val path: String,
-    val isLast: Boolean = false
+    val isLast: Boolean = false,
 )
 
 /**
  * Connection test result.
- * 
+ *
  * @property success Whether the test was successful
  * @property latency Connection latency in milliseconds
  * @property errorMessage Error message if failed
@@ -337,12 +341,12 @@ data class ConnectionTestResult(
     val success: Boolean,
     val latency: Long? = null,
     val errorMessage: String? = null,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
 )
 
 /**
  * Import progress information.
- * 
+ *
  * @property step Current step
  * @property totalSteps Total number of steps
  * @property progress Progress percentage
@@ -352,12 +356,12 @@ data class ImportProgress(
     val step: Int,
     val totalSteps: Int,
     val progress: Float,
-    val message: String
+    val message: String,
 )
 
 /**
  * Storage information.
- * 
+ *
  * @property totalSpace Total storage space in bytes
  * @property usedSpace Used storage space in bytes
  * @property freeSpace Free storage space in bytes
@@ -371,12 +375,12 @@ data class StorageInfo(
     val freeSpace: Long = 0,
     val appSize: Long = 0,
     val dataSize: Long = 0,
-    val cacheSize: Long = 0
+    val cacheSize: Long = 0,
 )
 
 /**
  * Activity item for dashboard.
- * 
+ *
  * @property id Activity ID
  * @property type Activity type
  * @property title Activity title
@@ -394,7 +398,7 @@ data class ActivityItem(
     val timestamp: Long,
     val projectId: String? = null,
     val icon: String = "",
-    val data: Map<String, String> = emptyMap()
+    val data: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -409,12 +413,12 @@ enum class ActivityType {
     COMMAND_EXECUTED,
     FILE_UPLOADED,
     FILE_DOWNLOADED,
-    ERROR_OCCURRED
+    ERROR_OCCURRED,
 }
 
 /**
  * Notification item.
- * 
+ *
  * @property id Notification ID
  * @property type Notification type
  * @property title Notification title
@@ -432,7 +436,7 @@ data class NotificationItem(
     val timestamp: Long,
     val isRead: Boolean = false,
     val priority: NotificationPriority = NotificationPriority.NORMAL,
-    val data: Map<String, String> = emptyMap()
+    val data: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -444,7 +448,7 @@ enum class NotificationType {
     ERROR,
     WARNING,
     INFO,
-    SUCCESS
+    SUCCESS,
 }
 
 /**
@@ -454,12 +458,12 @@ enum class NotificationPriority {
     LOW,
     NORMAL,
     HIGH,
-    URGENT
+    URGENT,
 }
 
 /**
  * System status information.
- * 
+ *
  * @property totalProjects Total number of projects
  * @property activeProjects Number of active projects
  * @property connectedProjects Number of connected projects
@@ -477,7 +481,7 @@ data class SystemStatus(
     val memoryUsage: Long = 0,
     val networkStatus: NetworkStatus = NetworkStatus.UNKNOWN,
     val batteryLevel: Int = 0,
-    val isCharging: Boolean = false
+    val isCharging: Boolean = false,
 )
 
 /**
@@ -488,12 +492,12 @@ enum class NetworkStatus {
     NONE,
     WIFI,
     CELLULAR,
-    ETHERNET
+    ETHERNET,
 }
 
 /**
  * Git status information for UI.
- * 
+ *
  * @property branch Current branch
  * @property ahead Number of commits ahead
  * @property behind Number of commits behind
@@ -511,5 +515,5 @@ data class GitStatus(
     val modifiedFiles: Int = 0,
     val stagedFiles: Int = 0,
     val untrackedFiles: Int = 0,
-    val deletedFiles: Int = 0
+    val deletedFiles: Int = 0,
 )

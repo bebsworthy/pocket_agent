@@ -1,6 +1,7 @@
 package com.pocketagent.mobile.data.serialization
 
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -9,6 +10,7 @@ import kotlinx.serialization.encoding.Encoder
 import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.util.UUID
 
 /**
@@ -70,13 +72,16 @@ object FlexibleTimestampSerializer : KSerializer<Long> {
         return try {
             // Try to decode as long first
             decoder.decodeLong()
-        } catch (e: Exception) {
+        } catch (e: SerializationException) {
             try {
                 // If that fails, try to parse as ISO string
                 val isoString = decoder.decodeString()
                 Instant.parse(isoString).toEpochMilli()
-            } catch (e: Exception) {
-                // If both fail, return current time
+            } catch (e: SerializationException) {
+                // If string decoding fails, return current time
+                System.currentTimeMillis()
+            } catch (e: DateTimeParseException) {
+                // If ISO parsing fails, return current time
                 System.currentTimeMillis()
             }
         }

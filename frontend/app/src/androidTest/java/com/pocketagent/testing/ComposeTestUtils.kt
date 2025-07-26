@@ -70,9 +70,7 @@ object ComposeTestUtils {
     fun ComposeContentTestRule.findByTestTag(
         tag: String,
         useUnmergedTree: Boolean = false,
-    ): SemanticsNodeInteraction {
-        return this.onNode(hasTestTag(tag), useUnmergedTree = useUnmergedTree)
-    }
+    ): SemanticsNodeInteraction = this.onNode(hasTestTag(tag), useUnmergedTree = useUnmergedTree)
 
     /**
      * Finds all nodes with test tag.
@@ -80,9 +78,7 @@ object ComposeTestUtils {
     fun ComposeContentTestRule.findAllByTestTag(
         tag: String,
         useUnmergedTree: Boolean = false,
-    ): SemanticsNodeInteractionCollection {
-        return this.onAllNodes(hasTestTag(tag), useUnmergedTree = useUnmergedTree)
-    }
+    ): SemanticsNodeInteractionCollection = this.onAllNodes(hasTestTag(tag), useUnmergedTree = useUnmergedTree)
 
     /**
      * Finds a node with content description.
@@ -90,9 +86,7 @@ object ComposeTestUtils {
     fun ComposeContentTestRule.findByContentDescription(
         description: String,
         useUnmergedTree: Boolean = false,
-    ): SemanticsNodeInteraction {
-        return this.onNode(hasContentDescription(description), useUnmergedTree = useUnmergedTree)
-    }
+    ): SemanticsNodeInteraction = this.onNode(hasContentDescription(description), useUnmergedTree = useUnmergedTree)
 
     /**
      * Finds a node with text.
@@ -101,9 +95,7 @@ object ComposeTestUtils {
         text: String,
         ignoreCase: Boolean = false,
         useUnmergedTree: Boolean = false,
-    ): SemanticsNodeInteraction {
-        return this.onNode(hasText(text, ignoreCase = ignoreCase), useUnmergedTree = useUnmergedTree)
-    }
+    ): SemanticsNodeInteraction = this.onNode(hasText(text, ignoreCase = ignoreCase), useUnmergedTree = useUnmergedTree)
 
     /**
      * Performs a click and waits for compose to be idle.
@@ -274,7 +266,11 @@ object AccessibilityTestUtils {
     /**
      * Asserts that all interactive elements have minimum touch target size.
      */
-    fun ComposeContentTestRule.assertMinimumTouchTargetSize(minimumSize: androidx.compose.ui.unit.Dp = androidx.compose.ui.unit.dp(48)) {
+    fun ComposeContentTestRule.assertMinimumTouchTargetSize(
+        minimumSize: androidx.compose.ui.unit.Dp =
+            androidx.compose.ui.unit
+                .dp(48),
+    ) {
         val interactiveNodes = this.onAllNodes(hasClickAction())
         interactiveNodes.fetchSemanticsNodes().forEach { node ->
             val bounds = node.boundsInRoot

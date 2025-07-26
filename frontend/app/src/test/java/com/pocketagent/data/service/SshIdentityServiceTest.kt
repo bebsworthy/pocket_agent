@@ -651,15 +651,14 @@ object SshIdentityServiceTestUtils {
         name: String = "Test SSH Key",
         fingerprint: String = "SHA256:testfingerprint",
         description: String? = "Test description",
-    ): SshIdentity {
-        return SshIdentity(
+    ): SshIdentity =
+        SshIdentity(
             id = id,
             name = name,
             encryptedPrivateKey = "encrypted_test_key_data",
             publicKeyFingerprint = fingerprint,
             description = description,
         )
-    }
 
     /**
      * Creates a test server profile with optional parameters.
@@ -668,35 +667,32 @@ object SshIdentityServiceTestUtils {
         id: String = "server-id",
         name: String = "Test Server",
         sshIdentityId: String = "test-ssh-id",
-    ): ServerProfile {
-        return ServerProfile(
+    ): ServerProfile =
+        ServerProfile(
             id = id,
             name = name,
             hostname = "example.com",
             username = "testuser",
             sshIdentityId = sshIdentityId,
         )
-    }
 
     /**
      * Creates test RSA key data.
      */
-    fun createTestRsaKeyData(): String {
-        return """
-            -----BEGIN RSA PRIVATE KEY-----
-            MIIEpAIBAAKCAQEA1234567890abcdef...
-            -----END RSA PRIVATE KEY-----
-            """.trimIndent()
-    }
+    fun createTestRsaKeyData(): String =
+        """
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEA1234567890abcdef...
+        -----END RSA PRIVATE KEY-----
+        """.trimIndent()
 
     /**
      * Creates test OpenSSH key data.
      */
-    fun createTestOpenSshKeyData(): String {
-        return """
-            -----BEGIN OPENSSH PRIVATE KEY-----
-            b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAA...
-            -----END OPENSSH PRIVATE KEY-----
-            """.trimIndent()
-    }
+    fun createTestOpenSshKeyData(): String =
+        """
+        -----BEGIN OPENSSH PRIVATE KEY-----
+        b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAA...
+        -----END OPENSSH PRIVATE KEY-----
+        """.trimIndent()
 }

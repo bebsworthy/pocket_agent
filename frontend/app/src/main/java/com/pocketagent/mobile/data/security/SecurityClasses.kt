@@ -13,42 +13,52 @@ interface KeystoreManager {
 }
 
 @Singleton
-class KeystoreManagerImpl @Inject constructor() : KeystoreManager {
-    // Implementation will be added in Task 1.1: Setup Android Keystore Integration
-}
+class KeystoreManagerImpl
+    @Inject
+    constructor() : KeystoreManager {
+        // Implementation will be added in Task 1.1: Setup Android Keystore Integration
+    }
 
 interface EncryptionService {
     // Interface will be defined in Task 1.3: Create Encryption Service
 }
 
 @Singleton
-class EncryptionServiceImpl @Inject constructor() : EncryptionService {
-    // Implementation will be added in Task 1.3: Create Encryption Service
-}
+class EncryptionServiceImpl
+    @Inject
+    constructor() : EncryptionService {
+        // Implementation will be added in Task 1.3: Create Encryption Service
+    }
 
 interface BiometricAuthenticationManager {
     // Interface will be defined in Task 1.2: Implement Biometric Authentication Manager
 }
 
 @Singleton
-class BiometricAuthenticationManagerImpl @Inject constructor() : BiometricAuthenticationManager {
-    // Implementation will be added in Task 1.2: Implement Biometric Authentication Manager
-}
+class BiometricAuthenticationManagerImpl
+    @Inject
+    constructor() : BiometricAuthenticationManager {
+        // Implementation will be added in Task 1.2: Implement Biometric Authentication Manager
+    }
 
 interface SshKeyManager {
     // Interface will be defined in Task 2.1: Implement SSH Key Import Manager
 }
 
 @Singleton
-class SshKeyManagerImpl @Inject constructor() : SshKeyManager {
-    // Implementation will be added in Task 2.1: Implement SSH Key Import Manager
-}
+class SshKeyManagerImpl
+    @Inject
+    constructor() : SshKeyManager {
+        // Implementation will be added in Task 2.1: Implement SSH Key Import Manager
+    }
 
 interface SecurityManager {
     // Interface will be defined in Task 1.5: Implement Security Manager
 }
 
 @Singleton
-class SecurityManagerImpl @Inject constructor() : SecurityManager {
-    // Implementation will be added in Task 1.5: Implement Security Manager
-}
+class SecurityManagerImpl
+    @Inject
+    constructor() : SecurityManager {
+        // Implementation will be added in Task 1.5: Implement Security Manager
+    }

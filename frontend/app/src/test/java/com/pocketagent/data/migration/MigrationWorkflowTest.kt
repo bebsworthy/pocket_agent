@@ -469,9 +469,7 @@ class MigrationWorkflowTest {
         override suspend fun migrate(
             data: AppData,
             progressCallback: ((MigrationProgress) -> Unit)?,
-        ): AppData {
-            throw MigrationException.ExecutionException("Intentional test failure")
-        }
+        ): AppData = throw MigrationException.ExecutionException("Intentional test failure")
 
         override suspend fun canMigrate(data: AppData): Boolean = data.version == 0
     }

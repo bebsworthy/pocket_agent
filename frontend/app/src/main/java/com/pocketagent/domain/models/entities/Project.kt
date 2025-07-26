@@ -5,10 +5,10 @@ import java.util.UUID
 
 /**
  * Represents a project with its associated Claude Code session.
- * 
+ *
  * Projects represent individual codebases and their associated Claude Code sessions
  * running on remote servers.
- * 
+ *
  * @property id Unique identifier for the project
  * @property name User-friendly name for the project
  * @property serverProfileId Reference to the server profile hosting this project
@@ -40,7 +40,7 @@ data class Project(
     val description: String? = null,
     val settings: ProjectSettings = ProjectSettings(),
     val metadata: ProjectMetadata = ProjectMetadata(),
-    val lastError: String? = null
+    val lastError: String? = null,
 ) {
     init {
         validateName(name)
@@ -48,110 +48,113 @@ data class Project(
         validateScriptsFolder(scriptsFolder)
         validateRepositoryUrl(repositoryUrl)
     }
-    
+
     /**
      * Updates the project status.
      */
     fun updateStatus(newStatus: ProjectStatus): Project = copy(status = newStatus)
-    
+
     /**
      * Marks the project as active.
      */
-    fun markAsActive(): Project = copy(
-        status = ProjectStatus.ACTIVE,
-        lastActiveAt = System.currentTimeMillis()
-    )
-    
+    fun markAsActive(): Project =
+        copy(
+            status = ProjectStatus.ACTIVE,
+            lastActiveAt = System.currentTimeMillis(),
+        )
+
     /**
      * Marks the project as inactive.
      */
     fun markAsInactive(): Project = copy(status = ProjectStatus.INACTIVE)
-    
+
     /**
      * Marks the project as having an error.
      */
-    fun markAsError(error: String): Project = copy(
-        status = ProjectStatus.ERROR,
-        lastError = error
-    )
-    
+    fun markAsError(error: String): Project =
+        copy(
+            status = ProjectStatus.ERROR,
+            lastError = error,
+        )
+
     /**
      * Clears the last error.
      */
     fun clearError(): Project = copy(lastError = null)
-    
+
     /**
      * Updates the Claude session ID.
      */
     fun updateClaudeSessionId(sessionId: String?): Project = copy(claudeSessionId = sessionId)
-    
+
     /**
      * Deactivates the project.
      */
     fun deactivate(): Project = copy(isActive = false)
-    
+
     /**
      * Reactivates the project.
      */
     fun reactivate(): Project = copy(isActive = true)
-    
+
     /**
      * Updates the description.
      */
     fun updateDescription(newDescription: String?): Project = copy(description = newDescription)
-    
+
     /**
      * Updates the project settings.
      */
     fun updateSettings(newSettings: ProjectSettings): Project = copy(settings = newSettings)
-    
+
     /**
      * Gets the display name for the project.
      */
     fun getDisplayName(): String = name.ifBlank { "Project $id" }
-    
+
     /**
      * Gets the full project path.
      */
     fun getFullPath(): String = projectPath
-    
+
     /**
      * Gets the scripts folder path.
      */
     fun getScriptsPath(): String = "$projectPath/$scriptsFolder"
-    
+
     /**
      * Checks if the project is currently active.
      */
     fun isCurrentlyActive(): Boolean = status == ProjectStatus.ACTIVE
-    
+
     /**
      * Checks if the project is connected.
      */
     fun isConnected(): Boolean = status in listOf(ProjectStatus.ACTIVE, ProjectStatus.CONNECTING)
-    
+
     /**
      * Checks if the project has an error.
      */
     fun hasError(): Boolean = status == ProjectStatus.ERROR
-    
+
     /**
      * Gets the project type based on repository URL.
      */
-    fun getProjectType(): ProjectType = when {
-        repositoryUrl == null -> ProjectType.LOCAL
-        repositoryUrl.contains("github.com") -> ProjectType.GITHUB
-        repositoryUrl.contains("gitlab.com") -> ProjectType.GITLAB
-        repositoryUrl.contains("bitbucket.org") -> ProjectType.BITBUCKET
-        else -> ProjectType.GIT
-    }
-    
+    fun getProjectType(): ProjectType =
+        when {
+            repositoryUrl == null -> ProjectType.LOCAL
+            repositoryUrl.contains("github.com") -> ProjectType.GITHUB
+            repositoryUrl.contains("gitlab.com") -> ProjectType.GITLAB
+            repositoryUrl.contains("bitbucket.org") -> ProjectType.BITBUCKET
+            else -> ProjectType.GIT
+        }
+
     companion object {
         const val MAX_NAME_LENGTH = 100
         const val MIN_NAME_LENGTH = 1
         const val MAX_PATH_LENGTH = 500
         const val MAX_SCRIPTS_FOLDER_LENGTH = 100
-        
+
         private fun validateName(name: String) {
             if (name.isBlank()) {
                 throw ValidationException("name", name, "Project name cannot be blank")
@@ -163,33 +166,35 @@ data class Project(
                 throw ValidationException("name", name, "Project name too short (min $MIN_NAME_LENGTH chars)")
             }
         }
-        
+
         private fun validateProjectPath(projectPath: String) {
             if (projectPath.isBlank()) {
                 throw ValidationException("projectPath", projectPath, "Project path cannot be blank")
             }
             if (projectPath.length > MAX_PATH_LENGTH) {
-                throw ValidationException("projectPath", projectPath, "Project path too long (max $MAX_PATH_LENGTH chars)")
+                val message = "Project path too long (max $MAX_PATH_LENGTH chars)"
+                throw ValidationException("projectPath", projectPath, message)
             }
             // Basic path validation - should start with / for absolute paths
             if (!projectPath.startsWith("/")) {
                 throw ValidationException("projectPath", projectPath, "Project path should be absolute (start with /)")
             }
         }
-        
+
         private fun validateScriptsFolder(scriptsFolder: String) {
             if (scriptsFolder.isBlank()) {
                 throw ValidationException("scriptsFolder", scriptsFolder, "Scripts folder cannot be blank")
             }
             if (scriptsFolder.length > MAX_SCRIPTS_FOLDER_LENGTH) {
-                throw ValidationException("scriptsFolder", scriptsFolder, "Scripts folder too long (max $MAX_SCRIPTS_FOLDER_LENGTH chars)")
+                val message = "Scripts folder too long (max $MAX_SCRIPTS_FOLDER_LENGTH chars)"
+                throw ValidationException("scriptsFolder", scriptsFolder, message)
             }
             // Scripts folder should be relative (not start with /)
             if (scriptsFolder.startsWith("/")) {
                 throw ValidationException("scriptsFolder", scriptsFolder, "Scripts folder should be relative (not start with /)")
             }
         }
-        
+
         private fun validateRepositoryUrl(repositoryUrl: String?) {
             if (repositoryUrl != null && repositoryUrl.isNotBlank()) {
                 val urlRegex = Regex("^https?://.*|^git@.*|^ssh://.*")
@@ -209,7 +214,7 @@ enum class ProjectStatus {
     CONNECTING,
     ACTIVE,
     DISCONNECTED,
-    ERROR
+    ERROR,
 }
 
 /**
@@ -220,12 +225,12 @@ enum class ProjectType {
     GIT,
     GITHUB,
     GITLAB,
-    BITBUCKET
+    BITBUCKET,
 }
 
 /**
  * Project-specific settings.
- * 
+ *
  * @property maxTurns Maximum number of turns in a Claude conversation
  * @property allowedTools List of allowed tools for Claude
  * @property autoApprovePatterns List of patterns that auto-approve actions
@@ -236,19 +241,24 @@ enum class ProjectType {
  * @property customPrompts Custom prompts for the project
  */
 data class ProjectSettings(
-    val maxTurns: Int = 50,
+    val maxTurns: Int = DEFAULT_MAX_TURNS,
     val allowedTools: List<String> = emptyList(),
     val autoApprovePatterns: List<String> = emptyList(),
     val notificationsEnabled: Boolean = true,
     val backgroundMonitoring: Boolean = true,
     val autoSave: Boolean = true,
-    val maxMessageHistory: Int = 1000,
-    val customPrompts: Map<String, String> = emptyMap()
-)
+    val maxMessageHistory: Int = DEFAULT_MAX_MESSAGE_HISTORY,
+    val customPrompts: Map<String, String> = emptyMap(),
+) {
+    companion object {
+        const val DEFAULT_MAX_TURNS = 50
+        const val DEFAULT_MAX_MESSAGE_HISTORY = 1000
+    }
+}
 
 /**
  * Metadata associated with a project.
- * 
+ *
  * @property tags User-defined tags for organizing projects
  * @property language Primary programming language
  * @property framework Framework or technology stack
@@ -266,7 +276,7 @@ data class ProjectMetadata(
     val size: ProjectSize = ProjectSize.SMALL,
     val collaborators: List<String> = emptyList(),
     val lastBackup: Long? = null,
-    val statistics: ProjectStatistics = ProjectStatistics()
+    val statistics: ProjectStatistics = ProjectStatistics(),
 )
 
 /**
@@ -276,7 +286,7 @@ enum class ProjectEnvironment {
     DEVELOPMENT,
     STAGING,
     PRODUCTION,
-    TESTING
+    TESTING,
 }
 
 /**
@@ -286,12 +296,12 @@ enum class ProjectSize {
     SMALL,
     MEDIUM,
     LARGE,
-    ENTERPRISE
+    ENTERPRISE,
 }
 
 /**
  * Project statistics.
- * 
+ *
  * @property totalMessages Total number of messages
  * @property totalSessions Total number of sessions
  * @property lastSessionDuration Duration of last session in minutes
@@ -307,7 +317,7 @@ data class ProjectStatistics(
     val totalTimeSpent: Long = 0,
     val avgSessionDuration: Long = 0,
     val scriptsExecuted: Int = 0,
-    val errorsOccurred: Int = 0
+    val errorsOccurred: Int = 0,
 )
 
 /**
@@ -329,64 +339,79 @@ class ProjectBuilder {
     private var settings: ProjectSettings = ProjectSettings()
     private var metadata: ProjectMetadata = ProjectMetadata()
     private var lastError: String? = null
-    
+
     fun id(id: String) = apply { this.id = id }
+
     fun name(name: String) = apply { this.name = name }
+
     fun serverProfileId(serverProfileId: String) = apply { this.serverProfileId = serverProfileId }
+
     fun projectPath(projectPath: String) = apply { this.projectPath = projectPath }
+
     fun scriptsFolder(scriptsFolder: String) = apply { this.scriptsFolder = scriptsFolder }
+
     fun claudeSessionId(claudeSessionId: String?) = apply { this.claudeSessionId = claudeSessionId }
+
     fun status(status: ProjectStatus) = apply { this.status = status }
+
     fun repositoryUrl(repositoryUrl: String?) = apply { this.repositoryUrl = repositoryUrl }
+
     fun createdAt(createdAt: Long) = apply { this.createdAt = createdAt }
+
     fun lastActiveAt(lastActiveAt: Long?) = apply { this.lastActiveAt = lastActiveAt }
+
     fun isActive(isActive: Boolean) = apply { this.isActive = isActive }
+
     fun description(description: String?) = apply { this.description = description }
+
     fun settings(settings: ProjectSettings) = apply { this.settings = settings }
+
     fun metadata(metadata: ProjectMetadata) = apply { this.metadata = metadata }
+
     fun lastError(lastError: String?) = apply { this.lastError = lastError }
-    
-    fun build(): Project = Project(
-        id = id,
-        name = name,
-        serverProfileId = serverProfileId,
-        projectPath = projectPath,
-        scriptsFolder = scriptsFolder,
-        claudeSessionId = claudeSessionId,
-        status = status,
-        repositoryUrl = repositoryUrl,
-        createdAt = createdAt,
-        lastActiveAt = lastActiveAt,
-        isActive = isActive,
-        description = description,
-        settings = settings,
-        metadata = metadata,
-        lastError = lastError
-    )
+
+    fun build(): Project =
+        Project(
+            id = id,
+            name = name,
+            serverProfileId = serverProfileId,
+            projectPath = projectPath,
+            scriptsFolder = scriptsFolder,
+            claudeSessionId = claudeSessionId,
+            status = status,
+            repositoryUrl = repositoryUrl,
+            createdAt = createdAt,
+            lastActiveAt = lastActiveAt,
+            isActive = isActive,
+            description = description,
+            settings = settings,
+            metadata = metadata,
+            lastError = lastError,
+        )
 }
 
 /**
  * Extension functions for Project.
  */
-fun Project.toBuilder(): ProjectBuilder = ProjectBuilder()
-    .id(id)
-    .name(name)
-    .serverProfileId(serverProfileId)
-    .projectPath(projectPath)
-    .scriptsFolder(scriptsFolder)
-    .claudeSessionId(claudeSessionId)
-    .status(status)
-    .repositoryUrl(repositoryUrl)
-    .createdAt(createdAt)
-    .lastActiveAt(lastActiveAt)
-    .isActive(isActive)
-    .description(description)
-    .settings(settings)
-    .metadata(metadata)
-    .lastError(lastError)
+fun Project.toBuilder(): ProjectBuilder =
+    ProjectBuilder()
+        .id(id)
+        .name(name)
+        .serverProfileId(serverProfileId)
+        .projectPath(projectPath)
+        .scriptsFolder(scriptsFolder)
+        .claudeSessionId(claudeSessionId)
+        .status(status)
+        .repositoryUrl(repositoryUrl)
+        .createdAt(createdAt)
+        .lastActiveAt(lastActiveAt)
+        .isActive(isActive)
+        .description(description)
+        .settings(settings)
+        .metadata(metadata)
+        .lastError(lastError)
 
 /**
  * Creates a new project builder.
  */
-fun project(block: ProjectBuilder.() -> Unit): Project = 
-    ProjectBuilder().apply(block).build()
+fun project(block: ProjectBuilder.() -> Unit): Project = ProjectBuilder().apply(block).build()

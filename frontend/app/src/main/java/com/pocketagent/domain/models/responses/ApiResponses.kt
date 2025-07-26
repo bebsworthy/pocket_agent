@@ -1,6 +1,8 @@
 package com.pocketagent.domain.models.responses
 
-import com.pocketagent.domain.models.entities.*
+import com.pocketagent.domain.models.entities.ConnectionStatus
+import com.pocketagent.domain.models.entities.Message
+import com.pocketagent.domain.models.entities.ProjectStatus
 
 /**
  * Base class for all API responses.
@@ -13,7 +15,7 @@ sealed class ApiResponse {
 
 /**
  * Response to a connect request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the connection was successful
@@ -29,12 +31,12 @@ data class ConnectResponse(
     val sessionId: String? = null,
     val projectStatus: ProjectStatus = ProjectStatus.INACTIVE,
     val errorMessage: String? = null,
-    val serverInfo: ServerInfo? = null
+    val serverInfo: ServerInfo? = null,
 ) : ApiResponse()
 
 /**
  * Response to a disconnect request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the disconnection was successful
@@ -46,12 +48,12 @@ data class DisconnectResponse(
     override val timestamp: Long = System.currentTimeMillis(),
     override val success: Boolean,
     val projectStatus: ProjectStatus = ProjectStatus.INACTIVE,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a send message request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the message was sent successfully
@@ -65,12 +67,12 @@ data class SendMessageResponse(
     override val success: Boolean,
     val messageId: String? = null,
     val claudeResponse: Message? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to an execute command request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the command was executed successfully
@@ -86,12 +88,12 @@ data class ExecuteCommandResponse(
     val output: String? = null,
     val exitCode: Int? = null,
     val errorMessage: String? = null,
-    val executionTime: Long? = null
+    val executionTime: Long? = null,
 ) : ApiResponse()
 
 /**
  * Response to a permission response request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the permission response was processed successfully
@@ -105,12 +107,12 @@ data class PermissionResponseResponse(
     override val success: Boolean,
     val permissionId: String,
     val actionResult: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a file upload request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the file was uploaded successfully
@@ -126,12 +128,12 @@ data class UploadFileResponse(
     val filePath: String? = null,
     val fileSize: Long? = null,
     val checksum: String? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a file download request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the file was downloaded successfully
@@ -149,12 +151,12 @@ data class DownloadFileResponse(
     val fileSize: Long? = null,
     val mimeType: String? = null,
     val lastModified: Long? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a list files request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the files were listed successfully
@@ -168,12 +170,12 @@ data class ListFilesResponse(
     override val success: Boolean,
     val files: List<FileInfo> = emptyList(),
     val totalCount: Int = 0,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a git status request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the git status was retrieved successfully
@@ -185,12 +187,12 @@ data class GitStatusResponse(
     override val timestamp: Long = System.currentTimeMillis(),
     override val success: Boolean,
     val status: GitStatus? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to an initialize project request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the project was initialized successfully
@@ -206,12 +208,12 @@ data class InitializeProjectResponse(
     val projectPath: String? = null,
     val repositoryCloned: Boolean = false,
     val scriptsExecuted: Int = 0,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a server status request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the server status was retrieved successfully
@@ -225,12 +227,12 @@ data class ServerStatusResponse(
     override val success: Boolean,
     val status: ConnectionStatus = ConnectionStatus.NEVER_CONNECTED,
     val serverInfo: ServerInfo? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a test connection request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the connection test was successful
@@ -244,12 +246,12 @@ data class TestConnectionResponse(
     override val success: Boolean,
     val latency: Long? = null,
     val serverInfo: ServerInfo? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a project status request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the project status was retrieved successfully
@@ -265,12 +267,12 @@ data class ProjectStatusResponse(
     val status: ProjectStatus = ProjectStatus.INACTIVE,
     val sessionId: String? = null,
     val lastActivity: Long? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a cancel operation request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the operation was cancelled successfully
@@ -282,12 +284,12 @@ data class CancelOperationResponse(
     override val timestamp: Long = System.currentTimeMillis(),
     override val success: Boolean,
     val operationId: String,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a session history request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the session history was retrieved successfully
@@ -303,12 +305,12 @@ data class SessionHistoryResponse(
     val messages: List<Message> = emptyList(),
     val totalCount: Int = 0,
     val hasMore: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to an authenticate request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the authentication was successful
@@ -322,12 +324,12 @@ data class AuthenticateResponse(
     override val success: Boolean,
     val sessionToken: String? = null,
     val expiresAt: Long? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Response to a heartbeat request.
- * 
+ *
  * @property requestId Original request ID
  * @property timestamp Response timestamp
  * @property success Whether the heartbeat was successful
@@ -339,12 +341,12 @@ data class HeartbeatResponse(
     override val timestamp: Long = System.currentTimeMillis(),
     override val success: Boolean,
     val serverTime: Long? = null,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : ApiResponse()
 
 /**
  * Server information model.
- * 
+ *
  * @property hostname Server hostname
  * @property version Server version
  * @property uptime Server uptime in seconds
@@ -360,12 +362,12 @@ data class ServerInfo(
     val load: List<Double> = emptyList(),
     val memory: MemoryInfo? = null,
     val disk: DiskInfo? = null,
-    val capabilities: List<String> = emptyList()
+    val capabilities: List<String> = emptyList(),
 )
 
 /**
  * Memory usage information.
- * 
+ *
  * @property total Total memory in bytes
  * @property used Used memory in bytes
  * @property free Free memory in bytes
@@ -375,12 +377,12 @@ data class MemoryInfo(
     val total: Long,
     val used: Long,
     val free: Long,
-    val available: Long
+    val available: Long,
 )
 
 /**
  * Disk usage information.
- * 
+ *
  * @property total Total disk space in bytes
  * @property used Used disk space in bytes
  * @property free Free disk space in bytes
@@ -390,12 +392,12 @@ data class DiskInfo(
     val total: Long,
     val used: Long,
     val free: Long,
-    val available: Long
+    val available: Long,
 )
 
 /**
  * File information model.
- * 
+ *
  * @property name File name
  * @property path Full file path
  * @property size File size in bytes
@@ -415,12 +417,12 @@ data class FileInfo(
     val permissions: String? = null,
     val owner: String? = null,
     val group: String? = null,
-    val mimeType: String? = null
+    val mimeType: String? = null,
 )
 
 /**
  * Git status information.
- * 
+ *
  * @property branch Current branch
  * @property ahead Number of commits ahead
  * @property behind Number of commits behind
@@ -438,12 +440,12 @@ data class GitStatus(
     val staged: List<String> = emptyList(),
     val untracked: List<String> = emptyList(),
     val deleted: List<String> = emptyList(),
-    val hasChanges: Boolean = false
+    val hasChanges: Boolean = false,
 )
 
 /**
  * Permission request model.
- * 
+ *
  * @property id Permission request ID
  * @property projectId Project ID
  * @property tool Tool requesting permission
@@ -463,7 +465,7 @@ data class PermissionRequest(
     val risk: RiskLevel,
     val timestamp: Long = System.currentTimeMillis(),
     val timeout: Long = 30_000, // 30 seconds
-    val metadata: Map<String, String> = emptyMap()
+    val metadata: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -473,12 +475,12 @@ enum class RiskLevel {
     LOW,
     MEDIUM,
     HIGH,
-    CRITICAL
+    CRITICAL,
 }
 
 /**
  * Real-time event from the server.
- * 
+ *
  * @property eventId Event ID
  * @property projectId Project ID
  * @property type Event type
@@ -490,7 +492,7 @@ data class ServerEvent(
     val projectId: String,
     val type: EventType,
     val timestamp: Long = System.currentTimeMillis(),
-    val data: Map<String, Any> = emptyMap()
+    val data: Map<String, Any> = emptyMap(),
 )
 
 /**
@@ -503,5 +505,5 @@ enum class EventType {
     PERMISSION_REQUESTED,
     OPERATION_COMPLETED,
     FILE_CHANGED,
-    GIT_STATUS_CHANGED
+    GIT_STATUS_CHANGED,
 }

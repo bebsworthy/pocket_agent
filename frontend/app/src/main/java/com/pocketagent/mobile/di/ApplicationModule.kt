@@ -13,53 +13,62 @@ import javax.inject.Singleton
 
 /**
  * Application-level dependency injection module.
- * 
+ *
  * This module provides application-wide dependencies that have a singleton scope
  * and are available throughout the entire application lifecycle.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 object ApplicationModule {
-    
     /**
      * Provides the application context.
-     * 
+     *
      * @param context The application context
      * @return The application context instance
      */
     @Singleton
     @Provides
-    fun provideApplicationContext(@ApplicationContext context: Context): Context = context
-    
+    fun provideApplicationContext(
+        @ApplicationContext context: Context,
+    ): Context {
+        return context
+    }
+
     /**
      * Provides the main dispatcher for coroutines.
-     * 
+     *
      * @return The main coroutine dispatcher
      */
     @Singleton
     @Provides
     @MainDispatcher
-    fun provideMainDispatcher(): CoroutineDispatcher = Dispatchers.Main
-    
+    fun provideMainDispatcher(): CoroutineDispatcher {
+        return Dispatchers.Main
+    }
+
     /**
      * Provides the IO dispatcher for coroutines.
-     * 
+     *
      * @return The IO coroutine dispatcher
      */
     @Singleton
     @Provides
     @IoDispatcher
-    fun provideIoDispatcher(): CoroutineDispatcher = Dispatchers.IO
-    
+    fun provideIoDispatcher(): CoroutineDispatcher {
+        return Dispatchers.IO
+    }
+
     /**
      * Provides the default dispatcher for coroutines.
-     * 
+     *
      * @return The default coroutine dispatcher
      */
     @Singleton
     @Provides
     @DefaultDispatcher
-    fun provideDefaultDispatcher(): CoroutineDispatcher = Dispatchers.Default
+    fun provideDefaultDispatcher(): CoroutineDispatcher {
+        return Dispatchers.Default
+    }
 }
 
 // Qualifiers for different types of coroutine dispatchers

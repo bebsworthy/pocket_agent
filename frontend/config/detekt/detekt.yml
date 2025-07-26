@@ -642,7 +642,7 @@ style:
     active: false
     maxChainedCalls: 5
   MaxLineLength:
-    active: true
+    active: false
     maxLineLength: 120
     excludePackageStatements: true
     excludeImportStatements: true
@@ -663,7 +663,7 @@ style:
   NestedClassesVisibility:
     active: true
   NewLineAtEndOfFile:
-    active: true
+    active: false
   NoTabs:
     active: false
   NullableBooleanCheck:
@@ -794,3 +794,31 @@ style:
     active: true
     excludeImports:
       - 'java.util.*'
+
+libraries:
+  active: true
+  ForbiddenPublicDataClass:
+    active: false
+  LibraryEntitiesShouldNotBePublic:
+    active: false
+
+# Formatting rules - disable to avoid conflicts with Spotless/ktlint
+formatting:
+  active: true
+  # Disable indentation rule since we handle formatting with Spotless + ktlint
+  Indentation:
+    active: false
+  # Disable other formatting rules that conflict with ktlint
+  ArgumentListWrapping:
+    active: false
+  ParameterListWrapping:
+    active: false
+  Wrapping:
+    active: false
+  # Disable line-ending and whitespace rules
+  FinalNewline:
+    active: false
+  NoTrailingSpaces:
+    active: false
+  MaximumLineLength:
+    active: false

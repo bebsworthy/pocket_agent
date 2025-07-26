@@ -24,28 +24,43 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// ================================
+// UI State definitions for examples
+// ================================
+
 /**
  * Example usage of coroutine configuration in different application layers.
  * These examples demonstrate best practices for using the coroutine framework.
  */
 
-// UI State definitions for examples
 sealed class ProjectUiState {
     object Loading : ProjectUiState()
 
-    data class Success(val projects: List<Project>) : ProjectUiState()
+    data class Success(
+        val projects: List<Project>,
+    ) : ProjectUiState()
 
-    data class Error(val message: String) : ProjectUiState()
+    data class Error(
+        val message: String,
+    ) : ProjectUiState()
 }
 
 sealed class ProjectEvent {
-    data class ProjectsLoaded(val projects: List<Project>) : ProjectEvent()
+    data class ProjectsLoaded(
+        val projects: List<Project>,
+    ) : ProjectEvent()
 
-    data class LoadingFailed(val error: Throwable) : ProjectEvent()
+    data class LoadingFailed(
+        val error: Throwable,
+    ) : ProjectEvent()
 
-    data class CreationFailed(val error: Throwable) : ProjectEvent()
+    data class CreationFailed(
+        val error: Throwable,
+    ) : ProjectEvent()
 
-    data class ProjectCreated(val project: Project) : ProjectEvent()
+    data class ProjectCreated(
+        val project: Project,
+    ) : ProjectEvent()
 }
 
 sealed class ConnectionState {
@@ -57,10 +72,14 @@ sealed class ConnectionState {
 
     object Disconnecting : ConnectionState()
 
-    data class Error(val message: String) : ConnectionState()
+    data class Error(
+        val message: String,
+    ) : ConnectionState()
 }
 
-data class WebSocketMessage(val content: String)
+data class WebSocketMessage(
+    val content: String,
+)
 
 // ================================
 // Repository Layer Example
@@ -114,17 +133,15 @@ class ProjectRepository
         /**
          * Observes project changes with flow optimizations.
          */
-        fun observeProjects(): Flow<List<Project>> {
-            return projects
+        fun observeProjects(): Flow<List<Project>> =
+            projects
                 .map { projectList ->
                     // Apply any transformations
                     projectList.sortedBy { it.name }
-                }
-                .catch { throwable ->
+                }.catch { throwable ->
                     // Handle errors in the flow
                     emit(emptyList())
                 }
-        }
 
         /**
          * Creates a new project with background processing.
@@ -239,9 +256,7 @@ class ProjectViewModel
             }
         }
 
-        private fun generateId(): String {
-            return System.currentTimeMillis().toString()
-        }
+        private fun generateId(): String = System.currentTimeMillis().toString()
     }
 
 // ================================
@@ -330,8 +345,7 @@ class WebSocketService
                 messageFlow
                     .catch { throwable ->
                         _connectionState.value = ConnectionState.Error(throwable.message ?: "Message error")
-                    }
-                    .collect { message ->
+                    }.collect { message ->
                         _messages.emit(message)
                     }
             }
@@ -419,9 +433,7 @@ class CreateProjectUseCase
             }
         }
 
-        private fun generateId(): String {
-            return "project_${System.currentTimeMillis()}"
-        }
+        private fun generateId(): String = "project_${System.currentTimeMillis()}"
     }
 
 /**

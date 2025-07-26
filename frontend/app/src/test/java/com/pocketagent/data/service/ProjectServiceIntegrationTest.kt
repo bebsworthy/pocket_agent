@@ -382,7 +382,9 @@ class ProjectServiceIntegrationTest : BaseUnitTest() {
             every { mockValidator.validateNameUniqueness("Existing Project", listOf("Existing Project")) } returns
                 ValidationResult.Failure(
                     com.pocketagent.data.validation.ValidationError.businessRuleError(
-                        "Project name already exists", "name", "DUPLICATE_NAME",
+                        "Project name already exists",
+                        "name",
+                        "DUPLICATE_NAME",
                     ),
                 )
 
@@ -406,7 +408,9 @@ class ProjectServiceIntegrationTest : BaseUnitTest() {
             } returns
                 ValidationResult.Failure(
                     com.pocketagent.data.validation.ValidationError.businessRuleError(
-                        "Project path already exists", "projectPath", "DUPLICATE_PATH",
+                        "Project path already exists",
+                        "projectPath",
+                        "DUPLICATE_PATH",
                     ),
                 )
 

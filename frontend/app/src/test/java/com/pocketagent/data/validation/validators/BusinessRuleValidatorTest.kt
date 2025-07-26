@@ -340,15 +340,14 @@ class BusinessRuleValidatorTest {
         id: String,
         name: String,
         fingerprint: String = "SHA256:defaultfingerprint",
-    ): SshIdentity {
-        return SshIdentity(
+    ): SshIdentity =
+        SshIdentity(
             id = id,
             name = name,
             encryptedPrivateKey = "encrypted_key_data",
             publicKeyFingerprint = fingerprint,
             createdAt = System.currentTimeMillis(),
         )
-    }
 
     private fun createServerProfile(
         id: String,
@@ -357,8 +356,8 @@ class BusinessRuleValidatorTest {
         hostname: String = "example.com",
         port: Int = 22,
         wrapperPort: Int = 8080,
-    ): ServerProfile {
-        return ServerProfile(
+    ): ServerProfile =
+        ServerProfile(
             id = id,
             name = name,
             hostname = hostname,
@@ -368,7 +367,6 @@ class BusinessRuleValidatorTest {
             wrapperPort = wrapperPort,
             createdAt = System.currentTimeMillis(),
         )
-    }
 
     private fun createProject(
         id: String,
@@ -378,8 +376,8 @@ class BusinessRuleValidatorTest {
         status: ProjectStatus = ProjectStatus.INACTIVE,
         lastActiveAt: Long? = null,
         lastError: String? = null,
-    ): Project {
-        return Project(
+    ): Project =
+        Project(
             id = id,
             name = name,
             serverProfileId = serverProfileId,
@@ -389,18 +387,16 @@ class BusinessRuleValidatorTest {
             lastActiveAt = lastActiveAt,
             lastError = lastError,
         )
-    }
 
     private fun createMessage(
         id: String,
         content: String,
         type: MessageType = MessageType.USER_INPUT,
-    ): Message {
-        return Message(
+    ): Message =
+        Message(
             id = id,
             content = content,
             type = type,
             timestamp = System.currentTimeMillis(),
         )
-    }
 }

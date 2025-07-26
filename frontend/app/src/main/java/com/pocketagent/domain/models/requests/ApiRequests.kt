@@ -1,8 +1,6 @@
 package com.pocketagent.domain.models.requests
 
 import com.pocketagent.domain.models.entities.MessageType
-import com.pocketagent.domain.models.entities.ProjectStatus
-import com.pocketagent.domain.models.entities.ConnectionStatus
 
 /**
  * Base class for all API requests.
@@ -14,7 +12,7 @@ sealed class ApiRequest {
 
 /**
  * Request to establish connection to a server.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property serverProfileId Server profile to connect to
@@ -26,12 +24,12 @@ data class ConnectRequest(
     override val timestamp: Long = System.currentTimeMillis(),
     val serverProfileId: String,
     val projectId: String,
-    val sshKeyFingerprint: String
+    val sshKeyFingerprint: String,
 ) : ApiRequest()
 
 /**
  * Request to disconnect from a server.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to disconnect from
@@ -41,12 +39,12 @@ data class DisconnectRequest(
     override val requestId: String,
     override val timestamp: Long = System.currentTimeMillis(),
     val projectId: String,
-    val shutdownClaude: Boolean = false
+    val shutdownClaude: Boolean = false,
 ) : ApiRequest()
 
 /**
  * Request to send a message to Claude Code.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to send message to
@@ -62,12 +60,12 @@ data class SendMessageRequest(
     val content: String,
     val type: MessageType = MessageType.USER_INPUT,
     val attachments: List<String> = emptyList(),
-    val metadata: Map<String, String> = emptyMap()
+    val metadata: Map<String, String> = emptyMap(),
 ) : ApiRequest()
 
 /**
  * Request to execute a shell command.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to execute command in
@@ -83,12 +81,12 @@ data class ExecuteCommandRequest(
     val command: String,
     val workingDirectory: String? = null,
     val environment: Map<String, String> = emptyMap(),
-    val timeout: Long = 30_000 // 30 seconds
+    val timeout: Long = 30_000, // 30 seconds
 ) : ApiRequest()
 
 /**
  * Request to respond to a permission request.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project the permission is for
@@ -102,12 +100,12 @@ data class PermissionResponseRequest(
     val projectId: String,
     val permissionId: String,
     val approved: Boolean,
-    val reason: String? = null
+    val reason: String? = null,
 ) : ApiRequest()
 
 /**
  * Request to upload a file.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to upload file to
@@ -123,12 +121,12 @@ data class UploadFileRequest(
     val filename: String,
     val path: String,
     val content: String, // base64 encoded
-    val overwrite: Boolean = false
+    val overwrite: Boolean = false,
 ) : ApiRequest()
 
 /**
  * Request to download a file.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to download file from
@@ -140,12 +138,12 @@ data class DownloadFileRequest(
     override val timestamp: Long = System.currentTimeMillis(),
     val projectId: String,
     val path: String,
-    val encoding: String = "UTF-8"
+    val encoding: String = "UTF-8",
 ) : ApiRequest()
 
 /**
  * Request to list files in a directory.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to list files in
@@ -159,12 +157,12 @@ data class ListFilesRequest(
     val projectId: String,
     val path: String,
     val recursive: Boolean = false,
-    val includeHidden: Boolean = false
+    val includeHidden: Boolean = false,
 ) : ApiRequest()
 
 /**
  * Request to get git status.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to get git status for
@@ -174,12 +172,12 @@ data class GitStatusRequest(
     override val requestId: String,
     override val timestamp: Long = System.currentTimeMillis(),
     val projectId: String,
-    val path: String? = null
+    val path: String? = null,
 ) : ApiRequest()
 
 /**
  * Request to initialize a project.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to initialize
@@ -195,12 +193,12 @@ data class InitializeProjectRequest(
     val projectPath: String,
     val repositoryUrl: String? = null,
     val accessToken: String? = null,
-    val scripts: List<String> = emptyList()
+    val scripts: List<String> = emptyList(),
 ) : ApiRequest()
 
 /**
  * Request to get server status.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property serverProfileId Server profile to check status for
@@ -208,12 +206,12 @@ data class InitializeProjectRequest(
 data class ServerStatusRequest(
     override val requestId: String,
     override val timestamp: Long = System.currentTimeMillis(),
-    val serverProfileId: String
+    val serverProfileId: String,
 ) : ApiRequest()
 
 /**
  * Request to test SSH connection.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property serverProfileId Server profile to test connection for
@@ -223,12 +221,12 @@ data class TestConnectionRequest(
     override val requestId: String,
     override val timestamp: Long = System.currentTimeMillis(),
     val serverProfileId: String,
-    val sshKeyFingerprint: String
+    val sshKeyFingerprint: String,
 ) : ApiRequest()
 
 /**
  * Request to get project status.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to get status for
@@ -236,12 +234,12 @@ data class TestConnectionRequest(
 data class ProjectStatusRequest(
     override val requestId: String,
     override val timestamp: Long = System.currentTimeMillis(),
-    val projectId: String
+    val projectId: String,
 ) : ApiRequest()
 
 /**
  * Request to cancel an operation.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property operationId Operation to cancel
@@ -251,12 +249,12 @@ data class CancelOperationRequest(
     override val requestId: String,
     override val timestamp: Long = System.currentTimeMillis(),
     val operationId: String,
-    val reason: String? = null
+    val reason: String? = null,
 ) : ApiRequest()
 
 /**
  * Request to get session history.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to get history for
@@ -270,12 +268,12 @@ data class SessionHistoryRequest(
     val projectId: String,
     val limit: Int = 100,
     val offset: Int = 0,
-    val messageType: MessageType? = null
+    val messageType: MessageType? = null,
 ) : ApiRequest()
 
 /**
  * Request to authenticate with SSH key.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property serverProfileId Server profile to authenticate with
@@ -289,12 +287,12 @@ data class AuthenticateRequest(
     val serverProfileId: String,
     val publicKeyFingerprint: String,
     val challenge: String,
-    val signature: String
+    val signature: String,
 ) : ApiRequest()
 
 /**
  * Heartbeat request to maintain connection.
- * 
+ *
  * @property requestId Unique identifier for the request
  * @property timestamp Request timestamp
  * @property projectId Project to send heartbeat for
@@ -302,5 +300,5 @@ data class AuthenticateRequest(
 data class HeartbeatRequest(
     override val requestId: String,
     override val timestamp: Long = System.currentTimeMillis(),
-    val projectId: String
+    val projectId: String,
 ) : ApiRequest()

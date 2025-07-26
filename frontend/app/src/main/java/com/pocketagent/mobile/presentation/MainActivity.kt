@@ -14,21 +14,20 @@ import dagger.hilt.android.AndroidEntryPoint
 
 /**
  * Main activity for the Pocket Agent application.
- * 
+ *
  * This activity serves as the entry point for the user interface and hosts
  * the main navigation and screens.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
         setContent {
             PocketAgentTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
+                    color = MaterialTheme.colorScheme.background,
                 ) {
                     // This will be replaced with proper navigation
                     PlaceholderContent()
@@ -39,22 +38,25 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+@Suppress("FunctionName")
 fun PlaceholderContent() {
     Text(
         text = "Pocket Agent - Coming Soon",
-        style = MaterialTheme.typography.headlineMedium
+        style = MaterialTheme.typography.headlineMedium,
     )
 }
 
 @Composable
+@Suppress("FunctionName")
 fun PocketAgentTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        content = content
+        content = content,
     )
 }
 
 @Preview(showBackground = true)
 @Composable
+@Suppress("FunctionName")
 fun DefaultPreview() {
     PocketAgentTheme {
         PlaceholderContent()

@@ -49,23 +49,17 @@ class CoroutineScopes
         /**
          * Launches a coroutine in the application scope.
          */
-        fun launchInApplicationScope(block: suspend CoroutineScope.() -> Unit): Job {
-            return applicationScope.launch(block = block)
-        }
+        fun launchInApplicationScope(block: suspend CoroutineScope.() -> Unit): Job = applicationScope.launch(block = block)
 
         /**
          * Launches a coroutine in the WebSocket scope.
          */
-        fun launchInWebSocketScope(block: suspend CoroutineScope.() -> Unit): Job {
-            return webSocketScope.launch(block = block)
-        }
+        fun launchInWebSocketScope(block: suspend CoroutineScope.() -> Unit): Job = webSocketScope.launch(block = block)
 
         /**
          * Launches a coroutine in the background scope.
          */
-        fun launchInBackgroundScope(block: suspend CoroutineScope.() -> Unit): Job {
-            return backgroundScope.launch(block = block)
-        }
+        fun launchInBackgroundScope(block: suspend CoroutineScope.() -> Unit): Job = backgroundScope.launch(block = block)
 
         /**
          * Cancels all scopes (typically called during app shutdown).
@@ -87,27 +81,25 @@ object ViewModelScopeExtensions {
     fun ViewModel.launchWithErrorHandling(
         onError: (Throwable) -> Unit = { it.printStackTrace() },
         block: suspend CoroutineScope.() -> Unit,
-    ): Job {
-        return viewModelScope.launch {
+    ): Job =
+        viewModelScope.launch {
             try {
                 block()
             } catch (throwable: Throwable) {
                 onError(throwable)
             }
         }
-    }
 
     /**
      * Launches a coroutine in the ViewModel scope with supervisor behavior.
      * This ensures that if one child coroutine fails, others continue running.
      */
-    fun ViewModel.launchWithSupervisor(block: suspend CoroutineScope.() -> Unit): Job {
-        return viewModelScope.launch {
+    fun ViewModel.launchWithSupervisor(block: suspend CoroutineScope.() -> Unit): Job =
+        viewModelScope.launch {
             supervisorScope {
                 block()
             }
         }
-    }
 }
 
 /**
@@ -138,9 +130,7 @@ class LifecycleCoroutineScope(
     /**
      * Checks if the scope is active.
      */
-    fun isActive(): Boolean {
-        return scopeJob?.isActive == true
-    }
+    fun isActive(): Boolean = scopeJob?.isActive == true
 }
 
 /**
@@ -180,16 +170,12 @@ class CancellationManager {
     /**
      * Checks if a job is still active.
      */
-    fun isJobActive(key: String): Boolean {
-        return jobs[key]?.isActive == true
-    }
+    fun isJobActive(key: String): Boolean = jobs[key]?.isActive == true
 
     /**
      * Gets the number of active jobs.
      */
-    fun getActiveJobCount(): Int {
-        return jobs.values.count { it.isActive }
-    }
+    fun getActiveJobCount(): Int = jobs.values.count { it.isActive }
 }
 
 /**
@@ -208,16 +194,13 @@ fun CoroutineScope.launchCancellable(
 /**
  * Creates a scope that automatically cancels when the parent scope is cancelled.
  */
-fun CoroutineScope.createChildScope(): CoroutineScope {
-    return this + Job()
-}
+fun CoroutineScope.createChildScope(): CoroutineScope = this + Job()
 
 /**
  * Utility for creating scopes with specific error handling.
  */
-fun CoroutineScope.withErrorHandling(onError: (Throwable) -> Unit): CoroutineScope {
-    return this +
+fun CoroutineScope.withErrorHandling(onError: (Throwable) -> Unit): CoroutineScope =
+    this +
         kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
             onError(throwable)
         }
-}

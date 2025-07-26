@@ -1,5 +1,6 @@
 package com.pocketagent.data.repository
 
+import android.util.Log
 import com.pocketagent.data.models.AppData
 import com.pocketagent.data.models.Message
 import com.pocketagent.data.models.Project
@@ -31,6 +32,10 @@ class DataValidator
         private val repositoryValidationService: RepositoryValidationService,
         private val businessRuleValidator: BusinessRuleValidator,
     ) {
+        companion object {
+            private const val TAG = "DataValidator"
+        }
+
         /**
          * Validates the complete AppData structure for consistency.
          *
@@ -53,8 +58,15 @@ class DataValidator
             // Fallback to legacy validation for backward compatibility
             try {
                 validateLegacyConstraints(data)
-            } catch (e: Exception) {
-                throw DataException.ValidationException("Legacy validation failed: ${e.message}")
+            } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "Legacy validation failed - invalid arguments", e)
+                throw DataException.ValidationException("Legacy validation failed - invalid arguments: ${e.message}", e)
+            } catch (e: IllegalStateException) {
+                Log.e(TAG, "Legacy validation failed - invalid state", e)
+                throw DataException.ValidationException("Legacy validation failed - invalid state: ${e.message}", e)
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Legacy validation failed - security error", e)
+                throw DataException.ValidationException("Legacy validation failed - security error: ${e.message}", e)
             }
         }
 
@@ -251,7 +263,8 @@ class DataValidator
                 try {
                     validateSshIdentity(identity)
                 } catch (e: IllegalArgumentException) {
-                    throw DataException.ValidationException("SSH identity '${identity.name}' validation failed: ${e.message}")
+                    Log.e(TAG, "SSH identity '${identity.name}' validation failed", e)
+                    throw DataException.ValidationException("SSH identity '${identity.name}' validation failed: ${e.message}", e)
                 }
             }
 
@@ -260,7 +273,8 @@ class DataValidator
                 try {
                     validateServerProfile(profile)
                 } catch (e: IllegalArgumentException) {
-                    throw DataException.ValidationException("Server profile '${profile.name}' validation failed: ${e.message}")
+                    Log.e(TAG, "Server profile '${profile.name}' validation failed", e)
+                    throw DataException.ValidationException("Server profile '${profile.name}' validation failed: ${e.message}", e)
                 }
             }
 
@@ -269,7 +283,8 @@ class DataValidator
                 try {
                     validateProject(project)
                 } catch (e: IllegalArgumentException) {
-                    throw DataException.ValidationException("Project '${project.name}' validation failed: ${e.message}")
+                    Log.e(TAG, "Project '${project.name}' validation failed", e)
+                    throw DataException.ValidationException("Project '${project.name}' validation failed: ${e.message}", e)
                 }
             }
 
@@ -278,7 +293,8 @@ class DataValidator
                 try {
                     validateMessage(message)
                 } catch (e: IllegalArgumentException) {
-                    throw DataException.ValidationException("Message '${message.id}' validation failed: ${e.message}")
+                    Log.e(TAG, "Message '${message.id}' validation failed", e)
+                    throw DataException.ValidationException("Message '${message.id}' validation failed: ${e.message}", e)
                 }
             }
         }
@@ -335,11 +351,10 @@ class DataValidator
          * @param name The name to validate
          * @return true if valid, false otherwise
          */
-        fun isValidEntityName(name: String): Boolean {
-            return name.isNotBlank() &&
+        fun isValidEntityName(name: String): Boolean =
+            name.isNotBlank() &&
                 name.length <= 100 &&
                 name.matches(Regex("^[a-zA-Z0-9 _.-]+$"))
-        }
 
         /**
          * Checks if a hostname is valid.
@@ -347,11 +362,10 @@ class DataValidator
          * @param hostname The hostname to validate
          * @return true if valid, false otherwise
          */
-        fun isValidHostname(hostname: String): Boolean {
-            return hostname.isNotBlank() &&
+        fun isValidHostname(hostname: String): Boolean =
+            hostname.isNotBlank() &&
                 hostname.length <= 253 &&
                 hostname.matches(Regex("^[a-zA-Z0-9.-]+$"))
-        }
 
         /**
          * Checks if a port number is valid.
@@ -359,7 +373,5 @@ class DataValidator
          * @param port The port number to validate
          * @return true if valid, false otherwise
          */
-        fun isValidPort(port: Int): Boolean {
-            return port in 1..65535
-        }
+        fun isValidPort(port: Int): Boolean = port in 1..65535
     }

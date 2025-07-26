@@ -6,10 +6,6 @@ import java.util.UUID
 /**
  * Test data builders for creating test entities with sensible defaults.
  */
-
-/**
- * Builder for SSH Identity entities.
- */
 class SshIdentityTestBuilder {
     private var id: String = UUID.randomUUID().toString()
     private var name: String = "Test SSH Key"
@@ -30,8 +26,8 @@ class SshIdentityTestBuilder {
 
     fun createdAt(instant: Instant) = apply { this.createdAt = instant }
 
-    fun build(): SshIdentityEntity {
-        return SshIdentityEntity(
+    fun build(): SshIdentityEntity =
+        SshIdentityEntity(
             id = id,
             name = name,
             publicKey = publicKey,
@@ -39,7 +35,6 @@ class SshIdentityTestBuilder {
             keyAlias = keyAlias,
             createdAt = createdAt,
         )
-    }
 }
 
 /**
@@ -71,8 +66,8 @@ class ServerProfileTestBuilder {
 
     fun status(status: String) = apply { this.status = status }
 
-    fun build(): ServerProfileEntity {
-        return ServerProfileEntity(
+    fun build(): ServerProfileEntity =
+        ServerProfileEntity(
             id = id,
             name = name,
             hostname = hostname,
@@ -82,7 +77,6 @@ class ServerProfileTestBuilder {
             lastConnected = lastConnected,
             status = status,
         )
-    }
 }
 
 /**
@@ -117,8 +111,8 @@ class ProjectTestBuilder {
 
     fun lastActive(instant: Instant) = apply { this.lastActive = instant }
 
-    fun build(): ProjectEntity {
-        return ProjectEntity(
+    fun build(): ProjectEntity =
+        ProjectEntity(
             id = id,
             name = name,
             serverProfileId = serverProfileId,
@@ -129,7 +123,6 @@ class ProjectTestBuilder {
             created = created,
             lastActive = lastActive,
         )
-    }
 }
 
 /**
@@ -158,8 +151,8 @@ class MessageTestBuilder {
 
     fun metadata(metadata: Map<String, String>) = apply { this.metadata = metadata }
 
-    fun build(): MessageEntity {
-        return MessageEntity(
+    fun build(): MessageEntity =
+        MessageEntity(
             id = id,
             projectId = projectId,
             content = content,
@@ -168,7 +161,6 @@ class MessageTestBuilder {
             isPartial = isPartial,
             metadata = metadata,
         )
-    }
 }
 
 /**
@@ -191,21 +183,20 @@ class WebSocketMessageTestBuilder {
     fun buildCommandMessage(
         command: String,
         isShellCommand: Boolean = false,
-    ): Map<String, Any> {
-        return mapOf(
+    ): Map<String, Any> =
+        mapOf(
             "type" to "command",
             "id" to id,
             "timestamp" to timestamp,
             "command" to command,
             "isShellCommand" to isShellCommand,
         )
-    }
 
     fun buildClaudeResponse(
         content: String,
         conversationId: String,
-    ): Map<String, Any> {
-        return mapOf(
+    ): Map<String, Any> =
+        mapOf(
             "type" to "claude_response",
             "id" to id,
             "timestamp" to timestamp,
@@ -213,15 +204,14 @@ class WebSocketMessageTestBuilder {
             "conversationId" to conversationId,
             "isPartial" to false,
         )
-    }
 
     fun buildPermissionRequest(
         tool: String,
         action: String,
         details: Map<String, Any> = emptyMap(),
         risk: String = "MEDIUM",
-    ): Map<String, Any> {
-        return mapOf(
+    ): Map<String, Any> =
+        mapOf(
             "type" to "permission_request",
             "id" to id,
             "timestamp" to timestamp,
@@ -231,55 +221,50 @@ class WebSocketMessageTestBuilder {
             "risk" to risk,
             "timeout" to 300,
         )
-    }
 
     fun buildPermissionResponse(
         requestId: String,
         approved: Boolean,
-    ): Map<String, Any> {
-        return mapOf(
+    ): Map<String, Any> =
+        mapOf(
             "type" to "permission_response",
             "id" to id,
             "timestamp" to timestamp,
             "requestId" to requestId,
             "approved" to approved,
         )
-    }
 
     fun buildAuthChallenge(
         nonce: String,
         serverVersion: String = "1.0.0",
-    ): Map<String, Any> {
-        return mapOf(
+    ): Map<String, Any> =
+        mapOf(
             "type" to "auth_challenge",
             "nonce" to nonce,
             "timestamp" to timestamp,
             "serverVersion" to serverVersion,
         )
-    }
 
     fun buildAuthResponse(
         publicKey: String,
         signature: String,
         sessionId: String? = null,
-    ): Map<String, Any> {
-        return mapOf(
+    ): Map<String, Any> =
+        mapOf(
             "type" to "auth_response",
             "publicKey" to publicKey,
             "signature" to signature,
             "clientVersion" to "1.0.0",
             "sessionId" to sessionId,
         )
-    }
 
-    fun buildAuthSuccess(sessionId: String): Map<String, Any> {
-        return mapOf(
+    fun buildAuthSuccess(sessionId: String): Map<String, Any> =
+        mapOf(
             "type" to "auth_success",
             "sessionId" to sessionId,
             // 24 hours
             "expiresAt" to (timestamp + 86400000),
         )
-    }
 }
 
 /**
@@ -299,14 +284,13 @@ class BatteryStateTestBuilder {
 
     fun level(level: String) = apply { this.level = level }
 
-    fun build(): BatteryStateEntity {
-        return BatteryStateEntity(
+    fun build(): BatteryStateEntity =
+        BatteryStateEntity(
             percentage = percentage,
             isCharging = isCharging,
             isPowerSaveMode = isPowerSaveMode,
             level = level,
         )
-    }
 }
 
 /**
@@ -319,12 +303,11 @@ object TestDataFactory {
     fun createSshIdentity(
         name: String = "Test SSH Key",
         keyAlias: String = "test_key",
-    ): SshIdentityEntity {
-        return SshIdentityTestBuilder()
+    ): SshIdentityEntity =
+        SshIdentityTestBuilder()
             .name(name)
             .keyAlias(keyAlias)
             .build()
-    }
 
     /**
      * Creates a typical server profile for testing.
@@ -333,13 +316,12 @@ object TestDataFactory {
         name: String = "Test Server",
         hostname: String = "test.example.com",
         sshIdentityId: String = UUID.randomUUID().toString(),
-    ): ServerProfileEntity {
-        return ServerProfileTestBuilder()
+    ): ServerProfileEntity =
+        ServerProfileTestBuilder()
             .name(name)
             .hostname(hostname)
             .sshIdentityId(sshIdentityId)
             .build()
-    }
 
     /**
      * Creates a typical project for testing.
@@ -348,13 +330,12 @@ object TestDataFactory {
         name: String = "Test Project",
         serverProfileId: String = UUID.randomUUID().toString(),
         status: String = "DISCONNECTED",
-    ): ProjectEntity {
-        return ProjectTestBuilder()
+    ): ProjectEntity =
+        ProjectTestBuilder()
             .name(name)
             .serverProfileId(serverProfileId)
             .status(status)
             .build()
-    }
 
     /**
      * Creates a user message for testing.
@@ -362,13 +343,12 @@ object TestDataFactory {
     fun createUserMessage(
         content: String = "Test user message",
         projectId: String = UUID.randomUUID().toString(),
-    ): MessageEntity {
-        return MessageTestBuilder()
+    ): MessageEntity =
+        MessageTestBuilder()
             .content(content)
             .type("USER")
             .projectId(projectId)
             .build()
-    }
 
     /**
      * Creates a Claude response message for testing.
@@ -376,35 +356,32 @@ object TestDataFactory {
     fun createClaudeMessage(
         content: String = "Test Claude response",
         projectId: String = UUID.randomUUID().toString(),
-    ): MessageEntity {
-        return MessageTestBuilder()
+    ): MessageEntity =
+        MessageTestBuilder()
             .content(content)
             .type("CLAUDE")
             .projectId(projectId)
             .build()
-    }
 
     /**
      * Creates a low battery state for testing.
      */
-    fun createLowBatteryState(): BatteryStateEntity {
-        return BatteryStateTestBuilder()
+    fun createLowBatteryState(): BatteryStateEntity =
+        BatteryStateTestBuilder()
             .percentage(25)
             .isCharging(false)
             .level("LOW")
             .build()
-    }
 
     /**
      * Creates a charging battery state for testing.
      */
-    fun createChargingBatteryState(): BatteryStateEntity {
-        return BatteryStateTestBuilder()
+    fun createChargingBatteryState(): BatteryStateEntity =
+        BatteryStateTestBuilder()
             .percentage(75)
             .isCharging(true)
             .level("CHARGING")
             .build()
-    }
 
     /**
      * Creates a complete project setup with related entities.
@@ -431,7 +408,7 @@ object TestDataFactory {
 /**
  * Data class for complete project setup.
  */
-data class ProjectSetup(
+internal data class ProjectSetup(
     val sshIdentity: SshIdentityEntity,
     val serverProfile: ServerProfileEntity,
     val project: ProjectEntity,
@@ -439,7 +416,7 @@ data class ProjectSetup(
 )
 
 // Placeholder entity classes - these would be replaced with actual domain models
-data class SshIdentityEntity(
+internal data class SshIdentityEntity(
     val id: String,
     val name: String,
     val publicKey: String,
@@ -448,7 +425,7 @@ data class SshIdentityEntity(
     val createdAt: Instant,
 )
 
-data class ServerProfileEntity(
+internal data class ServerProfileEntity(
     val id: String,
     val name: String,
     val hostname: String,
@@ -459,7 +436,7 @@ data class ServerProfileEntity(
     val status: String,
 )
 
-data class ProjectEntity(
+internal data class ProjectEntity(
     val id: String,
     val name: String,
     val serverProfileId: String,
@@ -471,7 +448,7 @@ data class ProjectEntity(
     val lastActive: Instant,
 )
 
-data class MessageEntity(
+internal data class MessageEntity(
     val id: String,
     val projectId: String,
     val content: String,
@@ -481,7 +458,7 @@ data class MessageEntity(
     val metadata: Map<String, String>,
 )
 
-data class BatteryStateEntity(
+internal data class BatteryStateEntity(
     val percentage: Int,
     val isCharging: Boolean,
     val isPowerSaveMode: Boolean,

@@ -468,7 +468,12 @@ class ServerProfileServiceTest {
                 )
             coEvery {
                 mockConnectionTester.testConnection(
-                    "test.example.com", 22, "testuser", "ssh-1", 8080, any(),
+                    "test.example.com",
+                    22,
+                    "testuser",
+                    "ssh-1",
+                    8080,
+                    any(),
                 )
             } returns expectedResult
 

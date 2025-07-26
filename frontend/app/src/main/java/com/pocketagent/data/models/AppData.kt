@@ -151,9 +151,9 @@ class AppDataBuilder {
         )
 }
 
-/**
- * Extension functions for AppData operations.
- */
+// ================================
+// Extension functions for AppData operations
+// ================================
 
 /**
  * Get all SSH identities sorted by name.
@@ -205,7 +205,6 @@ fun AppData.searchProjects(query: String): List<Project> =
  * Get messages for a specific project.
  */
 fun AppData.getProjectMessages(projectId: String): List<Message> = messages[projectId] ?: emptyList()
-
 
 /**
  * Check if the data contains any entities.

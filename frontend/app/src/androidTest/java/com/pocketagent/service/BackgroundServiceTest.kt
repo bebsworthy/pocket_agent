@@ -31,7 +31,8 @@ class BackgroundServiceTest : BaseInstrumentationTest() {
 
         // Initialize WorkManager for testing
         val config =
-            Configuration.Builder()
+            Configuration
+                .Builder()
                 .setMinimumLoggingLevel(android.util.Log.DEBUG)
                 .setExecutor(SynchronousExecutor())
                 .build()
@@ -67,7 +68,9 @@ class BackgroundServiceTest : BaseInstrumentationTest() {
     @Test
     fun backgroundService_createsNotificationChannel() {
         // Given
-        val notificationManager = androidx.core.app.NotificationManagerCompat.from(context)
+        val notificationManager =
+            androidx.core.app.NotificationManagerCompat
+                .from(context)
 
         // When: Service starts
         val serviceIntent =

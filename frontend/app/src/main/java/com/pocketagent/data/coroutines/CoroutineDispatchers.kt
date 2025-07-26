@@ -40,14 +40,13 @@ class CoroutineDispatchers
          * @param operationType The type of operation to be performed
          * @return The appropriate dispatcher for the operation
          */
-        fun getDispatcher(operationType: OperationType): CoroutineDispatcher {
-            return when (operationType) {
+        fun getDispatcher(operationType: OperationType): CoroutineDispatcher =
+            when (operationType) {
                 OperationType.UI -> main
                 OperationType.IO -> io
                 OperationType.CPU -> default
                 OperationType.IMMEDIATE -> unconfined
             }
-        }
 
         /**
          * Enum defining different types of operations and their appropriate dispatchers.

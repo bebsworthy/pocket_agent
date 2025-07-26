@@ -68,11 +68,10 @@ interface DataMigration {
     suspend fun rollback(
         data: AppData,
         progressCallback: ((MigrationProgress) -> Unit)? = null,
-    ): AppData {
+    ): AppData =
         throw MigrationException.RollbackNotSupportedException(
             "Migration $name (v$fromVersion -> v$toVersion) does not support rollback",
         )
-    }
 
     /**
      * Gets the estimated number of steps this migration will take.
@@ -136,12 +135,11 @@ abstract class BaseDataMigration : DataMigration {
     /**
      * Updates the data version to the target version.
      */
-    protected fun updateDataVersion(data: AppData): AppData {
-        return data.copy(
+    protected fun updateDataVersion(data: AppData): AppData =
+        data.copy(
             version = toVersion,
             lastModified = System.currentTimeMillis(),
         )
-    }
 
     /**
      * Validates basic data integrity after migration.
@@ -149,8 +147,8 @@ abstract class BaseDataMigration : DataMigration {
     override suspend fun validateMigration(
         originalData: AppData,
         migratedData: AppData,
-    ): Boolean {
-        return try {
+    ): Boolean =
+        try {
             // Check that the version was updated
             migratedData.version == toVersion &&
                 // Check that data counts are reasonable
@@ -162,47 +160,67 @@ abstract class BaseDataMigration : DataMigration {
         } catch (e: Exception) {
             false
         }
-    }
 }
 
 /**
  * Exception types for migration operations.
  */
-sealed class MigrationException(message: String, cause: Throwable? = null) : Exception(message, cause) {
+sealed class MigrationException(
+    message: String,
+    cause: Throwable? = null,
+) : Exception(message, cause) {
     /**
      * Thrown when a migration cannot be executed due to invalid data version.
      */
-    class InvalidVersionException(message: String) : MigrationException(message)
+    class InvalidVersionException(
+        message: String,
+    ) : MigrationException(message)
 
     /**
      * Thrown when migration validation fails.
      */
-    class ValidationException(message: String, cause: Throwable? = null) : MigrationException(message, cause)
+    class ValidationException(
+        message: String,
+        cause: Throwable? = null,
+    ) : MigrationException(message, cause)
 
     /**
      * Thrown when a migration fails during execution.
      */
-    class ExecutionException(message: String, cause: Throwable? = null) : MigrationException(message, cause)
+    class ExecutionException(
+        message: String,
+        cause: Throwable? = null,
+    ) : MigrationException(message, cause)
 
     /**
      * Thrown when rollback is requested but not supported.
      */
-    class RollbackNotSupportedException(message: String) : MigrationException(message)
+    class RollbackNotSupportedException(
+        message: String,
+    ) : MigrationException(message)
 
     /**
      * Thrown when rollback fails.
      */
-    class RollbackException(message: String, cause: Throwable? = null) : MigrationException(message, cause)
+    class RollbackException(
+        message: String,
+        cause: Throwable? = null,
+    ) : MigrationException(message, cause)
 
     /**
      * Thrown when a required migration is not found.
      */
-    class MigrationNotFoundException(message: String) : MigrationException(message)
+    class MigrationNotFoundException(
+        message: String,
+    ) : MigrationException(message)
 
     /**
      * Thrown when migration data is corrupted.
      */
-    class CorruptedDataException(message: String, cause: Throwable? = null) : MigrationException(message, cause)
+    class CorruptedDataException(
+        message: String,
+        cause: Throwable? = null,
+    ) : MigrationException(message, cause)
 }
 
 /**

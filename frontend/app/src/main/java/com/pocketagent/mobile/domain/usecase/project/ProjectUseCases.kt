@@ -5,28 +5,28 @@ import kotlinx.coroutines.CoroutineDispatcher
 
 class GetProjectsUseCase(
     private val repository: ProjectRepository,
-    private val dispatcher: CoroutineDispatcher
+    private val dispatcher: CoroutineDispatcher,
 ) {
     // Implementation will be added in Task 2.3: Implement Project CRUD Operations
 }
 
 class CreateProjectUseCase(
     private val repository: ProjectRepository,
-    private val dispatcher: CoroutineDispatcher
+    private val dispatcher: CoroutineDispatcher,
 ) {
     // Implementation will be added in Task 2.3: Implement Project CRUD Operations
 }
 
 class UpdateProjectUseCase(
     private val repository: ProjectRepository,
-    private val dispatcher: CoroutineDispatcher
+    private val dispatcher: CoroutineDispatcher,
 ) {
     // Implementation will be added in Task 2.3: Implement Project CRUD Operations
 }
 
 class DeleteProjectUseCase(
     private val repository: ProjectRepository,
-    private val dispatcher: CoroutineDispatcher
+    private val dispatcher: CoroutineDispatcher,
 ) {
     // Implementation will be added in Task 2.3: Implement Project CRUD Operations
 }

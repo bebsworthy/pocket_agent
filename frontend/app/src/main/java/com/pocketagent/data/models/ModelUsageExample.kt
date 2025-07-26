@@ -1,11 +1,8 @@
 package com.pocketagent.data.models
 
-/**
- * Example usage of the data models to demonstrate functionality.
- *
- * This file shows how to use the core data models, builders, and extensions
- * in typical application scenarios.
- */
+import android.util.Log
+import com.pocketagent.data.service.ServiceException
+import kotlinx.serialization.SerializationException
 
 /**
  * Example demonstrating basic model creation and usage.
@@ -175,7 +172,8 @@ fun demonstrateMessageOperations() {
 
     // Demonstrate message with metadata
     val messageWithMetadata =
-        MessageFactory.createClaudeResponse("Here's your component")
+        MessageFactory
+            .createClaudeResponse("Here's your component")
             .withToolRequests(listOf("create_file", "write_code"))
             .withPermissionRequired(true)
             .withExecutionTime(1500)
@@ -332,8 +330,20 @@ fun runAllExamples() {
         demonstrateDataCleanup()
 
         println("\n✅ All examples completed successfully!")
-    } catch (e: Exception) {
-        println("❌ Error running examples: ${e.message}")
-        e.printStackTrace()
+    } catch (e: SerializationException) {
+        Log.e("ModelUsageExample", "Serialization error running examples", e)
+        println("❌ Serialization error running examples: ${e.message}")
+    } catch (e: IllegalArgumentException) {
+        Log.e("ModelUsageExample", "Invalid argument error running examples", e)
+        println("❌ Invalid argument error running examples: ${e.message}")
+    } catch (e: IllegalStateException) {
+        Log.e("ModelUsageExample", "Invalid state error running examples", e)
+        println("❌ Invalid state error running examples: ${e.message}")
+    } catch (e: ServiceException) {
+        Log.e("ModelUsageExample", "Service error running examples", e)
+        println("❌ Service error running examples: ${e.message}")
+    } catch (e: RuntimeException) {
+        Log.e("ModelUsageExample", "Runtime error running examples", e)
+        println("❌ Runtime error running examples: ${e.message}")
     }
 }

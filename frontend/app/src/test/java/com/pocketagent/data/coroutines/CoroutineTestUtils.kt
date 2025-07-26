@@ -53,16 +53,13 @@ class CoroutineTestUtils {
         /**
          * Collects all emissions from a flow for testing.
          */
-        suspend fun <T> Flow<T>.collectToList(): List<T> {
-            return this.toList()
-        }
+        suspend fun <T> Flow<T>.collectToList(): List<T> = this.toList()
 
         /**
          * Creates a test scope with a supervisor job.
          */
-        fun createTestScope(testDispatcher: TestDispatcher = StandardTestDispatcher()): CoroutineScope {
-            return CoroutineScope(SupervisorJob() + testDispatcher)
-        }
+        fun createTestScope(testDispatcher: TestDispatcher = StandardTestDispatcher()): CoroutineScope =
+            CoroutineScope(SupervisorJob() + testDispatcher)
 
         /**
          * Creates test dispatchers for all operation types.
@@ -81,7 +78,7 @@ class CoroutineTestUtils {
     /**
      * Data class holding test dispatchers.
      */
-    data class TestDispatchers(
+    internal data class TestDispatchers(
         val main: TestDispatcher,
         val io: TestDispatcher,
         val default: TestDispatcher,
@@ -290,11 +287,10 @@ class FlowTestUtils {
 class MockCoroutineErrorHandler : CoroutineErrorHandler() {
     val errors = mutableListOf<Throwable>()
 
-    override fun createGeneralExceptionHandler(): kotlinx.coroutines.CoroutineExceptionHandler {
-        return kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
+    override fun createGeneralExceptionHandler(): kotlinx.coroutines.CoroutineExceptionHandler =
+        kotlinx.coroutines.CoroutineExceptionHandler { _, throwable ->
             errors.add(throwable)
         }
-    }
 
     fun getLastError(): Throwable? = errors.lastOrNull()
 
@@ -322,11 +318,10 @@ fun CoroutineScope.launchTest(
 suspend fun <T> testSuspendFunction(
     timeoutMs: Long = 5000,
     block: suspend () -> T,
-): T {
-    return kotlinx.coroutines.withTimeout(timeoutMs) {
+): T =
+    kotlinx.coroutines.withTimeout(timeoutMs) {
         block()
     }
-}
 
 /**
  * Utility for testing cancellation behavior.

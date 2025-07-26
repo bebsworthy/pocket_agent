@@ -28,14 +28,26 @@ data class ServerProfile(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
     val hostname: String,
-    val port: Int = 22,
+    val port: Int = DEFAULT_SSH_PORT,
     val username: String,
     val sshIdentityId: String,
-    val wrapperPort: Int = 8080,
+    val wrapperPort: Int = DEFAULT_WRAPPER_PORT,
     val lastConnectedAt: Long? = null,
     val status: ConnectionStatus = ConnectionStatus.NEVER_CONNECTED,
     val createdAt: Long = System.currentTimeMillis(),
 ) {
+    companion object {
+        const val DEFAULT_SSH_PORT = 22
+        const val DEFAULT_WRAPPER_PORT = 8080
+        const val MAX_NAME_LENGTH = 100
+        const val MAX_HOSTNAME_LENGTH = 255
+        const val MAX_USERNAME_LENGTH = 32
+        const val MIN_PORT = 1
+        const val MAX_PORT = 65535
+        const val HOURS_24_IN_MILLIS = 24 * 60 * 60 * 1000L
+        const val DAY_IN_MILLIS = 24 * 60 * 60 * 1000L
+    }
+
     init {
         require(name.isNotBlank()) { "Server profile name cannot be blank" }
         require(name.length <= 100) { "Server profile name too long (max 100 chars)" }
@@ -198,10 +210,6 @@ class ServerProfileBuilder {
 }
 
 /**
- * Extension functions for ServerProfile operations.
- */
-
-/**
  * Update the connection status.
  */
 fun ServerProfile.withStatus(status: ConnectionStatus): ServerProfile = copy(status = status)
@@ -298,48 +306,44 @@ object ServerProfileValidator {
     /**
      * Validate server profile name.
      */
-    fun validateName(name: String): Result<Unit> {
-        return when {
+    fun validateName(name: String): Result<Unit> =
+        when {
             name.isBlank() -> Result.failure(IllegalArgumentException("Name cannot be blank"))
             name.length > 100 -> Result.failure(IllegalArgumentException("Name too long (max 100 chars)"))
             !VALID_NAME_REGEX.matches(name) -> Result.failure(IllegalArgumentException("Name contains invalid characters"))
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate hostname format.
      */
-    fun validateHostname(hostname: String): Result<Unit> {
-        return when {
+    fun validateHostname(hostname: String): Result<Unit> =
+        when {
             hostname.isBlank() -> Result.failure(IllegalArgumentException("Hostname cannot be blank"))
             !VALID_HOSTNAME_REGEX.matches(hostname) -> Result.failure(IllegalArgumentException("Invalid hostname format"))
             hostname.length > 255 -> Result.failure(IllegalArgumentException("Hostname too long (max 255 chars)"))
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate username format.
      */
-    fun validateUsername(username: String): Result<Unit> {
-        return when {
+    fun validateUsername(username: String): Result<Unit> =
+        when {
             username.isBlank() -> Result.failure(IllegalArgumentException("Username cannot be blank"))
             !VALID_USERNAME_REGEX.matches(username) -> Result.failure(IllegalArgumentException("Invalid username format"))
             username.length > 32 -> Result.failure(IllegalArgumentException("Username too long (max 32 chars)"))
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate port number.
      */
-    fun validatePort(port: Int): Result<Unit> {
-        return when {
+    fun validatePort(port: Int): Result<Unit> =
+        when {
             port < 1 || port > 65535 -> Result.failure(IllegalArgumentException("Port must be between 1 and 65535"))
             else -> Result.success(Unit)
         }
-    }
 }
 
 /**

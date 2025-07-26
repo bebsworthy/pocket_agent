@@ -56,9 +56,7 @@ object FlowConfiguration {
      * @param initialValue The initial value for the StateFlow
      * @return A configured MutableStateFlow
      */
-    fun <T> createStateFlow(initialValue: T): MutableStateFlow<T> {
-        return MutableStateFlow(initialValue)
-    }
+    fun <T> createStateFlow(initialValue: T): MutableStateFlow<T> = MutableStateFlow(initialValue)
 
     /**
      * Creates a configured MutableSharedFlow for events.
@@ -70,12 +68,11 @@ object FlowConfiguration {
     fun <T> createSharedFlow(
         replay: Int = DEFAULT_REPLAY,
         extraBufferCapacity: Int = DEFAULT_BUFFER_SIZE,
-    ): MutableSharedFlow<T> {
-        return MutableSharedFlow(
+    ): MutableSharedFlow<T> =
+        MutableSharedFlow(
             replay = replay,
             extraBufferCapacity = extraBufferCapacity,
         )
-    }
 
     /**
      * Creates a configured Channel for message passing.
@@ -83,9 +80,7 @@ object FlowConfiguration {
      * @param capacity The capacity of the channel
      * @return A configured Channel
      */
-    fun <T> createChannel(capacity: Int = DEFAULT_BUFFER_SIZE): Channel<T> {
-        return Channel(capacity)
-    }
+    fun <T> createChannel(capacity: Int = DEFAULT_BUFFER_SIZE): Channel<T> = Channel(capacity)
 
     /**
      * Creates a hot StateFlow that survives configuration changes.
@@ -97,13 +92,14 @@ object FlowConfiguration {
     fun <T> Flow<T>.asHotStateFlow(
         scope: CoroutineScope,
         initialValue: T,
-    ): StateFlow<T> {
-        return this.stateIn(
+    ): StateFlow<T> =
+        this.stateIn(
             scope = scope,
-            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            started =
+                kotlinx.coroutines.flow.SharingStarted
+                    .WhileSubscribed(5000),
             initialValue = initialValue,
         )
-    }
 
     /**
      * Creates a hot SharedFlow that survives configuration changes.
@@ -115,13 +111,14 @@ object FlowConfiguration {
     fun <T> Flow<T>.asHotSharedFlow(
         scope: CoroutineScope,
         replay: Int = DEFAULT_REPLAY,
-    ): SharedFlow<T> {
-        return this.shareIn(
+    ): SharedFlow<T> =
+        this.shareIn(
             scope = scope,
-            started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5000),
+            started =
+                kotlinx.coroutines.flow.SharingStarted
+                    .WhileSubscribed(5000),
             replay = replay,
         )
-    }
 
     /**
      * Applies standard error handling to a flow.
@@ -129,12 +126,11 @@ object FlowConfiguration {
      * @param onError Callback for handling errors
      * @return Flow with error handling applied
      */
-    fun <T> Flow<T>.withErrorHandling(onError: (Throwable) -> Unit = { it.printStackTrace() }): Flow<T> {
-        return this.catch { throwable ->
+    fun <T> Flow<T>.withErrorHandling(onError: (Throwable) -> Unit = { it.printStackTrace() }): Flow<T> =
+        this.catch { throwable ->
             onError(throwable)
             throw throwable
         }
-    }
 
     /**
      * Applies standard retry logic to a flow.
@@ -146,11 +142,10 @@ object FlowConfiguration {
     fun <T> Flow<T>.withRetry(
         retries: Long = DEFAULT_RETRY_ATTEMPTS.toLong(),
         predicate: (Throwable) -> Boolean = { true },
-    ): Flow<T> {
-        return this.retry(retries) { throwable ->
+    ): Flow<T> =
+        this.retry(retries) { throwable ->
             predicate(throwable)
         }
-    }
 
     /**
      * Applies standard performance optimizations to a flow.
@@ -158,21 +153,18 @@ object FlowConfiguration {
      * @param dispatcher The dispatcher to use for flow operations
      * @return Optimized flow
      */
-    fun <T> Flow<T>.withPerformanceOptimizations(dispatcher: kotlinx.coroutines.CoroutineDispatcher): Flow<T> {
-        return this
+    fun <T> Flow<T>.withPerformanceOptimizations(dispatcher: kotlinx.coroutines.CoroutineDispatcher): Flow<T> =
+        this
             .distinctUntilChanged()
             .buffer(DEFAULT_BUFFER_SIZE)
             .flowOn(dispatcher)
-    }
 
     /**
      * Applies conflation to prevent backpressure in high-frequency updates.
      *
      * @return Conflated flow
      */
-    fun <T> Flow<T>.withConflation(): Flow<T> {
-        return this.conflate()
-    }
+    fun <T> Flow<T>.withConflation(): Flow<T> = this.conflate()
 
     /**
      * Adds a loading state to the beginning of a flow.
@@ -180,15 +172,15 @@ object FlowConfiguration {
      * @param loadingValue The value to emit while loading
      * @return Flow with loading state
      */
-    fun <T> Flow<T>.withLoadingState(loadingValue: T): Flow<T> {
-        return this.onStart { emit(loadingValue) }
-    }
+    fun <T> Flow<T>.withLoadingState(loadingValue: T): Flow<T> = this.onStart { emit(loadingValue) }
 }
 
 /**
  * Wrapper class for managing StateFlow instances with common patterns.
  */
-class StateFlowManager<T>(initialValue: T) {
+class StateFlowManager<T>(
+    initialValue: T,
+) {
     private val _state = MutableStateFlow(initialValue)
     val state: StateFlow<T> = _state.asStateFlow()
 
@@ -243,9 +235,7 @@ class SharedFlowManager<T>(
     /**
      * Tries to emit an event without suspending.
      */
-    fun tryEmitEvent(event: T): Boolean {
-        return _events.tryEmit(event)
-    }
+    fun tryEmitEvent(event: T): Boolean = _events.tryEmit(event)
 
     /**
      * Gets the number of subscribers.

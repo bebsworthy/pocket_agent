@@ -488,7 +488,10 @@ class SshKeyEncryptionTest {
             (version shr 8).toByte(),
             version.toByte(),
             // IV length (4 bytes)
-            0, 0, 0, 12,
+            0,
+            0,
+            0,
+            12,
             // IV (12 bytes)
             *iv,
             // Encrypted data
@@ -532,27 +535,25 @@ object SshKeyEncryptionTestUtils {
     /**
      * Creates a test secret key for testing.
      */
-    fun createTestSecretKey(): SecretKey {
-        return object : SecretKey {
+    fun createTestSecretKey(): SecretKey =
+        object : SecretKey {
             override fun getAlgorithm() = "AES"
 
             override fun getFormat() = "RAW"
 
             override fun getEncoded() = ByteArray(32) { it.toByte() }
         }
-    }
 
     /**
      * Creates test key generation parameters.
      */
-    fun createTestKeyGenParameterSpec(alias: String): KeyGenParameterSpec {
-        return KeyGenParameterSpec.Builder(
-            alias,
-            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-        )
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+    fun createTestKeyGenParameterSpec(alias: String): KeyGenParameterSpec =
+        KeyGenParameterSpec
+            .Builder(
+                alias,
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            ).setBlockModes(KeyProperties.BLOCK_MODE_GCM)
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setKeySize(256)
             .build()
-    }
 }

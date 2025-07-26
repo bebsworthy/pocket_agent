@@ -25,16 +25,12 @@ object MockitoTestUtils {
     /**
      * Stub a suspend function with a result.
      */
-    suspend fun <T> OngoingStubbing<T>.thenReturnSuspend(value: T): OngoingStubbing<T> {
-        return this.thenReturn(value)
-    }
+    suspend fun <T> OngoingStubbing<T>.thenReturnSuspend(value: T): OngoingStubbing<T> = this.thenReturn(value)
 
     /**
      * Stub a suspend function with an exception.
      */
-    suspend fun <T> OngoingStubbing<T>.thenThrowSuspend(throwable: Throwable): OngoingStubbing<T> {
-        return this.thenThrow(throwable)
-    }
+    suspend fun <T> OngoingStubbing<T>.thenThrowSuspend(throwable: Throwable): OngoingStubbing<T> = this.thenThrow(throwable)
 
     /**
      * Stub a Flow return value.
@@ -60,10 +56,6 @@ object MockitoTestUtils {
 /**
  * Extension functions for easier Mockito usage.
  */
-
-/**
- * Stub a suspend function call.
- */
 suspend fun <T> T.stub(block: suspend T.() -> Unit): T {
     block()
     return this
@@ -88,13 +80,9 @@ fun <T> Flow<T>.mockReturn(value: T): Flow<T> {
 /**
  * Mock extension for easier Result stubbing.
  */
-fun <T> Result<T>.mockSuccess(value: T): Result<T> {
-    return Result.success(value)
-}
+fun <T> Result<T>.mockSuccess(value: T): Result<T> = Result.success(value)
 
 /**
  * Mock extension for easier Result failure stubbing.
  */
-fun <T> Result<T>.mockFailure(exception: Throwable): Result<T> {
-    return Result.failure(exception)
-}
+fun <T> Result<T>.mockFailure(exception: Throwable): Result<T> = Result.failure(exception)

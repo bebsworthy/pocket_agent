@@ -1,8 +1,8 @@
 package com.pocketagent.di
 
 import android.content.Context
-import com.pocketagent.di.modules.CoroutineModule
 import com.pocketagent.data.service.di.ServiceModule
+import com.pocketagent.di.modules.CoroutineModule
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,10 +17,9 @@ import javax.inject.Singleton
 @Module(includes = [CoroutineModule::class, ServiceModule::class])
 @InstallIn(SingletonComponent::class)
 object AppModule {
-    
     @Provides
     @Singleton
-    fun provideApplicationContext(@ApplicationContext context: Context): Context {
-        return context
-    }
+    fun provideApplicationContext(
+        @ApplicationContext context: Context,
+    ): Context = context
 }

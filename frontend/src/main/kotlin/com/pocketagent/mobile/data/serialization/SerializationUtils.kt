@@ -1,7 +1,7 @@
 package com.pocketagent.mobile.data.serialization
 
 import com.pocketagent.mobile.data.model.WebSocketMessage
-import kotlinx.serialization.SerializationException
+import kotlinx.serialization.SerializationException as KotlinxSerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -28,7 +28,7 @@ class SerializationUtils @Inject constructor(
             val jsonObject = jsonElement.jsonObject
             
             val messageType = jsonObject["type"]?.jsonPrimitive?.content
-                ?: return Result.failure(SerializationException("Missing message type"))
+                ?: return Result.failure(com.pocketagent.mobile.data.serialization.SerializationException("Missing message type"))
             
             // Deserialize based on type
             val message = when (messageType) {
@@ -116,12 +116,14 @@ class SerializationUtils @Inject constructor(
                     com.pocketagent.mobile.data.model.FileListResponse.serializer(),
                     jsonElement
                 )
-                else -> return Result.failure(SerializationException("Unknown message type: $messageType"))
+                else -> return Result.failure(com.pocketagent.mobile.data.serialization.SerializationException("Unknown message type: $messageType"))
             }
             
             Result.success(message)
-        } catch (e: Exception) {
-            Result.failure(SerializationException("Failed to deserialize WebSocket message", e))
+        } catch (e: KotlinxSerializationException) {
+            Result.failure(com.pocketagent.mobile.data.serialization.SerializationException("Failed to deserialize WebSocket message", e))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(com.pocketagent.mobile.data.serialization.SerializationException("Invalid WebSocket message format", e))
         }
     }
     
@@ -173,12 +175,14 @@ class SerializationUtils @Inject constructor(
                     jsonConfig.compactJson.encodeToString(com.pocketagent.mobile.data.model.FileListRequest.serializer(), message)
                 is com.pocketagent.mobile.data.model.FileListResponse -> 
                     jsonConfig.compactJson.encodeToString(com.pocketagent.mobile.data.model.FileListResponse.serializer(), message)
-                else -> return Result.failure(SerializationException("Unknown message type: ${message::class.simpleName}"))
+                else -> return Result.failure(com.pocketagent.mobile.data.serialization.SerializationException("Unknown message type: ${message::class.simpleName}"))
             }
             
             Result.success(jsonString)
-        } catch (e: Exception) {
-            Result.failure(SerializationException("Failed to serialize WebSocket message", e))
+        } catch (e: KotlinxSerializationException) {
+            Result.failure(com.pocketagent.mobile.data.serialization.SerializationException("Failed to serialize WebSocket message", e))
+        } catch (e: IllegalArgumentException) {
+            Result.failure(com.pocketagent.mobile.data.serialization.SerializationException("Invalid WebSocket message object", e))
         }
     }
     

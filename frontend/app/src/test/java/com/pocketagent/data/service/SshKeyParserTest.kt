@@ -165,7 +165,7 @@ class SshKeyParserTest {
             -----BEGIN RSA PRIVATE KEY-----
             Proc-Type: 4,ENCRYPTED
             DEK-Info: AES-128-CBC,1234567890ABCDEF
-            
+
             encrypted_key_data_here
             -----END RSA PRIVATE KEY-----
             """.trimIndent()
@@ -393,7 +393,9 @@ class SshKeyParserTest {
 
         // Base64 part should be valid
         try {
-            java.util.Base64.getDecoder().decode(parts[1])
+            java.util.Base64
+                .getDecoder()
+                .decode(parts[1])
         } catch (e: Exception) {
             fail("Base64 decoding should not fail: ${e.message}")
         }
@@ -434,12 +436,12 @@ class SshKeyParserTest {
         // Arrange
         val keyWithWhitespace =
             """
-            
+
             -----BEGIN RSA PRIVATE KEY-----
             MIIEpAIBAAKCAQEA1234567890abcdef
-            
+
             -----END RSA PRIVATE KEY-----
-            
+
             """.trimIndent()
 
         // Act
@@ -465,13 +467,13 @@ object SshKeyParserTestUtils {
     /**
      * Creates test RSA private key data in PEM format.
      */
-    fun createTestRsaPemKey(encrypted: Boolean = false): String {
-        return if (encrypted) {
+    fun createTestRsaPemKey(encrypted: Boolean = false): String =
+        if (encrypted) {
             """
             -----BEGIN RSA PRIVATE KEY-----
             Proc-Type: 4,ENCRYPTED
             DEK-Info: AES-128-CBC,1234567890ABCDEF1234567890ABCDEF
-            
+
             MIIEpAIBAAKCAQEA1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHI
             JKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzABCDEF
             -----END RSA PRIVATE KEY-----
@@ -484,54 +486,49 @@ object SshKeyParserTestUtils {
             -----END RSA PRIVATE KEY-----
             """.trimIndent()
         }
-    }
 
     /**
      * Creates test OpenSSH private key data.
      */
-    fun createTestOpenSshKey(): String {
-        return """
-            -----BEGIN OPENSSH PRIVATE KEY-----
-            b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAFwAAAAdzc2gtcn
-            NhAAAAAwEAAQAAAQEA1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP
-            -----END OPENSSH PRIVATE KEY-----
-            """.trimIndent()
-    }
+    fun createTestOpenSshKey(): String =
+        """
+        -----BEGIN OPENSSH PRIVATE KEY-----
+        b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAFwAAAAdzc2gtcn
+        NhAAAAAwEAAQAAAQEA1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOP
+        -----END OPENSSH PRIVATE KEY-----
+        """.trimIndent()
 
     /**
      * Creates test PKCS8 private key data.
      */
-    fun createTestPkcs8Key(): String {
-        return """
-            -----BEGIN PRIVATE KEY-----
-            MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDc1234567890abcd
-            efghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh
-            -----END PRIVATE KEY-----
-            """.trimIndent()
-    }
+    fun createTestPkcs8Key(): String =
+        """
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDc1234567890abcd
+        efghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefgh
+        -----END PRIVATE KEY-----
+        """.trimIndent()
 
     /**
      * Creates test public key data in OpenSSH format.
      */
-    fun createTestOpenSshPublicKey(): String {
-        return "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDC1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ test@example.com"
-    }
+    fun createTestOpenSshPublicKey(): String =
+        "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDC1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ test@example.com"
 
     /**
      * Creates test PuTTY private key data.
      */
-    fun createTestPuttyKey(): String {
-        return """
-            PuTTY-User-Key-File-2: ssh-rsa
-            Encryption: none
-            Comment: test@example.com
-            Public-Lines: 6
-            AAAAB3NzaC1yc2EAAAADAQABAAABAQDC1234567890abcdefghijklmnopqrstuvwx
-            yzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzAB
-            Private-Lines: 14
-            AAABAQCc1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU
-            VWXYZabcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUV
-            Private-MAC: 1234567890abcdef1234567890abcdef1234567890abcdef
-            """.trimIndent()
-    }
+    fun createTestPuttyKey(): String =
+        """
+        PuTTY-User-Key-File-2: ssh-rsa
+        Encryption: none
+        Comment: test@example.com
+        Public-Lines: 6
+        AAAAB3NzaC1yc2EAAAADAQABAAABAQDC1234567890abcdefghijklmnopqrstuvwx
+        yzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghijklmnopqrstuvwxyzAB
+        Private-Lines: 14
+        AAABAQCc1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTU
+        VWXYZabcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUV
+        Private-MAC: 1234567890abcdef1234567890abcdef1234567890abcdef
+        """.trimIndent()
 }

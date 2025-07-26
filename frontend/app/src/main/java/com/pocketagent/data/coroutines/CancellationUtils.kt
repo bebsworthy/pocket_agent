@@ -45,24 +45,22 @@ class CancellationUtils
         suspend fun <T> withCancellationHandling(
             onCancellation: suspend () -> Unit = {},
             block: suspend () -> T,
-        ): T {
-            return try {
+        ): T =
+            try {
                 block()
             } catch (e: CancellationException) {
                 android.util.Log.d(TAG, "Operation cancelled")
                 onCancellation()
                 throw e
             }
-        }
 
         /**
          * Executes a block that should complete even if the parent is cancelled.
          */
-        suspend fun <T> withNonCancellableCleanup(block: suspend () -> T): T {
-            return withContext(NonCancellable) {
+        suspend fun <T> withNonCancellableCleanup(block: suspend () -> T): T =
+            withContext(NonCancellable) {
                 block()
             }
-        }
 
         /**
          * Checks if the current coroutine is active and throws CancellationException if not.
@@ -116,12 +114,11 @@ class CancellationUtils
         /**
          * Creates a cancellation-aware flow.
          */
-        fun <T> Flow<T>.withCancellationAwareness(): Flow<T> {
-            return this
+        fun <T> Flow<T>.withCancellationAwareness(): Flow<T> =
+            this
                 .onStart {
                     android.util.Log.d(TAG, "Flow started")
-                }
-                .catch { throwable ->
+                }.catch { throwable ->
                     when (throwable) {
                         is CancellationException -> {
                             android.util.Log.d(TAG, "Flow cancelled")
@@ -132,15 +129,13 @@ class CancellationUtils
                             throw throwable
                         }
                     }
-                }
-                .onCompletion { throwable ->
+                }.onCompletion { throwable ->
                     when (throwable) {
                         null -> android.util.Log.d(TAG, "Flow completed normally")
                         is CancellationException -> android.util.Log.d(TAG, "Flow cancelled")
                         else -> android.util.Log.e(TAG, "Flow completed with error", throwable)
                     }
                 }
-        }
     }
 
 /**
@@ -216,18 +211,15 @@ class HierarchicalCancellationManager
         /**
          * Checks if a node is still active.
          */
-        fun isNodeActive(nodeId: String): Boolean {
-            return cancellationHierarchy[nodeId]?.job?.isActive == true
-        }
+        fun isNodeActive(nodeId: String): Boolean = cancellationHierarchy[nodeId]?.job?.isActive == true
 
         /**
          * Gets all active nodes.
          */
-        fun getActiveNodes(): List<String> {
-            return cancellationHierarchy.entries
+        fun getActiveNodes(): List<String> =
+            cancellationHierarchy.entries
                 .filter { it.value.job.isActive }
                 .map { it.key }
-        }
 
         /**
          * Cancels all nodes.
@@ -288,8 +280,8 @@ class CancellationAwareExecutor {
         operations: List<suspend () -> T>,
         scope: CoroutineScope,
         onCancellation: suspend () -> Unit = {},
-    ): List<T> {
-        return try {
+    ): List<T> =
+        try {
             val deferreds =
                 operations.map { operation ->
                     scope.async {
@@ -302,7 +294,6 @@ class CancellationAwareExecutor {
             onCancellation()
             throw e
         }
-    }
 }
 
 /**
@@ -316,8 +307,8 @@ object TimeoutCancellationUtils {
         timeoutMs: Long,
         onTimeout: suspend () -> Unit = {},
         block: suspend () -> T,
-    ): T {
-        return try {
+    ): T =
+        try {
             kotlinx.coroutines.withTimeout(timeoutMs) {
                 block()
             }
@@ -326,7 +317,6 @@ object TimeoutCancellationUtils {
             onTimeout()
             throw e
         }
-    }
 
     /**
      * Executes a block with timeout or until cancelled.
@@ -336,8 +326,8 @@ object TimeoutCancellationUtils {
         onTimeout: suspend () -> Unit = {},
         onCancellation: suspend () -> Unit = {},
         block: suspend () -> T,
-    ): T {
-        return try {
+    ): T =
+        try {
             kotlinx.coroutines.withTimeout(timeoutMs) {
                 try {
                     block()
@@ -350,7 +340,6 @@ object TimeoutCancellationUtils {
             onTimeout()
             throw e
         }
-    }
 }
 
 /**
@@ -359,8 +348,8 @@ object TimeoutCancellationUtils {
 fun CoroutineScope.launchCancellable(
     onCancellation: suspend () -> Unit = {},
     block: suspend CoroutineScope.() -> Unit,
-): Job {
-    return this.launch {
+): Job =
+    this.launch {
         try {
             block()
         } catch (e: CancellationException) {
@@ -369,7 +358,6 @@ fun CoroutineScope.launchCancellable(
             throw e
         }
     }
-}
 
 /**
  * Utility for creating cancellation tokens.

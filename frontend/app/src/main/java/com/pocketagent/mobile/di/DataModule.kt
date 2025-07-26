@@ -1,6 +1,5 @@
 package com.pocketagent.mobile.di
 
-import android.content.Context
 import com.pocketagent.mobile.data.local.EncryptedJsonStorage
 import com.pocketagent.mobile.data.local.EncryptedJsonStorageImpl
 import com.pocketagent.mobile.data.repository.DataRepositoryImpl
@@ -17,96 +16,93 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
 /**
  * Data layer dependency injection module.
- * 
+ *
  * This module provides dependencies for the data layer including repositories,
  * storage implementations, and data access objects.
  */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
-    
     /**
      * Binds the encrypted storage implementation to the interface.
-     * 
+     *
      * @param impl The encrypted storage implementation
      * @return The encrypted storage interface
      */
     @Binds
     @Singleton
     abstract fun bindEncryptedStorage(impl: EncryptedJsonStorageImpl): EncryptedJsonStorage
-    
+
     /**
      * Binds the data repository implementation to the interface.
-     * 
+     *
      * @param impl The data repository implementation
      * @return The data repository interface
      */
     @Binds
     @Singleton
     abstract fun bindDataRepository(impl: DataRepositoryImpl): DataRepository
-    
+
     /**
      * Binds the SSH identity repository implementation to the interface.
-     * 
+     *
      * @param impl The SSH identity repository implementation
      * @return The SSH identity repository interface
      */
     @Binds
     @Singleton
     abstract fun bindSshIdentityRepository(impl: SshIdentityRepositoryImpl): SshIdentityRepository
-    
+
     /**
      * Binds the server profile repository implementation to the interface.
-     * 
+     *
      * @param impl The server profile repository implementation
      * @return The server profile repository interface
      */
     @Binds
     @Singleton
     abstract fun bindServerProfileRepository(impl: ServerProfileRepositoryImpl): ServerProfileRepository
-    
+
     /**
      * Binds the project repository implementation to the interface.
-     * 
+     *
      * @param impl The project repository implementation
      * @return The project repository interface
      */
     @Binds
     @Singleton
     abstract fun bindProjectRepository(impl: ProjectRepositoryImpl): ProjectRepository
-    
+
     /**
      * Binds the message repository implementation to the interface.
-     * 
+     *
      * @param impl The message repository implementation
      * @return The message repository interface
      */
     @Binds
     @Singleton
     abstract fun bindMessageRepository(impl: MessageRepositoryImpl): MessageRepository
-    
+
     companion object {
         /**
          * Provides the storage file name for encrypted data.
-         * 
+         *
          * @return The storage file name
          */
         @Provides
         @Singleton
         @StorageFileName
         fun provideStorageFileName(): String = "pocket_agent_data.json"
-        
+
         /**
          * Provides the preferences name for encrypted preferences.
-         * 
+         *
          * @return The preferences name
          */
         @Provides

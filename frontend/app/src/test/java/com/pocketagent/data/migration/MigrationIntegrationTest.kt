@@ -16,15 +16,15 @@ import com.pocketagent.mobile.data.local.EncryptedJsonStorage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import org.junit.Assert.assertFalse
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlinx.coroutines.test.runTest
-import kotlinx.serialization.json.Json
 
 /**
  * Integration tests for the migration system with SecureDataRepository.
@@ -167,7 +167,10 @@ class MigrationIntegrationTest {
             coEvery { mockDataValidator.validateAppData(any()) } throws Exception("Validation failed")
 
             // Register repair migration
-            migrationRegistry.registerMigration(com.pocketagent.data.migration.migrations.DataRepairMigration())
+            migrationRegistry.registerMigration(
+                com.pocketagent.data.migration.migrations
+                    .DataRepairMigration(),
+            )
 
             // Validate and repair data
             val repairResult = repository.validateAndRepairData(migrationManager)
@@ -376,9 +379,7 @@ class MigrationIntegrationTest {
         override suspend fun migrate(
             data: AppData,
             progressCallback: ((MigrationProgress) -> Unit)?,
-        ): AppData {
-            throw MigrationException.ExecutionException("Intentional failure for testing")
-        }
+        ): AppData = throw MigrationException.ExecutionException("Intentional failure for testing")
 
         override suspend fun canMigrate(data: AppData): Boolean = data.version == 0
     }

@@ -568,15 +568,14 @@ class SecureDataRepositoryTest {
         name: String = "Test SSH Key",
         encryptedPrivateKey: String = "encrypted-private-key-data",
         publicKeyFingerprint: String = "SHA256:abc123def456",
-    ): SshIdentity {
-        return SshIdentity(
+    ): SshIdentity =
+        SshIdentity(
             id = id,
             name = name,
             encryptedPrivateKey = encryptedPrivateKey,
             publicKeyFingerprint = publicKeyFingerprint,
             description = "Test SSH identity",
         )
-    }
 
     private fun createTestServerProfile(
         id: String = "test-server-id",
@@ -586,8 +585,8 @@ class SecureDataRepositoryTest {
         username: String = "testuser",
         sshIdentityId: String = "test-ssh-id",
         wrapperPort: Int = 8080,
-    ): ServerProfile {
-        return ServerProfile(
+    ): ServerProfile =
+        ServerProfile(
             id = id,
             name = name,
             hostname = hostname,
@@ -597,7 +596,6 @@ class SecureDataRepositoryTest {
             wrapperPort = wrapperPort,
             status = ConnectionStatus.NEVER_CONNECTED,
         )
-    }
 
     private fun createTestProject(
         id: String = "test-project-id",
@@ -605,8 +603,8 @@ class SecureDataRepositoryTest {
         serverProfileId: String = "test-server-id",
         projectPath: String = "/home/user/projects/test",
         scriptsFolder: String = "scripts",
-    ): Project {
-        return Project(
+    ): Project =
+        Project(
             id = id,
             name = name,
             serverProfileId = serverProfileId,
@@ -614,18 +612,16 @@ class SecureDataRepositoryTest {
             scriptsFolder = scriptsFolder,
             status = ProjectStatus.INACTIVE,
         )
-    }
 
     private fun createTestMessage(
         id: String = "test-message-id",
         content: String = "Test message content",
         type: MessageType = MessageType.USER_INPUT,
-    ): Message {
-        return Message(
+    ): Message =
+        Message(
             id = id,
             content = content,
             type = type,
             timestamp = System.currentTimeMillis(),
         )
-    }
 }

@@ -14,15 +14,15 @@ import com.pocketagent.mobile.data.local.EncryptedJsonStorage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import org.junit.Assert.assertFalse
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runTest
 
 /**
  * Comprehensive tests for the data migration system.
@@ -375,9 +375,7 @@ class MigrationSystemTest {
             return updateDataVersion(data)
         }
 
-        override suspend fun canMigrate(data: AppData): Boolean {
-            return data.version == fromVersion
-        }
+        override suspend fun canMigrate(data: AppData): Boolean = data.version == fromVersion
     }
 
     private class TestMigrationWithProgress : BaseDataMigration() {

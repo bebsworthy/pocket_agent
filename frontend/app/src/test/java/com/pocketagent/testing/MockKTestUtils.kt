@@ -23,16 +23,12 @@ object MockKTestUtils {
     /**
      * Stub a suspend function with a result.
      */
-    suspend fun <T> MockKStubScope<T, T>.returnsResult(value: T): MockKStubScope<T, T> {
-        return this.returns(value)
-    }
+    suspend fun <T> MockKStubScope<T, T>.returnsResult(value: T): MockKStubScope<T, T> = this.returns(value)
 
     /**
      * Stub a suspend function with an exception.
      */
-    suspend fun <T> MockKStubScope<T, T>.throwsException(exception: Throwable): MockKStubScope<T, T> {
-        return this.throws(exception)
-    }
+    suspend fun <T> MockKStubScope<T, T>.throwsException(exception: Throwable): MockKStubScope<T, T> = this.throws(exception)
 
     /**
      * Stub a Flow return value.
@@ -74,16 +70,12 @@ fun <T> Flow<T>.mockReturn(value: T): Flow<T> {
 /**
  * Mock extension for easier Result success stubbing with MockK.
  */
-fun <T> mockSuccess(value: T): Result<T> {
-    return Result.success(value)
-}
+fun <T> mockSuccess(value: T): Result<T> = Result.success(value)
 
 /**
  * Mock extension for easier Result failure stubbing with MockK.
  */
-fun <T> mockFailure(exception: Throwable): Result<T> {
-    return Result.failure(exception)
-}
+fun <T> mockFailure(exception: Throwable): Result<T> = Result.failure(exception)
 
 /**
  * Verify that a suspend function was called with specific parameters.

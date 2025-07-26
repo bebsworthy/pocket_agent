@@ -38,9 +38,18 @@ data class Project(
     val repositoryUrl: String? = null,
     val lastError: String? = null,
 ) {
+    companion object {
+        const val MAX_NAME_LENGTH = 100
+        const val MAX_PATH_LENGTH = 255
+        const val MAX_SCRIPTS_FOLDER_LENGTH = 50
+        const val MAX_REPOSITORY_URL_LENGTH = 500
+        const val HOURS_24_IN_MILLIS = 24 * 60 * 60 * 1000L
+        const val DAY_IN_MILLIS = 24 * 60 * 60 * 1000L
+    }
+
     init {
         require(name.isNotBlank()) { "Project name cannot be blank" }
-        require(name.length <= 100) { "Project name too long (max 100 chars)" }
+        require(name.length <= MAX_NAME_LENGTH) { "Project name too long (max $MAX_NAME_LENGTH chars)" }
         require(serverProfileId.isNotBlank()) { "Server profile ID cannot be blank" }
         require(projectPath.isNotBlank()) { "Project path cannot be blank" }
         require(projectPath.startsWith("/")) { "Project path must be absolute (start with /)" }
@@ -59,7 +68,7 @@ data class Project(
      * Check if this project was active recently (within the last 24 hours).
      */
     fun isRecentlyActive(): Boolean {
-        val twentyFourHoursAgo = System.currentTimeMillis() - (24 * 60 * 60 * 1000)
+        val twentyFourHoursAgo = System.currentTimeMillis() - HOURS_24_IN_MILLIS
         return lastActiveAt != null && lastActiveAt > twentyFourHoursAgo
     }
 
@@ -215,10 +224,6 @@ class ProjectBuilder {
 }
 
 /**
- * Extension functions for Project operations.
- */
-
-/**
  * Update the project status.
  */
 fun Project.withStatus(status: ProjectStatus): Project =
@@ -296,8 +301,7 @@ fun Project.matchesSearch(query: String): Boolean =
  */
 fun Project.getAgeInDays(): Long {
     val now = System.currentTimeMillis()
-    val dayInMillis = 24 * 60 * 60 * 1000
-    return (now - createdAt) / dayInMillis
+    return (now - createdAt) / Project.DAY_IN_MILLIS
 }
 
 /**
@@ -306,8 +310,7 @@ fun Project.getAgeInDays(): Long {
 fun Project.getDaysSinceLastActivity(): Long? {
     if (lastActiveAt == null) return null
     val now = System.currentTimeMillis()
-    val dayInMillis = 24 * 60 * 60 * 1000
-    return (now - lastActiveAt) / dayInMillis
+    return (now - lastActiveAt) / Project.DAY_IN_MILLIS
 }
 
 /**
@@ -349,40 +352,46 @@ object ProjectValidator {
     /**
      * Validate project name.
      */
-    fun validateName(name: String): Result<Unit> {
-        return when {
+    fun validateName(name: String): Result<Unit> =
+        when {
             name.isBlank() -> Result.failure(IllegalArgumentException("Name cannot be blank"))
-            name.length > 100 -> Result.failure(IllegalArgumentException("Name too long (max 100 chars)"))
+            name.length > Project.MAX_NAME_LENGTH ->
+                Result.failure(
+                    IllegalArgumentException("Name too long (max ${Project.MAX_NAME_LENGTH} chars)"),
+                )
             !VALID_NAME_REGEX.matches(name) -> Result.failure(IllegalArgumentException("Name contains invalid characters"))
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate project path.
      */
-    fun validateProjectPath(path: String): Result<Unit> {
-        return when {
+    fun validateProjectPath(path: String): Result<Unit> =
+        when {
             path.isBlank() -> Result.failure(IllegalArgumentException("Project path cannot be blank"))
             !path.startsWith("/") -> Result.failure(IllegalArgumentException("Project path must be absolute"))
             !VALID_PATH_REGEX.matches(path) -> Result.failure(IllegalArgumentException("Invalid project path format"))
-            path.length > 255 -> Result.failure(IllegalArgumentException("Project path too long (max 255 chars)"))
+            path.length > Project.MAX_PATH_LENGTH ->
+                Result.failure(
+                    IllegalArgumentException("Project path too long (max ${Project.MAX_PATH_LENGTH} chars)"),
+                )
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate scripts folder.
      */
-    fun validateScriptsFolder(folder: String): Result<Unit> {
-        return when {
+    fun validateScriptsFolder(folder: String): Result<Unit> =
+        when {
             folder.isBlank() -> Result.failure(IllegalArgumentException("Scripts folder cannot be blank"))
             folder.startsWith("/") -> Result.failure(IllegalArgumentException("Scripts folder must be relative"))
             !VALID_FOLDER_REGEX.matches(folder) -> Result.failure(IllegalArgumentException("Invalid scripts folder format"))
-            folder.length > 50 -> Result.failure(IllegalArgumentException("Scripts folder name too long (max 50 chars)"))
+            folder.length > Project.MAX_SCRIPTS_FOLDER_LENGTH ->
+                Result.failure(
+                    IllegalArgumentException("Scripts folder name too long (max ${Project.MAX_SCRIPTS_FOLDER_LENGTH} chars)"),
+                )
             else -> Result.success(Unit)
         }
-    }
 
     /**
      * Validate repository URL.
@@ -393,7 +402,10 @@ object ProjectValidator {
             url.isBlank() -> Result.failure(IllegalArgumentException("Repository URL cannot be blank if provided"))
             !url.startsWith("https://") && !url.startsWith("git@") ->
                 Result.failure(IllegalArgumentException("Repository URL must start with https:// or git@"))
-            url.length > 500 -> Result.failure(IllegalArgumentException("Repository URL too long (max 500 chars)"))
+            url.length > Project.MAX_REPOSITORY_URL_LENGTH ->
+                Result.failure(
+                    IllegalArgumentException("Repository URL too long (max ${Project.MAX_REPOSITORY_URL_LENGTH} chars)"),
+                )
             else -> Result.success(Unit)
         }
     }

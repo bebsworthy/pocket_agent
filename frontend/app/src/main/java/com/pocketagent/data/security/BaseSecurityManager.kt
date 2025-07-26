@@ -1,6 +1,13 @@
 package com.pocketagent.data.security
 
+import android.util.Log
+import com.pocketagent.data.service.SecurityManagerException
 import com.pocketagent.domain.models.Result
+import java.security.InvalidKeyException
+import java.security.NoSuchAlgorithmException
+import javax.crypto.BadPaddingException
+import javax.crypto.IllegalBlockSizeException
+import javax.crypto.NoSuchPaddingException
 
 /**
  * Base class for security managers.
@@ -67,11 +74,56 @@ abstract class BaseSecurityManager {
      * @param operation The security operation to execute
      * @return Result wrapped operation result
      */
-    protected suspend fun <T> handleSecurityOperation(operation: suspend () -> T): Result<T> {
-        return try {
+    protected suspend fun <T> handleSecurityOperation(operation: suspend () -> T): Result<T> =
+        try {
             Result.Success(operation())
-        } catch (e: Exception) {
-            Result.Error(e, "Security operation failed: ${e.message}")
+        } catch (e: InvalidKeyException) {
+            Log.e("BaseSecurityManager", "Invalid key used in security operation", e)
+            Result.Error(
+                SecurityManagerException.KeyOperationException("Invalid key: ${e.message}", e),
+                "Security operation failed: ${e.message}",
+            )
+        } catch (e: NoSuchAlgorithmException) {
+            Log.e("BaseSecurityManager", "Algorithm not available for security operation", e)
+            Result.Error(
+                SecurityManagerException.EncryptionException("Algorithm not available: ${e.message}", e),
+                "Security operation failed: ${e.message}",
+            )
+        } catch (e: NoSuchPaddingException) {
+            Log.e("BaseSecurityManager", "Padding scheme not available for security operation", e)
+            Result.Error(
+                SecurityManagerException.EncryptionException("Padding not available: ${e.message}", e),
+                "Security operation failed: ${e.message}",
+            )
+        } catch (e: IllegalBlockSizeException) {
+            Log.e("BaseSecurityManager", "Illegal block size in security operation", e)
+            Result.Error(
+                SecurityManagerException.EncryptionException("Illegal block size: ${e.message}", e),
+                "Security operation failed: ${e.message}",
+            )
+        } catch (e: BadPaddingException) {
+            Log.e("BaseSecurityManager", "Bad padding in security operation", e)
+            Result.Error(
+                SecurityManagerException.DecryptionException("Bad padding: ${e.message}", e),
+                "Security operation failed: ${e.message}",
+            )
+        } catch (e: SecurityException) {
+            Log.e("BaseSecurityManager", "Security exception in security operation", e)
+            Result.Error(
+                SecurityManagerException.KeyOperationException("Security error: ${e.message}", e),
+                "Security operation failed: ${e.message}",
+            )
+        } catch (e: IllegalArgumentException) {
+            Log.e("BaseSecurityManager", "Invalid argument in security operation", e)
+            Result.Error(
+                SecurityManagerException.KeyOperationException("Invalid argument: ${e.message}", e),
+                "Security operation failed: ${e.message}",
+            )
+        } catch (e: RuntimeException) {
+            Log.e("BaseSecurityManager", "Runtime exception in security operation", e)
+            Result.Error(
+                SecurityManagerException.KeyOperationException("Runtime error: ${e.message}", e),
+                "Security operation failed: ${e.message}",
+            )
         }
-    }
 }

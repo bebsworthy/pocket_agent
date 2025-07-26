@@ -76,9 +76,7 @@ class ExampleUnitTest : BaseUnitTest() {
             }
         }
 
-    private fun processData(data: String): String {
-        return "processed: $data"
-    }
+    private fun processData(data: String): String = "processed: $data"
 }
 
 /**

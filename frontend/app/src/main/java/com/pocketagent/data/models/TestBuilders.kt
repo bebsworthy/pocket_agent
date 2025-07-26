@@ -3,13 +3,6 @@ package com.pocketagent.data.models
 import java.util.UUID
 
 /**
- * Additional test builder utilities for creating complex data scenarios.
- *
- * This file provides comprehensive builders and factories for creating
- * interconnected data structures useful for testing scenarios.
- */
-
-/**
  * Builder for creating complete data scenarios with related entities.
  *
  * This builder creates a full hierarchy of SSH Identity → Server Profile → Project
