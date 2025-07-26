@@ -102,23 +102,67 @@ class StorageConfiguration
         /**
          * Creates StorageConfig from preferences.
          */
-        private fun createConfigFromPreferences(preferences: Preferences): StorageConfig =
-            StorageConfig(
-                encryptionEnabled = preferences[KEY_ENCRYPTION_ENABLED] ?: DEFAULT_ENCRYPTION_ENABLED,
-                compressionEnabled = preferences[KEY_COMPRESSION_ENABLED] ?: DEFAULT_COMPRESSION_ENABLED,
-                compressionThreshold = preferences[KEY_COMPRESSION_THRESHOLD] ?: DEFAULT_COMPRESSION_THRESHOLD,
-                autoBackupEnabled = preferences[KEY_AUTO_BACKUP_ENABLED] ?: DEFAULT_AUTO_BACKUP_ENABLED,
-                backupInterval = preferences[KEY_BACKUP_INTERVAL] ?: DEFAULT_BACKUP_INTERVAL,
-                maxBackupCount = preferences[KEY_MAX_BACKUP_COUNT] ?: DEFAULT_MAX_BACKUP_COUNT,
-                integrityCheckEnabled = preferences[KEY_INTEGRITY_CHECK_ENABLED] ?: DEFAULT_INTEGRITY_CHECK_ENABLED,
-                storageVersion = preferences[KEY_STORAGE_VERSION] ?: DEFAULT_STORAGE_VERSION,
-                lastCleanupTime = preferences[KEY_LAST_CLEANUP_TIME] ?: 0L,
-                cleanupInterval = preferences[KEY_CLEANUP_INTERVAL] ?: DEFAULT_CLEANUP_INTERVAL,
-                maxStorageSize = preferences[KEY_MAX_STORAGE_SIZE] ?: DEFAULT_MAX_STORAGE_SIZE,
-                secureDeleteEnabled = preferences[KEY_SECURE_DELETE_ENABLED] ?: DEFAULT_SECURE_DELETE_ENABLED,
-                biometricRequired = preferences[KEY_BIOMETRIC_REQUIRED] ?: DEFAULT_BIOMETRIC_REQUIRED,
-                sessionTimeout = preferences[KEY_SESSION_TIMEOUT] ?: DEFAULT_SESSION_TIMEOUT,
+        private fun createConfigFromPreferences(preferences: Preferences): StorageConfig {
+            val encryptionConfig = createEncryptionConfig(preferences)
+            val backupConfig = createBackupConfig(preferences)
+            val securityConfig = createSecurityConfig(preferences)
+            val storageConfig = createStorageConfig(preferences)
+            
+            return StorageConfig(
+                encryptionEnabled = encryptionConfig.first,
+                compressionEnabled = encryptionConfig.second,
+                compressionThreshold = encryptionConfig.third,
+                autoBackupEnabled = backupConfig.first,
+                backupInterval = backupConfig.second,
+                maxBackupCount = backupConfig.third,
+                integrityCheckEnabled = securityConfig.first,
+                biometricRequired = securityConfig.second,
+                sessionTimeout = securityConfig.third,
+                storageVersion = storageConfig.first,
+                lastCleanupTime = storageConfig.second,
+                cleanupInterval = storageConfig.third,
+                maxStorageSize = storageConfig.fourth,
+                secureDeleteEnabled = storageConfig.fifth,
             )
+        }
+
+        private fun createEncryptionConfig(preferences: Preferences): Triple<Boolean, Boolean, Int> =
+            Triple(
+                preferences[KEY_ENCRYPTION_ENABLED] ?: DEFAULT_ENCRYPTION_ENABLED,
+                preferences[KEY_COMPRESSION_ENABLED] ?: DEFAULT_COMPRESSION_ENABLED,
+                preferences[KEY_COMPRESSION_THRESHOLD] ?: DEFAULT_COMPRESSION_THRESHOLD
+            )
+
+        private fun createBackupConfig(preferences: Preferences): Triple<Boolean, Long, Int> =
+            Triple(
+                preferences[KEY_AUTO_BACKUP_ENABLED] ?: DEFAULT_AUTO_BACKUP_ENABLED,
+                preferences[KEY_BACKUP_INTERVAL] ?: DEFAULT_BACKUP_INTERVAL,
+                preferences[KEY_MAX_BACKUP_COUNT] ?: DEFAULT_MAX_BACKUP_COUNT
+            )
+
+        private fun createSecurityConfig(preferences: Preferences): Triple<Boolean, Boolean, Long> =
+            Triple(
+                preferences[KEY_INTEGRITY_CHECK_ENABLED] ?: DEFAULT_INTEGRITY_CHECK_ENABLED,
+                preferences[KEY_BIOMETRIC_REQUIRED] ?: DEFAULT_BIOMETRIC_REQUIRED,
+                preferences[KEY_SESSION_TIMEOUT] ?: DEFAULT_SESSION_TIMEOUT
+            )
+
+        private fun createStorageConfig(preferences: Preferences): Quintuple<Int, Long, Long, Long, Boolean> =
+            Quintuple(
+                preferences[KEY_STORAGE_VERSION] ?: DEFAULT_STORAGE_VERSION,
+                preferences[KEY_LAST_CLEANUP_TIME] ?: 0L,
+                preferences[KEY_CLEANUP_INTERVAL] ?: DEFAULT_CLEANUP_INTERVAL,
+                preferences[KEY_MAX_STORAGE_SIZE] ?: DEFAULT_MAX_STORAGE_SIZE,
+                preferences[KEY_SECURE_DELETE_ENABLED] ?: DEFAULT_SECURE_DELETE_ENABLED
+            )
+
+        private data class Quintuple<A, B, C, D, E>(
+            val first: A,
+            val second: B, 
+            val third: C,
+            val fourth: D,
+            val fifth: E
+        )
 
         /**
          * Updates the storage configuration.

@@ -78,42 +78,67 @@ object ServiceExceptionHandler {
      * @param context Additional context for the mapping
      * @return Mapped ServiceException
      */
-    fun mapException(exception: Throwable, context: String = ""): ServiceException =
+    fun mapException(exception: Throwable, context: String = ""): ServiceException {
+        if (exception is ServiceException) return exception
+        
+        return when {
+            isSecurityException(exception) -> mapSecurityException(exception, context)
+            isNetworkException(exception) -> mapNetworkException(exception, context)
+            isStateException(exception) -> mapStateException(exception, context)
+            else -> mapGenericException(exception, context)
+        }
+    }
+
+    private fun isSecurityException(exception: Throwable): Boolean =
+        exception is SecurityManagerException || exception is GeneralSecurityException
+
+    private fun isNetworkException(exception: Throwable): Boolean =
+        exception is UnknownHostException || exception is IOException
+
+    private fun isStateException(exception: Throwable): Boolean =
+        exception is IllegalArgumentException || exception is IllegalStateException || 
+        exception is TimeoutCancellationException
+
+    private fun mapSecurityException(exception: Throwable, context: String): ServiceException =
+        ServiceException.CryptographyException(
+            "Security operation failed${formatContext(context)}", 
+            exception
+        )
+
+    private fun mapNetworkException(exception: Throwable, context: String): ServiceException =
         when (exception) {
-            is ServiceException -> exception
-            is SecurityManagerException -> ServiceException.CryptographyException(
-                "Security operation failed${if (context.isNotEmpty()) " in $context" else ""}", 
-                exception
-            )
-            is GeneralSecurityException -> ServiceException.CryptographyException(
-                "Cryptographic operation failed${if (context.isNotEmpty()) " in $context" else ""}", 
-                exception
-            )
             is UnknownHostException -> ServiceException.NetworkConfigurationException(
-                "Network host not found${if (context.isNotEmpty()) " in $context" else ""}", 
-                exception
-            )
-            is IOException -> ServiceException.ExternalDependencyException(
-                "IO operation failed${if (context.isNotEmpty()) " in $context" else ""}", 
-                exception
-            )
-            is TimeoutCancellationException -> ServiceException.TimeoutException(
-                "Operation timed out${if (context.isNotEmpty()) " in $context" else ""}", 
-                exception
-            )
-            is IllegalArgumentException -> ServiceException.ConfigurationException(
-                "Invalid configuration${if (context.isNotEmpty()) " in $context" else ""}", 
-                exception
-            )
-            is IllegalStateException -> ServiceException.InvalidStateException(
-                "Invalid service state${if (context.isNotEmpty()) " in $context" else ""}", 
-                exception
+                "Network host not found${formatContext(context)}", exception
             )
             else -> ServiceException.ExternalDependencyException(
-                "Unexpected error${if (context.isNotEmpty()) " in $context" else ""}: ${exception.message}", 
-                exception
+                "IO operation failed${formatContext(context)}", exception
             )
         }
+
+    private fun mapStateException(exception: Throwable, context: String): ServiceException =
+        when (exception) {
+            is TimeoutCancellationException -> ServiceException.TimeoutException(
+                "Operation timed out${formatContext(context)}", exception
+            )
+            is IllegalArgumentException -> ServiceException.ConfigurationException(
+                "Invalid configuration${formatContext(context)}", exception
+            )
+            is IllegalStateException -> ServiceException.InvalidStateException(
+                "Invalid service state${formatContext(context)}", exception
+            )
+            else -> ServiceException.ExternalDependencyException(
+                "State error${formatContext(context)}", exception
+            )
+        }
+
+    private fun mapGenericException(exception: Throwable, context: String): ServiceException =
+        ServiceException.ExternalDependencyException(
+            "Unexpected error${formatContext(context)}: ${exception.message}", 
+            exception
+        )
+
+    private fun formatContext(context: String): String =
+        if (context.isNotEmpty()) " in $context" else ""
     
     /**
      * Creates a service exception with proper context.
