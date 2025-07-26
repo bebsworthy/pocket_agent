@@ -292,9 +292,7 @@ class SshKeyEncryption
             input.read(versionBytes)
             val version = bytesToInt(versionBytes)
 
-            if (version != ENCRYPTED_DATA_VERSION) {
-                throw IllegalArgumentException("Unsupported encrypted data version: $version")
-            }
+            require(version == ENCRYPTED_DATA_VERSION) { "Unsupported encrypted data version: $version" }
 
             // Read IV length (4 bytes)
             val ivLengthBytes = ByteArray(Constants.Binary.INT_BYTE_SIZE)

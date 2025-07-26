@@ -113,7 +113,8 @@ abstract class NetworkModule {
         @Singleton
         @ConnectionTimeout
         fun provideConnectionTimeout(): Long {
-            return 30_000L
+            val timeout = 30_000L
+            return timeout
         }
 
         /**
@@ -125,7 +126,8 @@ abstract class NetworkModule {
         @Singleton
         @PingInterval
         fun providePingInterval(): Long {
-            return 30_000L
+            val interval = 30_000L
+            return interval
         }
 
         /**
@@ -137,7 +139,8 @@ abstract class NetworkModule {
         @Singleton
         @MaxReconnectAttempts
         fun provideMaxReconnectAttempts(): Int {
-            return 5
+            val attempts = 5
+            return attempts
         }
 
         /**
@@ -149,7 +152,8 @@ abstract class NetworkModule {
         @Singleton
         @ReconnectBaseDelay
         fun provideReconnectBaseDelay(): Long {
-            return 1_000L
+            val delay = 1_000L
+            return delay
         }
     }
 }

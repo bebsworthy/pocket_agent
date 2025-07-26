@@ -146,9 +146,7 @@ class BackupManager
             val config = storageConfiguration.getConfiguration().getOrThrow()
             val files = fileStorageManager.listFiles().getOrThrow()
 
-            if (files.isEmpty()) {
-                throw IllegalStateException("No files to backup")
-            }
+            check(files.isNotEmpty()) { "No files to backup" }
 
             return Pair(config, files)
         }
@@ -288,9 +286,7 @@ class BackupManager
          */
         private fun validateBackupFileExists(backupFilename: String): File {
             val backupFile = File(backupDir, backupFilename)
-            if (!backupFile.exists()) {
-                throw IllegalArgumentException("Backup file not found: $backupFilename")
-            }
+            require(backupFile.exists()) { "Backup file not found: $backupFilename" }
             return backupFile
         }
 
@@ -308,9 +304,7 @@ class BackupManager
          */
         private fun readAndValidateBackupMetadata(tempDir: File): BackupMetadata {
             val metadataFile = File(tempDir, METADATA_FILE)
-            if (!metadataFile.exists()) {
-                throw IllegalStateException("Backup metadata not found")
-            }
+            check(metadataFile.exists()) { "Backup metadata not found" }
             return json.decodeFromString<BackupMetadata>(metadataFile.readText())
         }
 
@@ -325,9 +319,7 @@ class BackupManager
             val files = dataDir.listFiles()?.map { it.name } ?: emptyList()
             val calculatedChecksum = calculateBackupChecksum(files)
 
-            if (calculatedChecksum != metadata.checksum) {
-                throw IllegalStateException("Backup checksum validation failed")
-            }
+            check(calculatedChecksum == metadata.checksum) { "Backup checksum validation failed" }
         }
 
         /**

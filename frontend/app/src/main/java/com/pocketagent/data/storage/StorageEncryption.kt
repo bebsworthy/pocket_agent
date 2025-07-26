@@ -65,9 +65,7 @@ class StorageEncryption
 
             companion object {
                 fun fromByteArray(data: ByteArray): EncryptedData {
-                    if (data.size < 1 + IV_SIZE) {
-                        throw IllegalArgumentException("Invalid encrypted data format")
-                    }
+                    require(data.size >= 1 + IV_SIZE) { "Invalid encrypted data format" }
 
                     val isCompressed = data[0] == 1.toByte()
                     val iv = data.sliceArray(1 until 1 + IV_SIZE)

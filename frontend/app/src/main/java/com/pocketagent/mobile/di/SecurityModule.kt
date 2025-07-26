@@ -102,7 +102,8 @@ abstract class SecurityModule {
         @Singleton
         @KeystoreAlias
         fun provideKeystoreAlias(): String {
-            return "pocket_agent_master_key"
+            val alias = "pocket_agent_master_key"
+            return alias
         }
 
         /**
@@ -114,7 +115,8 @@ abstract class SecurityModule {
         @Singleton
         @SshKeystoreAlias
         fun provideSshKeystoreAlias(): String {
-            return "pocket_agent_ssh_key_"
+            val prefix = "pocket_agent_ssh_key_"
+            return prefix
         }
 
         /**
@@ -126,7 +128,8 @@ abstract class SecurityModule {
         @Singleton
         @TokenVaultAlias
         fun provideTokenVaultAlias(): String {
-            return "pocket_agent_token_vault"
+            val vaultAlias = "pocket_agent_token_vault"
+            return vaultAlias
         }
     }
 }

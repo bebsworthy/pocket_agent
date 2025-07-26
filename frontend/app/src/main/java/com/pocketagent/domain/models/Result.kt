@@ -70,7 +70,7 @@ sealed class Result<out T> {
         when (this) {
             is Success -> data
             is Error -> throw exception
-            is Loading -> throw IllegalStateException("Cannot get data from loading state")
+            is Loading -> error("Cannot get data from loading state")
         }
 
     /**
@@ -89,7 +89,7 @@ sealed class Result<out T> {
         when (this) {
             is Success -> data
             is Error -> onError(exception)
-            is Loading -> throw IllegalStateException("Cannot get data from loading state")
+            is Loading -> error("Cannot get data from loading state")
         }
 
     /**

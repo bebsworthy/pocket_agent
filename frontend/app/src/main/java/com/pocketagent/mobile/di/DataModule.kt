@@ -99,7 +99,8 @@ abstract class DataModule {
         @Singleton
         @StorageFileName
         fun provideStorageFileName(): String {
-            return "pocket_agent_data.json"
+            val fileName = "pocket_agent_data.json"
+            return fileName
         }
 
         /**
@@ -111,7 +112,8 @@ abstract class DataModule {
         @Singleton
         @PreferencesName
         fun providePreferencesName(): String {
-            return "pocket_agent_prefs"
+            val prefsName = "pocket_agent_prefs"
+            return prefsName
         }
     }
 }

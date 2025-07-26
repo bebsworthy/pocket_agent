@@ -28,10 +28,8 @@ class MigrationRegistry
             registryMutex.withLock {
                 val key = Pair(migration.fromVersion, migration.toVersion)
 
-                if (migrations.containsKey(key)) {
-                    throw IllegalArgumentException(
-                        "Migration from version ${migration.fromVersion} to ${migration.toVersion} already registered",
-                    )
+                require(!migrations.containsKey(key)) {
+                    "Migration from version ${migration.fromVersion} to ${migration.toVersion} already registered"
                 }
 
                 migrations[key] = migration

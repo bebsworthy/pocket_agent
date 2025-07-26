@@ -129,8 +129,7 @@ data class DataComponents(
 /**
  * Builder for creating realistic SSH identities with various configurations.
  */
-class RealisticSshIdentityBuilder {
-    companion object {
+object RealisticSshIdentityBuilder {
         /**
          * Create a development SSH identity.
          */
@@ -177,14 +176,12 @@ class RealisticSshIdentityBuilder {
                     else -> createPersonal("Personal Key $index")
                 }
             }
-    }
 }
 
 /**
  * Builder for creating realistic server profiles with various configurations.
  */
-class RealisticServerProfileBuilder {
-    companion object {
+object RealisticServerProfileBuilder {
         /**
          * Create a localhost server profile.
          */
@@ -252,14 +249,12 @@ class RealisticServerProfileBuilder {
                     else -> createVPS(sshIdentityId, "VPS Server $index")
                 }
             }
-    }
 }
 
 /**
  * Builder for creating realistic projects with various configurations.
  */
-class RealisticProjectBuilder {
-    companion object {
+object RealisticProjectBuilder {
         /**
          * Create a web application project.
          */
@@ -325,14 +320,12 @@ class RealisticProjectBuilder {
                     else -> createBackendAPI(serverProfileId, "Backend API $index")
                 }
             }
-    }
 }
 
 /**
  * Builder for creating realistic message conversations.
  */
-class RealisticMessageBuilder {
-    companion object {
+object RealisticMessageBuilder {
         /**
          * Create a debugging conversation.
          */
@@ -385,7 +378,6 @@ class RealisticMessageBuilder {
                 MessageFactory.createClaudeResponse("The port 3000 is already in use. Let me help you find and stop the process..."),
                 MessageFactory.createSystemMessage("Server started successfully on port 3001"),
             )
-    }
 }
 
 /**

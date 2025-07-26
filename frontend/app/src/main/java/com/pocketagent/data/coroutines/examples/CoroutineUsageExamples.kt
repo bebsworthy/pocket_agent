@@ -234,9 +234,7 @@ class ProjectViewModel
                 },
             ) {
                 // Validate input
-                if (name.isBlank()) {
-                    throw IllegalArgumentException("Project name cannot be empty")
-                }
+                require(name.isNotBlank()) { "Project name cannot be empty" }
 
                 val project =
                     Project(
@@ -420,17 +418,11 @@ class CreateProjectUseCase
             }
 
         private fun validateRequest(request: CreateProjectRequest) {
-            if (request.name.isBlank()) {
-                throw IllegalArgumentException("Project name cannot be empty")
-            }
+            require(request.name.isNotBlank()) { "Project name cannot be empty" }
 
-            if (request.serverProfileId.isBlank()) {
-                throw IllegalArgumentException("Server profile ID cannot be empty")
-            }
+            require(request.serverProfileId.isNotBlank()) { "Server profile ID cannot be empty" }
 
-            if (request.projectPath.isBlank()) {
-                throw IllegalArgumentException("Project path cannot be empty")
-            }
+            require(request.projectPath.isNotBlank()) { "Project path cannot be empty" }
         }
 
         private fun generateId(): String = "project_${System.currentTimeMillis()}"
