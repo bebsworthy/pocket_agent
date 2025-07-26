@@ -1,52 +1,117 @@
-# Documentation Index
+# Pocket Agent Documentation Guide
 
-This document provides an index for documentation in the `/documentation` folder.
+## Overview
 
-## Table of Contents
+This guide provides navigation for the Pocket Agent documentation. The project is an Android mobile app that serves as a secure interface between users and Claude Code running on their development machines.
 
-### Core Project Documentation
+## Documentation Structure
 
-- **[project.spec.md](./project.spec.md)** - The overview of the project
-  - Technical overview of the entire system (mobile app + server)
-  - Project structure and folder organization
-  - Project-specific rules and guidelines
+```
+documentation/
+├── CLAUDE.md                    # This navigation guide
+├── architecture.md              # System architecture overview
+├── project.spec.md             # Project structure and guidelines
+├── claude-code-sdk-messages.doc.md  # Claude Code SDK message format
+├── design-summary.md           # Design overview
+├── features/                   # Feature specifications (6 features)
+│   ├── README.md              # Cross-reference mapping
+│   ├── data-layer/           # Data persistence feature
+│   ├── communication-layer/  # WebSocket communication
+│   ├── background-services/  # Android services
+│   ├── security-authentication/  # Auth features
+│   ├── ui-navigation-foundation/  # Navigation
+│   └── screen-design/        # UI screens
+├── mockups/                   # UI prototypes
+│   ├── claude-01/           # Claude prototype
+│   ├── gemini-01/           # Gemini prototype v1
+│   ├── gemini-02/           # Gemini prototype v2
+│   └── inspiration/         # Design inspiration
+└── old/                      # Legacy documentation
+    └── mobile-app-spec/     # Previous documentation format
+```
 
-### SDK and Integration Documentation
+## Feature Documentation
 
-- **[claude-code-sdk-messages.spec.md](./claude-code-sdk-messages.spec.md)** - Claude Code SDK message format
-  - Actual message schema from Claude Code SDK
-  - Shows unstructured text format used by Claude
-  - Server-side integration reference
+Each feature in `/documentation/features/` contains exactly 5 files following the spec workflow:
 
-### Subdirectories
+1. **context.md** - Business context and user needs
+2. **research.md** - Technical analysis and decisions
+3. **requirements.md** - User stories with numbered acceptance criteria
+4. **design.md** - Technical design and architecture
+5. **tasks.md** - Implementation plan
 
-- **[mobile-app-spec/](./mobile-app-spec/)** - Mobile application specifications
-  - **[CLAUDE.md](./mobile-app-spec/CLAUDE.md)** - Index of all mobile app documentation
-  - Contains all mobile app features, components, and technical specifications
+### Available Features
 
-### Templates and Resources
+- **data-layer/** - Data persistence and entity management
+- **communication-layer/** - WebSocket communication
+- **background-services/** - Android foreground services
+- **security-authentication/** - Biometric and SSH authentication
+- **ui-navigation-foundation/** - Navigation architecture
+- **screen-design/** - Screen layouts and UI
 
-- **[templates/](./templates/)** - Documentation templates and examples
-  - **[README.md](./templates/README.md)** - Template documentation overview
-  - **[feature-document-structure.template.md](./templates/feature-document-structure.template.md)** - Standard feature documentation template
+## Key Documents
 
-### Mockups and Prototypes
+### System Overview
+- **architecture.md** - Complete system architecture
+- **project.spec.md** - Project structure and rules
+- **design-summary.md** - High-level design overview
 
-- **[mockups/](./mockups/)** - Design mockups and prototypes
-  - **[gemini-01/](./mockups/gemini-01/)** - Gemini prototype version 1
-    - **[index.html](./mockups/gemini-01/index.html)** - Interactive prototype
+### Feature Mapping
+- **features/README.md** - Cross-reference mapping showing:
+  - Feature dependencies
+  - Requirement numbering (282 total requirements)
+  - Shared components
+  - Integration points
 
-## Documentation File Patterns
+### SDK Integration
+- **claude-code-sdk-messages.doc.md** - Claude Code SDK message format for server integration
 
-- `*.spec.md`: Technical specification about a specific component or system
-- `*.feat.md`: Technical specification about a specific feature
-- `*.info.md`: Information and reference files
-- `*.template.md`: Template files for creating new documentation
-- `CLAUDE.md`: Index files for documentation folders
+### UI/UX Resources
+- **mockups/** - Interactive prototypes and design files
+- **mockups/mockup-prompt.md** - Mockup generation instructions
 
-## Usage Instructions
+## Requirement Format
 
-- **ALWAYS READ** `project.spec.md` for overall project understanding
-- **FOR MOBILE APP WORK** navigate to `mobile-app-spec/` and read its CLAUDE.md index
-- **FOR SERVER WORK** refer to `claude-code-sdk-messages.spec.md` for integration details
-- **USE TEMPLATES** from the `templates/` folder when creating new documentation
+All requirements use **X.Y numbering** where:
+- X = Story number
+- Y = Acceptance criteria number
+
+Example: `2.3` = Story 2, Acceptance Criteria 3
+
+## Spec Workflow Templates
+
+The project uses spec workflow templates located in `/.spec/templates/`:
+
+- **architecture-template.md** - System architecture template
+- **design-template.md** - Technical design template
+- **requirements-template.md** - Requirements template
+- **research-template.md** - Research template
+- **tasks-template.md** - Implementation tasks template
+
+See `/.spec/WORKFLOW.md` for complete workflow documentation.
+
+## Migration History
+
+The documentation has been migrated from the legacy format (in `/old/mobile-app-spec/`) to the current spec workflow format. Related migration documents are located in `/spec-migration/`:
+
+- `spec-migration-implementation-roadmap.md`
+- `quality-review-report.md`
+- `quality-improvements-needed.md`
+- `quality-improvements-validation-report.md`
+
+## Navigation Tips
+
+1. **Start with** `architecture.md` for system understanding
+2. **Check** `features/README.md` for feature dependencies
+3. **Review** individual feature folders for detailed specifications
+4. **Reference** `project.spec.md` for coding guidelines
+
+## Technology Stack
+
+- **Language**: Kotlin
+- **UI**: Jetpack Compose
+- **Database**: Room
+- **DI**: Hilt
+- **Navigation**: Compose Navigation
+- **Min SDK**: 26 (Android 8.0)
+- **Target SDK**: 34 (Android 14)
