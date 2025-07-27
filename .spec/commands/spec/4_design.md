@@ -1,3 +1,8 @@
+---
+description: Create technical design from approved requirements
+argument-hint: [feature-name]
+---
+
 # Spec Design Command
 
 Generate design document based on approved requirements.

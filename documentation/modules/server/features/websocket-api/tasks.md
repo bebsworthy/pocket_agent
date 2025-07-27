@@ -3,6 +3,7 @@
 ## Implementation Tasks
 
 ### Phase 1: Core Infrastructure
+> Recommended agent: go-developer
 
 - [ ] 1. **Set up Go module and project structure**
   - Create server/ directory with Go module
@@ -26,6 +27,7 @@
   - _Requirements: 9.1, 9.4_
 
 ### Phase 2: Data Models and Storage
+> Recommended agent: go-developer
 
 - [ ] 4. **Implement core data models**
   - Create models/project.go with Project struct
@@ -49,6 +51,7 @@
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
 ### Phase 2.5: Cross-cutting Concerns (NEW - moved earlier)
+> Recommended agent: go-developer
 
 - [ ] 7. **Implement comprehensive error handling**
   - Create error types and codes (INVALID_PATH, PROJECT_NOT_FOUND, etc.)
@@ -65,6 +68,7 @@
   - _Requirements: 2.2, 9.5, 10.1_
 
 ### Phase 3: Project Management
+> Recommended agent: go-developer
 
 - [ ] 9. **Implement ProjectManager core**
   - Create ProjectManager struct
@@ -88,6 +92,7 @@
   - _Requirements: 3.3, 6.1, 6.3_
 
 ### Phase 4: Claude Execution
+> Recommended agent: go-developer
 
 - [ ] 12. **Implement ClaudeExecutor base**
   - Create ClaudeExecutor struct
@@ -112,6 +117,7 @@
   - _Requirements: 5.1, 5.2, 5.3_
 
 ### Phase 5: WebSocket Communication
+> Recommended agent: go-websocket-specialist
 
 - [ ] 15. **Set up WebSocket server**
   - Integrate Gorilla WebSocket
@@ -142,6 +148,7 @@
   - _Requirements: 3.1, 4.1, 5.1, 6.1_
 
 ### Phase 6: Message Handlers
+> Recommended agent: go-websocket-specialist
 
 - [ ] 19. **Implement project handlers**
   - handleProjectCreate with validation
@@ -165,6 +172,7 @@
   - _Requirements: 7.1, 7.3, 7.4_
 
 ### Phase 7: Broadcasting and Updates
+> Recommended agent: go-websocket-specialist
 
 - [ ] 22. **Implement broadcast system**
   - Create broadcastToProject method
@@ -188,6 +196,7 @@
   - _Requirements: Monitoring, Operations_
 
 ### Phase 8: Server Infrastructure
+> Recommended agent: go-developer
 
 - [ ] 25. **Implement main server structure**
   - Create Server struct
@@ -211,6 +220,7 @@
   - _Requirements: Performance, Monitoring_
 
 ### Phase 9: Platform Support
+> Recommended agent: go-developer
 
 - [ ] 28. **Add Unix platform compatibility**
   - Linux: signal handling, process groups
@@ -220,6 +230,7 @@
   - _Requirements: Platform compatibility_
 
 ### Phase 10: Testing
+> Recommended agent: go-test-engineer
 
 - [ ] 29. **Create Claude CLI mock for testing**
   - Parse example-claude-interactive-output for test data
@@ -253,6 +264,7 @@
   - _Requirements: Performance Requirements_
 
 ### Phase 11: Documentation
+> Recommended agent: go-developer
 
 - [ ] 34. **Create operational documentation**
   - Write comprehensive README.md
@@ -269,6 +281,7 @@
   - _Requirements: Deployment_
 
 ### Phase 12: Deployment Preparation
+> Recommended agent: go-developer
 
 - [ ] 36. **Create deployment artifacts**
   - Create multi-stage Dockerfile
@@ -283,6 +296,33 @@
   - Create release checklist
   - Set up CI/CD pipeline
   - _Requirements: Deployment_
+
+## Agent Recommendations Summary
+
+### Specialized Agents Available
+
+1. **go-developer** - Primary implementation agent
+   - Phases: 1, 2, 2.5, 3, 4, 8, 9, 11, 12
+   - Tasks: Core infrastructure, data models, project management, Claude execution, server setup
+
+2. **go-websocket-specialist** - WebSocket expert
+   - Phases: 5, 6, 7
+   - Tasks: WebSocket server, message handlers, broadcasting system
+
+3. **go-test-engineer** - Testing specialist
+   - Phase: 10
+   - Tasks: Unit tests, integration tests, load tests, Claude CLI mock
+
+4. **system-architect** - Architecture review (optional)
+   - Use for design validation and architectural decisions
+   - Read-only access for system analysis
+
+### Execution Strategy
+
+When using `/spec:6_execute <task-id>`:
+- Tasks will automatically use the recommended agent based on phase
+- For architecture review, explicitly specify: `/spec:6_execute --agent system-architect`
+- Agents work best when given complete phase context
 
 ## Task Dependencies (Updated)
 

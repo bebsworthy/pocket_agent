@@ -1,3 +1,8 @@
+---
+description: Generate user stories and requirements from research
+argument-hint: [feature-name]
+---
+
 # Spec Requirements Command
 
 Generate or update requirements document for an existing spec.

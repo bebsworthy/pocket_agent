@@ -1,3 +1,8 @@
+---
+description: Display available modules and their descriptions
+argument-hint: [module-name]
+---
+
 # Modules List Command
 
 List all available modules and their current status.

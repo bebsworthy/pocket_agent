@@ -1,3 +1,8 @@
+---
+description: Check the implementation progress of a feature specification
+argument-hint: <feature-name> [--verbose]
+---
+
 # Spec Status Command
 
 Show current status of all specs or a specific spec.

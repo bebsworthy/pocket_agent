@@ -1,3 +1,8 @@
+---
+description: Execute individual implementation tasks with appropriate agents
+argument-hint: [feature-name] <task-id> [--agent <agent-name>]
+---
+
 # Spec Execute Command
 
 Execute specific tasks from the approved task list.
