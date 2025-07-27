@@ -1,3 +1,8 @@
+---
+description: Research and analyze requirements for a feature specification
+argument-hint: [feature-name]
+---
+
 # Feature Research Command
 
 Perform lightweight, feature-specific research leveraging the global architecture documentation.

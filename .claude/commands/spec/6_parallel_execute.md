@@ -1,3 +1,8 @@
+---
+description: Execute multiple tasks in parallel using specialized agents
+argument-hint: [feature-name] [--max-agents=N] [--continue-on-error] [--track=TRACK]
+---
+
 # Spec Parallel Execute Command
 
 Execute all pending tasks from the approved task list using parallel agents according to the defined execution strategy.
@@ -9,7 +14,6 @@ Execute all pending tasks from the approved task list using parallel agents acco
 
 ## Options
 - `--max-agents=N` - Maximum number of parallel agents (default: 6)
-- `--dry-run` - Show execution plan without running tasks
 - `--continue-on-error` - Continue executing other tasks if one fails
 - `--track=TRACK` - Execute only specific track (A-F)
 
@@ -46,7 +50,7 @@ You are the parallel execution coordinator for the spec workflow.
      - Group tasks by tracks (A-F) as defined
    - Determine which tasks can start immediately
 
-4. **Display Execution Plan** (if --dry-run or for confirmation)
+4. **Display Execution Plan** (for confirmation)
    
    **For Cross-Module Features:**
    ```
@@ -265,11 +269,6 @@ def parallel_execute(feature_name, options):
 ### Limited Parallelism
 ```
 /spec:parallel_execute {feature-name} --max-agents=3
-```
-
-### Dry Run
-```
-/spec:parallel_execute {feature-name} --dry-run
 ```
 
 ### Execute Specific Track

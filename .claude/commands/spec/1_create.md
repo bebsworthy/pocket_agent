@@ -1,3 +1,8 @@
+---
+description: Create a new feature specification in the spec-driven workflow
+argument-hint: <feature-name> [--module <module> | --cross-module] [description]
+---
+
 # Spec Create Command
 
 Create a new feature specification following the spec-driven workflow.

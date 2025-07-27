@@ -1,3 +1,8 @@
+---
+description: Display the complete spec-driven development workflow guide
+argument-hint: [phase-number]
+---
+
 # Spec Workflow Summary
 
 Display a quick summary of the spec-driven workflow.

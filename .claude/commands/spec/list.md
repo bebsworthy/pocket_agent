@@ -1,3 +1,8 @@
+---
+description: List all feature specifications with their current status
+argument-hint: [--module <module> | --cross-module] [--status <status>]
+---
+
 # Spec List Command
 
 List all specs in the current project.

@@ -1,3 +1,8 @@
+---
+description: Manage and view module architecture documentation
+argument-hint: [module-name | --all]
+---
+
 # Architecture Analysis Command
 
 Perform comprehensive codebase analysis to create or update architecture documentation.

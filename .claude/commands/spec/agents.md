@@ -1,3 +1,8 @@
+---
+description: Analyze features to identify and create specialized agents for task implementation
+argument-hint: <feature-name> [--create] [--optimize]
+---
+
 # Agent Optimization Command
 
 Automatically analyze feature specifications to identify, create, and optimize specialized agents for task implementation.
@@ -247,5 +252,3 @@ After running this command:
 1. Review created agents in `.claude/agents/`
 2. Check optimized tasks.md for agent recommendations
 3. Use `/spec:6_execute` to implement tasks with specialized agents
-
-**Important** DO NOT WRITE A SUMMARY FILE
