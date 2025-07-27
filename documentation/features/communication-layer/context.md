@@ -2,46 +2,47 @@
 
 ## Overview
 
-The Communication Layer provides the foundation for real-time, bidirectional communication between Pocket Agent client applications (Android mobile, React web) and Claude Code wrapper services running on development machines. This cross-module feature enables developers to interact with Claude from any supported client device, maintaining secure connections across different network conditions.
+The Communication Layer provides the foundation for real-time, bidirectional communication between Pocket Agent client applications (Android mobile, React web) and the Claude CLI execution server running on development machines. This cross-module feature enables developers to interact with Claude CLI from any supported client device through a project-based execution model with persistent message history.
 
 ## Business Context
 
 ### Problem Statement
 
-Developers often need to monitor and interact with their Claude Code sessions while away from their development machines or when using different types of devices. Current solutions require being physically present at the machine or using complex remote desktop solutions that are impractical on mobile devices or limited web interfaces. This creates several challenges:
+Developers need to manage and monitor their Claude CLI executions organized by project while away from their development machines. The Claude CLI (`claude -p <prompt>`) executes and exits, requiring session management for context continuity. This creates several challenges:
 
-- **Mobility Gap**: Developers cannot respond to Claude's permission requests or monitor progress when away from their desk
-- **Device Flexibility**: Need to access Claude from both mobile and web interfaces seamlessly
-- **Security Concerns**: Traditional remote access methods expose entire systems rather than just Claude interactions
-- **Network Reliability**: Mobile and web networks are inherently unstable, requiring robust connection management
-- **Cross-Platform Consistency**: Different client platforms need consistent experience and capabilities
+- **Project Organization**: Need to organize Claude executions by project directory with isolated contexts
+- **Session Continuity**: Claude CLI exits after each execution, requiring session ID management
+- **Execution Persistence**: Commands and responses must be persisted across server restarts
+- **Multi-Client Access**: Multiple clients need to observe the same project execution
+- **Platform Limitations**: Server runs on Unix/POSIX systems only (Linux and macOS)
 
 ### Target Users
 
 1. **Mobile Developers**: Need to monitor long-running tasks or respond to Claude while commuting or in meetings
 2. **Web Users**: Prefer browser-based access for quick interactions or when mobile app isn't available
-3. **DevOps Engineers**: Require ability to approve sensitive operations from verified devices
-4. **Team Leads**: Want to review Claude's work from any available device
-5. **Remote Workers**: Need secure access to development sessions from various locations and devices
+3. **Team Collaborators**: Multiple developers working on the same project need shared visibility
+4. **Remote Workers**: Need access to project-specific Claude sessions from various locations
+5. **Platform Users**: Developers on Linux or macOS systems (Windows not supported)
 
 ### Business Value
 
 - **Increased Productivity**: Developers can maintain workflow continuity regardless of device or location
 - **Faster Response Times**: Critical permissions can be approved immediately from any client
-- **Enhanced Security**: Consistent SSH key-based authentication across all platforms
-- **Operational Flexibility**: Teams can collaborate on Claude sessions across different devices and platforms
-- **User Choice**: Flexibility to use preferred device type (mobile or web) for different scenarios
+- **Project Isolation**: Each project maintains its own execution context and message history
+- **Persistent History**: All messages persisted to disk with automatic rotation (1GB/30 days)
+- **Server Resilience**: Projects and sessions survive server restarts
+- **Platform Focus**: Optimized for Unix/POSIX systems without Windows complexity
 
 ## Cross-Module Architecture
 
 ### Module Responsibilities
 
 #### Server Module
-- **WebSocket Server**: Provides the central communication hub
-- **Authentication**: Validates SSH keys and manages sessions
-- **Message Routing**: Routes messages between Claude Code and connected clients
-- **Session Management**: Tracks active sessions and client connections
-- **Protocol Implementation**: Defines and enforces the communication protocol
+- **WebSocket Server**: Provides the central communication hub (no REST API)
+- **Project Management**: Creates, deletes, and manages project-based executions
+- **Claude Execution**: Manages Claude CLI process lifecycle with timeouts
+- **Message Persistence**: Stores all messages with file rotation
+- **Multi-Client Broadcasting**: Broadcasts updates to all project subscribers
 
 #### Frontend-Android Module
 - **Mobile Client**: Native Android WebSocket client optimized for mobile networks
@@ -59,23 +60,22 @@ Developers often need to monitor and interact with their Claude Code sessions wh
 
 ## Integration Scenarios
 
-### Cross-Device Handoff
-A developer starts a Claude session on their desktop, monitors progress on mobile during a meeting, then switches to web interface for detailed code review.
+### Project-Based Execution
+A developer creates a project for `/home/user/myapp`, executes Claude commands that maintain context through session IDs, with all messages persisted to disk.
 
-### Multi-Client Monitoring
-Team leads can observe the same Claude session from both web dashboard and mobile notifications, receiving updates on any device.
+### Multi-Client Project Monitoring  
+Multiple team members join the same project, receiving real-time updates as Claude executes commands, with full message history available.
 
-### Platform-Specific Optimization
-- **Mobile**: Optimized for quick permission approvals and status monitoring
-- **Web**: Optimized for detailed interaction and code review
+### Server Restart Recovery
+Server crashes and restarts, automatically reloading all projects with their session IDs intact, allowing seamless continuation of work.
 
 ## Success Criteria
 
 ### Cross-Module Integration
-1. **Protocol Consistency**: Same message format works across all client types
-2. **Feature Parity**: Core functionality available on all platforms
-3. **Seamless Switching**: Users can switch between clients without losing context
-4. **Synchronized State**: All connected clients show consistent session state
+1. **Protocol Consistency**: WebSocket-only protocol (no REST API) across all clients
+2. **Project Model**: All modules understand project-based execution model
+3. **Message Persistence**: Server maintains complete history accessible to all clients
+4. **Platform Compatibility**: Server on Linux/macOS, clients on any platform
 
 ### Platform-Specific Performance
 - **Mobile**: Sub-3-second authentication, 99% uptime during normal networks
@@ -85,15 +85,16 @@ Team leads can observe the same Claude session from both web dashboard and mobil
 ## Module Integration Points
 
 ### Shared Protocol
-- **Message Format**: JSON-based protocol understood by all modules
-- **Authentication Flow**: SSH key challenge-response across all clients
-- **Error Handling**: Consistent error codes and recovery strategies
-- **Session Management**: Unified session lifecycle across platforms
+- **Message Format**: JSON-based WebSocket protocol (no REST endpoints)
+- **Project Operations**: Create, delete, list, join, leave projects
+- **Execution Commands**: Execute, new session, kill active execution
+- **Message History**: Query historical messages with timestamp filtering
 
 ### Platform-Specific Adaptations
 - **Mobile**: Connection persistence during network changes
-- **Web**: Browser security model compliance
-- **Server**: Multi-client session broadcasting
+- **Web**: Browser security model compliance  
+- **Server**: Unix/POSIX only (Linux and macOS), no Windows support
+- **Testing**: Mock Claude CLI required (FORBIDDEN: real Claude API in tests)
 
 ---
 

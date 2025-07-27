@@ -3,24 +3,24 @@
 ## Module Overview
 
 **Module Name**: Server
-**Description**: Backend server and API services for Pocket Agent
-**Technology Stack**: Go, WebSocket, REST API (planned)
+**Description**: Backend WebSocket server for Pocket Agent with Claude CLI integration
+**Technology Stack**: Go, WebSocket (no REST API)
 **Directory**: server/ (to be created)
 
 ## Purpose and Scope
 
 ### Module Responsibilities
 - Provide WebSocket server for real-time communication with mobile clients
-- Act as wrapper/proxy for Claude Code instances
-- Handle SSH key-based authentication and session management
-- Manage multiple concurrent client connections
-- Provide REST APIs for non-real-time operations
-- Monitor Claude Code process health and status
+- Act as wrapper/proxy for Claude CLI execution (`claude -p <prompt>`)
+- Manage project-based execution model with sequential command processing
+- Handle multi-client subscription and broadcasting per project
+- Persist project metadata and message history to disk
+- Monitor Claude CLI process health with timeout mechanism (5 minutes)
 
 ### Module Boundaries
-- **Does NOT handle**: Mobile UI, local data storage, platform-specific features
-- **Integrates with**: Claude Code process via stdin/stdout, mobile clients via WebSocket
-- **Exposes**: WebSocket API and REST endpoints for client applications
+- **Does NOT handle**: Mobile UI, authentication (future work), Windows support
+- **Integrates with**: Claude CLI process via command execution, mobile clients via WebSocket only
+- **Exposes**: WebSocket API exclusively (no REST endpoints)
 
 ## Technology Stack
 
@@ -51,10 +51,10 @@ server/
 ├── main.go                 # Application entry point
 ├── internal/
 │   ├── websocket/          # WebSocket server implementation
-│   ├── auth/               # SSH authentication handling
-│   ├── claude/             # Claude Code process management
-│   ├── session/            # Session management
-│   └── api/                # REST API handlers
+│   ├── project/            # Project management and persistence
+│   ├── claude/             # Claude CLI execution management
+│   ├── session/            # Session and subscription management
+│   └── storage/            # Message history and rotation
 ├── pkg/
 │   ├── protocol/           # Message protocol definitions
 │   └── models/             # Shared data models
@@ -88,22 +88,22 @@ server/
 ### Component Organization
 ```mermaid
 graph TD
-    A[WebSocket Handler] --> B[Session Manager]
-    C[REST API Handler] --> B
-    B --> D[Claude Process Manager]
-    B --> E[Authentication Service]
-    E --> F[SSH Key Validator]
-    D --> G[Claude Code Process]
-    B --> H[Message Router]
-    H --> I[Protocol Handler]
+    A[WebSocket Handler] --> B[Project Manager]
+    B --> C[Session Manager]
+    B --> D[Claude Executor]
+    D --> E[Claude CLI Process]
+    B --> F[Message Log]
+    F --> G[File Rotation]
+    C --> H[Client Subscriptions]
+    B --> I[Project Persistence]
 ```
 
 ### Data Flow
-1. **Input**: WebSocket connections and HTTP requests from clients
-2. **Authentication**: SSH key-based challenge-response authentication
-3. **Session Management**: Active session tracking and state management
-4. **Claude Interaction**: Proxy commands to Claude Code process
-5. **Output**: Real-time responses via WebSocket, status via REST API
+1. **Input**: WebSocket connections from clients (no HTTP/REST)
+2. **Project Management**: Create, delete, join, leave projects
+3. **Execution**: Sequential command execution per project via Claude CLI
+4. **Message Storage**: Persist all messages with rotation (1GB/30 days)
+5. **Output**: Real-time responses via WebSocket broadcasting to project subscribers
 
 ## Module APIs and Interfaces
 
@@ -117,21 +117,22 @@ This module exposes interfaces to other modules:
 - **Authentication**: SSH key challenge-response
 - **Example**: ws://server:8080/ws
 
-#### REST API (Planned)
-- **Type**: HTTP REST endpoints
-- **Purpose**: Non-real-time operations and status queries
-- **Contract**: JSON request/response
-- **Authentication**: Bearer token or API key
-- **Example**: GET /api/v1/sessions
+#### Project-Based Execution
+- **Type**: Project management via WebSocket messages
+- **Purpose**: Organize Claude CLI executions by project directory
+- **Contract**: Sequential execution per project, parallel across projects
+- **Persistence**: Project metadata and message history saved to disk
+- **Example**: `{"type": "project_create", "payload": {"path": "/path/to/project"}}`
 
 ### Integration Points
 How this module integrates with others:
 
-#### Claude Code Process Integration
-- **Target**: Local Claude Code process
-- **Method**: stdin/stdout communication
-- **Data**: Commands and responses via process pipes
-- **Frequency**: Real-time command proxying
+#### Claude CLI Process Integration
+- **Target**: Claude CLI executable (`claude` command)
+- **Method**: Command execution with `-p` for prompts, `-c` for session continuity
+- **Data**: JSON-formatted responses parsed from stdout
+- **Timeout**: 5-minute execution timeout with process termination
+- **Concurrency**: One active execution per project
 
 #### Mobile Client Integration
 - **Target Module**: Frontend-Android, Frontend-React
@@ -145,11 +146,12 @@ How this module integrates with others:
 Core data structures used in this module:
 
 ```go
-type Session struct {
+type Project struct {
     ID          string    `json:"id"`
-    ClientID    string    `json:"client_id"`
-    ProjectPath string    `json:"project_path"`
-    Status      string    `json:"status"`
+    Path        string    `json:"path"`
+    Status      string    `json:"status"` // idle, executing, error
+    SessionID   string    `json:"session_id"` // Claude CLI session
+    Subscribers []string  `json:"subscribers"` // Connected client IDs
     CreatedAt   time.Time `json:"created_at"`
     LastActive  time.Time `json:"last_active"`
 }
@@ -161,18 +163,21 @@ type Message struct {
     Timestamp time.Time   `json:"timestamp"`
 }
 
-type AuthChallenge struct {
-    Challenge string `json:"challenge"`
-    PublicKey string `json:"public_key"`
-    Signature string `json:"signature"`
+type ProjectMetadata struct {
+    ID          string    `json:"id"`
+    Path        string    `json:"path"`
+    SessionID   string    `json:"session_id"`
+    CreatedAt   time.Time `json:"created_at"`
+    MessageLog  string    `json:"message_log"` // Path to message history
 }
 ```
 
 ### Data Storage
-- **Session State**: In-memory storage for active sessions
-- **Configuration**: File-based configuration with environment overrides
-- **Logging**: Structured logs to files or stdout
-- **No Persistence**: Server is stateless, clients manage persistent data
+- **Project State**: In-memory with disk persistence (metadata.json per project)
+- **Message History**: File-based append-only logs with rotation (1GB or 30 days)
+- **Configuration**: Environment variables and config files
+- **Server State**: Persisted to disk, survives restarts
+- **Atomic Operations**: All file writes use atomic rename pattern
 
 ### Data Validation
 - **Input Validation**: Message format validation and sanitization
@@ -189,22 +194,25 @@ type AuthChallenge struct {
 
 ### Environment Support
 - **Development**: Local development with file-based logging
-- **Testing**: In-memory configuration for unit tests
-- **Production**: Docker deployment with environment-based config
+- **Testing**: Mock Claude CLI for deterministic testing (FORBIDDEN: real Claude API)
+- **Production**: Unix/POSIX systems only (Linux and macOS)
+- **Platform**: No Windows support
 
 ## Security Architecture
 
 ### Authentication and Authorization
-- **SSH Key Authentication**: Validate client SSH keys against authorized keys
-- **Session Tokens**: Generate secure session tokens for authenticated clients
-- **Rate Limiting**: Protect against abuse and DoS attacks
+- **No Authentication**: MVP has no authentication (future work)
+- **Project Validation**: Ensure project paths are absolute and exist
+- **Path Security**: Prevent directory traversal and symbolic link attacks
 - **Input Validation**: Sanitize all incoming messages and commands
+- **Rate Limiting**: Connection and message rate limits
 
 ### Data Security
-- **TLS/WSS**: Encrypted WebSocket connections (wss://)
-- **No Credential Storage**: Server validates but doesn't store SSH private keys
-- **Process Isolation**: Claude Code process runs with limited privileges
-- **Audit Logging**: Log all authentication events and critical operations
+- **TLS/WSS**: Encrypted WebSocket connections recommended
+- **Process Isolation**: Claude CLI runs with limited privileges
+- **Command Injection Prevention**: Proper argument escaping for Claude CLI
+- **File System Security**: Validate all paths, prevent escaping project directory
+- **Audit Logging**: Log all project operations and command executions
 
 ## Performance and Scalability
 
@@ -323,30 +331,35 @@ server/
 
 ## Implementation Roadmap
 
-### Phase 1: Basic WebSocket Server
-- Implement basic WebSocket server with connection handling
-- Basic message routing and session management
-- Simple authentication placeholder
+### Phase 1: Core Infrastructure
+- Basic WebSocket server with project-based routing
+- Project creation, deletion, and management
+- Message persistence with file rotation
+- Server restart recovery
 
-### Phase 2: Claude Integration
-- Integrate with Claude Code process via stdin/stdout
-- Implement command proxying and response handling
-- Add error handling and process monitoring
+### Phase 2: Claude CLI Integration  
+- Execute Claude CLI with proper argument handling
+- Parse JSON responses and error handling
+- Implement 5-minute timeout mechanism
+- Session ID management for context continuity
 
-### Phase 3: Security and Authentication
-- Implement SSH key-based authentication
-- Add TLS/WSS support for encrypted connections
-- Implement rate limiting and security measures
+### Phase 3: Multi-Client Support
+- Project subscription model (join/leave)
+- Broadcasting to all project subscribers
+- Connection health monitoring
+- Concurrent project execution
 
 ### Phase 4: Production Features
-- Add comprehensive logging and monitoring
-- Implement health checks and metrics
-- Add configuration management and deployment scripts
+- Comprehensive error handling and recovery
+- Resource limits and monitoring
+- Platform-specific optimizations (Linux/macOS)
+- Mock Claude CLI for testing
 
 ---
 
 *Module: Server*
-*Architecture Version: 1.0*
+*Architecture Version: 2.0*
 *Last Updated: 2025-01-27*
-*Status: Planned - Not Yet Implemented*
-*Technology Stack: Go, WebSocket, REST API (planned)*
+*Status: Planned - Aligned with WebSocket API Specification*
+*Technology Stack: Go, WebSocket only (no REST API)*
+*Platform: Unix/POSIX (Linux and macOS) only*

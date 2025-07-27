@@ -3,42 +3,42 @@
 ## Module Context
 
 **Module**: Server
-**Technology Stack**: Go, WebSocket, REST API
+**Technology Stack**: Go, WebSocket only (no REST API)
 **Module Directory**: server/
+**Platform**: Unix/POSIX only (Linux, macOS)
 
 ## Overview
 
-The server module provides the central WebSocket communication hub that enables real-time bidirectional communication between Claude Code processes and multiple client applications (Android mobile and React web).
+The server module provides the central WebSocket communication hub that manages project-based Claude CLI executions with persistent message storage and multi-client broadcasting.
 
 ## Module Scope
 
 ### What This Module Owns
-- WebSocket server implementation and connection management
-- SSH key-based authentication and session management
-- Claude Code process lifecycle management
-- Message routing and protocol implementation
-- Multi-client session broadcasting
+- WebSocket server implementation (no REST API)
+- Project creation, deletion, and management
+- Claude CLI execution with timeout management
+- Message persistence with file rotation
+- Multi-client project subscription and broadcasting
 
 ### Module Boundaries
-- **Does NOT handle**: Client UI, mobile-specific features, browser compatibility
+- **Does NOT handle**: Client UI, authentication (future work), Windows support
 - **Dependencies on other modules**: None (standalone server)
-- **Interfaces exposed to other modules**: WebSocket API, REST API endpoints
+- **Interfaces exposed to other modules**: WebSocket API only
 
 ## Architecture
 
 ### Module-Specific Architecture
 ```mermaid
 graph TD
-    A[WebSocket Handler] --> B[Authentication Service]
-    A --> C[Session Manager]
-    C --> D[Claude Process Manager]
-    C --> E[Message Router]
-    E --> F[Protocol Handler]
-    D --> G[Claude Code Process]
-    B --> H[SSH Key Validator]
-    I[REST API Handler] --> C
-    J[Health Check] --> C
-    J --> D
+    A[WebSocket Handler] --> B[Project Manager]
+    B --> C[Session Manager]
+    B --> D[Claude Executor]
+    D --> E[Claude CLI]
+    B --> F[Message Log]
+    F --> G[File Rotation]
+    B --> H[Project Persistence]
+    C --> I[Client Subscriptions]
+    J[Error Handler] --> A
 ```
 
 ### Technology-Specific Patterns
@@ -57,29 +57,29 @@ graph TD
 - **Dependencies**: Session Manager, Authentication Service
 - **Interface**: Accepts WebSocket upgrade requests, handles message routing
 
-#### Authentication Service
-- **Purpose**: Validates SSH key signatures for client authentication
-- **Technology**: Go SSH library
-- **Dependencies**: SSH Key Validator
-- **Interface**: Challenge-response authentication API
+#### Project Manager
+- **Purpose**: Manages project lifecycle and state
+- **Technology**: In-memory with disk persistence
+- **Dependencies**: Message Log, Claude Executor
+- **Interface**: Create, delete, join, leave projects
 
 #### Session Manager
-- **Purpose**: Tracks active sessions and client connections
-- **Technology**: In-memory session store with sync.Map
-- **Dependencies**: Claude Process Manager
-- **Interface**: Session CRUD operations, client broadcasting
+- **Purpose**: Tracks client subscriptions to projects
+- **Technology**: In-memory subscription map
+- **Dependencies**: Project Manager
+- **Interface**: Subscribe/unsubscribe clients, broadcast to subscribers
 
-#### Claude Process Manager
-- **Purpose**: Manages Claude Code process lifecycle
-- **Technology**: os/exec package for process control
+#### Claude Executor
+- **Purpose**: Executes Claude CLI with proper arguments
+- **Technology**: os/exec with timeout context
 - **Dependencies**: None
-- **Interface**: Process start/stop, stdin/stdout handling
+- **Interface**: Execute with timeout, kill active execution
 
-#### Message Router
-- **Purpose**: Routes messages between Claude Code and clients
-- **Technology**: JSON encoding/decoding
-- **Dependencies**: Protocol Handler, Session Manager
-- **Interface**: Message validation and routing API
+#### Message Log
+- **Purpose**: Persists messages with automatic rotation
+- **Technology**: File-based append log with rotation
+- **Dependencies**: File system
+- **Interface**: Append message, query by timestamp, rotate
 
 ### External Interfaces
 
@@ -89,18 +89,19 @@ graph TD
 - **Contract**: JSON message protocol with authentication
 - **Authentication**: SSH key challenge-response
 
-#### REST API (Future)
-- **Type**: HTTP REST endpoints
-- **Purpose**: Non-real-time operations and health checks
-- **Contract**: JSON request/response
-- **Authentication**: Bearer token or API key
+#### Project Persistence
+- **Type**: File-based metadata storage
+- **Purpose**: Survive server restarts
+- **Contract**: JSON metadata files per project
+- **Pattern**: Atomic writes with rename
 
 ### Module Dependencies
 
-#### Claude Code Process
-- **Source**: Local Claude Code executable
-- **Type**: Process stdin/stdout communication
-- **Fallback**: Graceful error handling and process restart
+#### Claude CLI Process
+- **Source**: Local `claude` executable
+- **Type**: Command execution with `-p` and `-c` flags
+- **Timeout**: 5-minute execution limit
+- **Output**: JSON-formatted responses
 
 ## Data Models
 
@@ -108,49 +109,49 @@ graph TD
 ```go
 type Server struct {
     wsHandler    *WebSocketHandler
-    authService  *AuthService
+    projectMgr   *ProjectManager
     sessionMgr   *SessionManager
-    claudeMgr    *ClaudeManager
+    executor     *ClaudeExecutor
     config       *Config
 }
 
 type WebSocketConnection struct {
     conn         *websocket.Conn
     clientID     string
-    authenticated bool
-    sessionID    string
+    projects     map[string]bool // Subscribed projects
     sendChan     chan []byte
     closeChan    chan struct{}
 }
 
-type Session struct {
+type Project struct {
     ID           string
-    ClientIDs    []string
-    ProjectPath  string
-    Status       SessionStatus
+    Path         string
+    Status       ProjectStatus // idle, executing, error
+    SessionID    string        // Claude CLI session
+    Subscribers  []string      // Client IDs
+    MessageLog   string        // Path to message file
     CreatedAt    time.Time
-    LastActivity time.Time
+    LastActive   time.Time
 }
 ```
 
 ### Shared Models
 ```go
-type Message struct {
-    Type      string      `json:"type"`
-    SessionID string      `json:"session_id,omitempty"`
-    Payload   interface{} `json:"payload"`
-    Timestamp time.Time   `json:"timestamp"`
-    ID        string      `json:"id"`
+type ClientMessage struct {
+    Type    string                 `json:"type"`
+    Payload map[string]interface{} `json:"payload"`
 }
 
-type AuthChallenge struct {
-    Challenge string `json:"challenge"`
-    Timestamp string `json:"timestamp"`
+type UpdateMessage struct {
+    Type    string                 `json:"type"`
+    Payload UpdatePayload          `json:"payload"`
 }
 
-type AuthResponse struct {
-    Signature string `json:"signature"`
-    PublicKey string `json:"public_key"`
+type UpdatePayload struct {
+    ProjectID   string                 `json:"project_id"`
+    UpdateType  string                 `json:"update_type"`
+    Data        map[string]interface{} `json:"data"`
+    Timestamp   time.Time              `json:"timestamp"`
 }
 ```
 
@@ -160,7 +161,8 @@ type AuthResponse struct {
 - **Connection Handler**: One goroutine per WebSocket connection
 - **Message Reader**: Dedicated goroutine for reading from WebSocket
 - **Message Writer**: Dedicated goroutine for writing to WebSocket
-- **Claude Process**: Goroutine for handling Claude Code stdin/stdout
+- **Claude Executor**: Goroutine per project execution with timeout
+- **File Rotation**: Background goroutine for message log rotation
 
 ### Error Handling
 - **Panic Recovery**: Recover from panics in goroutines
@@ -173,9 +175,12 @@ type AuthResponse struct {
 type Config struct {
     WebSocketPort     int           `env:"WS_PORT" default:"8080"`
     ClaudeCommand     string        `env:"CLAUDE_CMD" default:"claude"`
-    AuthTimeout       time.Duration `env:"AUTH_TIMEOUT" default:"30s"`
+    ExecutionTimeout  time.Duration `env:"EXEC_TIMEOUT" default:"5m"`
     HeartbeatInterval time.Duration `env:"HEARTBEAT" default:"30s"`
     MaxConnections    int           `env:"MAX_CONN" default:"100"`
+    MaxProjects       int           `env:"MAX_PROJECTS" default:"100"`
+    MessageRotateSize int64         `env:"MSG_ROTATE_SIZE" default:"1073741824"` // 1GB
+    MessageRotateDays int           `env:"MSG_ROTATE_DAYS" default:"30"`
     LogLevel          string        `env:"LOG_LEVEL" default:"info"`
 }
 ```
@@ -185,19 +190,21 @@ type Config struct {
 ### Module-Level Testing
 ```go
 // Unit tests for individual components
-func TestAuthService_ValidateSignature(t *testing.T) { ... }
-func TestSessionManager_CreateSession(t *testing.T) { ... }
-func TestMessageRouter_RouteMessage(t *testing.T) { ... }
+func TestProjectManager_CreateProject(t *testing.T) { ... }
+func TestProjectManager_PathValidation(t *testing.T) { ... }
+func TestMessageLog_Rotation(t *testing.T) { ... }
+func TestClaudeExecutor_Timeout(t *testing.T) { ... }
 
-// Integration tests for module interactions
-func TestWebSocketHandler_AuthFlow(t *testing.T) { ... }
-func TestClaudeManager_ProcessComm(t *testing.T) { ... }
+// Integration tests with mock Claude CLI
+func TestWebSocketHandler_ProjectFlow(t *testing.T) { ... }
+func TestServerRestart_Recovery(t *testing.T) { ... }
 ```
 
 ### Cross-Module Testing
 - **WebSocket Client Testing**: Automated client for testing server responses
-- **Claude Process Mocking**: Mock Claude Code process for testing
-- **Load Testing**: Multiple concurrent connections testing
+- **Claude CLI Mocking**: MUST use mock Claude CLI (FORBIDDEN: real API)
+- **Platform Testing**: Test on Linux and macOS only
+- **Persistence Testing**: Verify server restart recovery
 
 ## Performance Considerations
 
@@ -215,15 +222,17 @@ func TestClaudeManager_ProcessComm(t *testing.T) { ... }
 ## Security Considerations
 
 ### Module Security
-- **Input Validation**: Validate all incoming WebSocket messages
-- **Process Isolation**: Run Claude Code with limited privileges
-- **Resource Limits**: Prevent resource exhaustion attacks
-- **Audit Logging**: Log all authentication and critical events
+- **Path Validation**: Validate project paths, prevent traversal
+- **Process Isolation**: Run Claude CLI with limited privileges
+- **Command Injection**: Proper argument escaping for Claude CLI
+- **Resource Limits**: Limit projects, connections, message size
+- **Audit Logging**: Log all project operations and executions
 
 ### Cross-Module Security
-- **WebSocket Security**: WSS (secure WebSocket) for encryption
-- **Authentication**: SSH key validation prevents unauthorized access
-- **Session Security**: Secure session token generation
+- **WebSocket Security**: WSS (secure WebSocket) recommended
+- **No Authentication**: MVP has no auth (future work)
+- **Project Isolation**: Each project has separate execution context
+- **Platform Security**: Unix file permissions for data protection
 
 ## Deployment and Operations
 
@@ -281,4 +290,6 @@ var (
 
 *Module: Server*
 *Last Updated: 2025-01-27*
-*Technology Stack: Go, WebSocket, REST API*
+*Technology Stack: Go, WebSocket only (no REST API)*
+*Platform: Unix/POSIX only (Linux, macOS)*
+*Testing: MUST use mock Claude CLI*

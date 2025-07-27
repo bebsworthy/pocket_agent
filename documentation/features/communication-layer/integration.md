@@ -2,15 +2,15 @@
 
 ## Overview
 
-The Communication Layer integrates WebSocket communication across server, Android mobile, and React web modules to provide seamless real-time interaction with Claude Code from any supported client device.
+The Communication Layer integrates WebSocket communication across server, Android mobile, and React web modules to provide seamless real-time interaction with Claude CLI through a project-based execution model with persistent message storage.
 
 ## Module Responsibilities
 
 ### Server Module
-- **Role**: Central communication hub and Claude Code proxy
-- **APIs**: WebSocket server endpoint, session management endpoints
-- **Data**: Active sessions, client connections, Claude Code process state
-- **Events**: Client connection/disconnection, Claude Code events, authentication events
+- **Role**: Central communication hub and Claude CLI executor
+- **APIs**: WebSocket server endpoint only (no REST API)
+- **Data**: Projects, message history, client subscriptions, Claude session IDs
+- **Events**: Project lifecycle, execution status, client join/leave, message broadcasts
 
 ### Frontend-React Module  
 - **Role**: Web-based client for desktop and tablet access
@@ -31,8 +31,9 @@ The Communication Layer integrates WebSocket communication across server, Androi
 graph LR
     A[Android App] --|WebSocket| B[Server]
     C[React Web] --|WebSocket| B
-    B --|stdin/stdout| D[Claude Code]
-    D --|output| B
+    B --|claude -p| D[Claude CLI]
+    B --|Persistence| E[File System]
+    E --|Projects & Messages| B
     B --|broadcast| A
     B --|broadcast| C
 ```
@@ -40,76 +41,71 @@ graph LR
 ### API Contracts
 
 #### WebSocket Endpoints
-- **Server Endpoint**: `ws://server:8080/ws`
-- **Authentication**: SSH key challenge-response on connection
-- **Message Format**: JSON with type, sessionId, payload structure
+- **Server Endpoint**: `ws://server:8080/ws` (WebSocket only, no REST)
+- **Authentication**: None in MVP (future work)
+- **Message Format**: JSON with type, projectId, payload structure
 - **Heartbeat**: Ping/pong every 30 seconds for connection health
 
 #### Message Types
 ```json
+// Project Management
 {
-  "type": "auth_challenge",
+  "type": "project_create",
   "payload": {
-    "challenge": "base64-encoded-challenge",
-    "timestamp": "2025-01-27T10:00:00Z"
+    "path": "/absolute/path/to/project"
   }
 }
 
 {
-  "type": "auth_response", 
+  "type": "project_delete",
   "payload": {
-    "signature": "ssh-signature-of-challenge",
-    "publicKey": "ssh-public-key"
+    "project_id": "project-uuid"
   }
 }
 
 {
-  "type": "claude_command",
-  "sessionId": "session-uuid",
+  "type": "project_join",
   "payload": {
-    "command": "user message text",
-    "projectPath": "/path/to/project"
+    "project_id": "project-uuid"
+  }
+}
+
+// Execution
+{
+  "type": "execute",
+  "payload": {
+    "project_id": "project-uuid",
+    "prompt": "user message to Claude"
   }
 }
 
 {
-  "type": "claude_response",
-  "sessionId": "session-uuid", 
+  "type": "agent_new_session",
   "payload": {
-    "content": "Claude response text",
-    "type": "message|permission_request|error"
+    "project_id": "project-uuid"
   }
 }
 
+// Updates (Server to Client)
 {
-  "type": "permission_request",
-  "sessionId": "session-uuid",
+  "type": "update",
   "payload": {
-    "id": "permission-uuid",
-    "action": "file_write|command_execute|etc",
-    "details": "description of action",
-    "timeout": 300
-  }
-}
-
-{
-  "type": "permission_response",
-  "sessionId": "session-uuid",
-  "payload": {
-    "permissionId": "permission-uuid",
-    "approved": true,
-    "reason": "optional reason text"
+    "project_id": "project-uuid",
+    "update_type": "execution_started|execution_output|execution_complete|error|session_reset",
+    "data": {
+      // Update-specific data
+    }
   }
 }
 ```
 
-### Authentication Flow
-SSH key-based challenge-response authentication:
+### Connection Flow
+Simple connection without authentication (MVP):
 1. Client connects to WebSocket endpoint
-2. Server sends authentication challenge
-3. Client signs challenge with SSH private key
-4. Server validates signature against public key
-5. On success, client is authenticated for session
+2. Server accepts connection immediately
+3. Client can list projects or create new ones
+4. Client joins projects to receive updates
+5. Future: Add authentication layer
 
 ### Error Handling
 - **Connection Errors**: Exponential backoff reconnection
@@ -121,28 +117,29 @@ SSH key-based challenge-response authentication:
 
 ### WebSocket Events
 - **Connection Events**: connect, disconnect, reconnect
-- **Authentication Events**: auth_challenge, auth_response, auth_success, auth_failure
-- **Session Events**: session_start, session_end, session_status
-- **Message Events**: claude_command, claude_response, permission_request, permission_response
-- **System Events**: heartbeat, error, status_update
+- **Project Events**: project_created, project_deleted, project_joined, project_left
+- **Execution Events**: execution_started, execution_output, execution_complete, execution_error
+- **Session Events**: session_reset, session_timeout
+- **System Events**: heartbeat, error, server_stats
 
 ### Message Format
 All messages follow consistent JSON structure:
 ```json
 {
   "type": "message_type",
-  "sessionId": "optional-session-id",
-  "payload": {},
-  "timestamp": "ISO-8601-timestamp",
-  "id": "unique-message-id"
+  "payload": {
+    "project_id": "project-uuid-when-relevant",
+    // Type-specific fields
+  },
+  "timestamp": "ISO-8601-timestamp"
 }
 ```
 
 ### Connection Management
 - **Heartbeat**: 30-second ping/pong to detect disconnections
 - **Reconnection**: Automatic reconnection with exponential backoff
-- **Session Recovery**: Resume sessions after reconnection
-- **Multiple Clients**: Server broadcasts to all authenticated clients
+- **Project Persistence**: Projects and messages survive server restarts
+- **Multiple Clients**: Server broadcasts to all project subscribers
 
 ## Sequence Diagrams
 
@@ -152,29 +149,30 @@ sequenceDiagram
     participant A as Android App
     participant S as Server
     participant R as React Web
-    participant C as Claude Code
+    participant C as Claude CLI
+    participant F as File System
     
     A->>S: WebSocket Connect
-    S->>A: Auth Challenge
-    A->>S: Auth Response (SSH signature)
-    S->>A: Auth Success
+    S->>A: Connection Accepted
     
     R->>S: WebSocket Connect  
-    S->>R: Auth Challenge
-    R->>S: Auth Response (SSH signature)
-    S->>R: Auth Success
+    S->>R: Connection Accepted
     
-    A->>S: Claude Command
-    S->>C: Forward Command
-    C->>S: Claude Response
-    S->>A: Broadcast Response
-    S->>R: Broadcast Response
+    A->>S: Create Project (/path/to/project)
+    S->>F: Save Project Metadata
+    S->>A: Project Created
+    S->>R: Project List Update
     
-    C->>S: Permission Request
-    S->>A: Broadcast Permission Request
-    S->>R: Broadcast Permission Request
-    A->>S: Permission Response (Approved)
-    S->>C: Forward Permission Response
+    R->>S: Join Project
+    S->>R: Project Joined
+    
+    A->>S: Execute Command
+    S->>F: Save Message
+    S->>C: claude -p "prompt" -c session_id
+    C->>S: JSON Response
+    S->>F: Save Response
+    S->>A: Broadcast Output
+    S->>R: Broadcast Output
 ```
 
 ## Cross-Module Dependencies
@@ -183,29 +181,31 @@ sequenceDiagram
 Data structures common across all modules:
 
 ```typescript
-interface Session {
+interface Project {
   id: string;
-  projectPath: string;
-  status: 'active' | 'inactive' | 'error';
+  path: string;
+  status: 'idle' | 'executing' | 'error';
+  sessionId: string; // Claude CLI session ID
+  subscribers: string[]; // Connected client IDs
   createdAt: Date;
-  lastActivity: Date;
+  lastActive: Date;
 }
 
 interface Message {
-  id: string;
   type: string;
-  sessionId?: string;
-  payload: any;
+  payload: {
+    project_id?: string;
+    [key: string]: any;
+  };
   timestamp: Date;
 }
 
-interface PermissionRequest {
-  id: string;
-  sessionId: string;
-  action: string;
-  details: string;
-  timeout: number;
-  createdAt: Date;
+interface ExecutionResult {
+  project_id: string;
+  output: string;
+  error?: string;
+  session_id: string;
+  duration: number;
 }
 ```
 
@@ -218,13 +218,15 @@ interface PermissionRequest {
 
 ### Integration Testing
 - **WebSocket Communication**: Test message flow between all module combinations
-- **Authentication Flow**: Verify SSH key authentication across all clients
+- **Project Operations**: Test create, delete, join, leave across clients
 - **Multi-Client Scenarios**: Test broadcasting and state synchronization
+- **Claude Mock**: Use mock Claude CLI (FORBIDDEN: real Claude API in tests)
 
 ### Cross-Module Contracts
 - **Protocol Validation**: Ensure all modules use consistent message format
-- **Mock Services**: Server can run with mock Claude Code for client testing
-- **Error Scenarios**: Test network failures, authentication failures, timeout scenarios
+- **Mock Services**: Server MUST run with mock Claude CLI for all testing
+- **Error Scenarios**: Test network failures, execution timeouts, server restarts
+- **Platform Testing**: Test on Linux and macOS (Windows not supported)
 
 ## Deployment Considerations
 
@@ -240,44 +242,51 @@ interface PermissionRequest {
 
 ## Security Considerations
 
-### Authentication Flow
-- **SSH Key Validation**: Server validates SSH signatures against authorized keys
-- **Session Security**: Secure session tokens prevent session hijacking
-- **Connection Security**: WSS (WebSocket Secure) for encrypted communication
+### Security Model (MVP)
+- **No Authentication**: MVP has no authentication (future work)
+- **Path Validation**: Server validates all project paths
+- **Connection Security**: WSS (WebSocket Secure) recommended
+- **Command Injection**: Proper escaping of Claude CLI arguments
 
 ### Data Protection
-- **Message Encryption**: All WebSocket traffic encrypted via WSS
-- **No Credential Storage**: Server validates but doesn't store SSH private keys
-- **Access Control**: Session-based access control for multi-client scenarios
+- **Message Persistence**: All messages saved to disk with rotation
+- **Atomic Operations**: File writes use atomic rename pattern
+- **Project Isolation**: Each project has separate message history
+- **Platform Security**: Unix file permissions for data protection
 
 ## Rollout Plan
 
-### Phase 1: Basic WebSocket Communication
-- Server WebSocket endpoint with basic message routing
-- Android client WebSocket connection
-- Simple message exchange without authentication
+### Phase 1: Core Infrastructure
+- Server WebSocket endpoint with project management
+- Message persistence and rotation
+- Claude CLI integration with timeout
+- Server restart recovery
 
-### Phase 2: Authentication and Security
-- SSH key-based authentication implementation
-- Secure WebSocket connections (WSS)
-- Session management and multi-client support
+### Phase 2: Basic Clients
+- Android WebSocket client
+- React WebSocket client  
+- Project list and execution UI
+- Real-time update handling
 
-### Phase 3: React Web Client
-- React WebSocket client implementation
-- Multi-client session broadcasting
-- Web-optimized user interface
+### Phase 3: Multi-Client Support
+- Project subscription model
+- Broadcasting to subscribers
+- Message history queries
+- Connection health monitoring
 
-### Phase 4: Advanced Features
-- Offline message queuing
-- Advanced error handling and recovery
-- Performance optimization and monitoring
+### Phase 4: Production Features
+- Resource limits and monitoring
+- Platform optimizations (Linux/macOS)
+- Comprehensive error handling
+- Future: Authentication layer
 
 ## Risk Mitigation
 
 ### Technical Risks
-- **WebSocket Compatibility**: Test across different browsers and network conditions
-- **Authentication Complexity**: Provide clear setup documentation for SSH keys
-- **Performance Scaling**: Monitor and optimize for high connection counts
+- **Platform Compatibility**: Ensure server works on Linux and macOS only
+- **Claude CLI Integration**: Handle process timeouts and JSON parsing
+- **Performance Scaling**: Monitor message storage growth and rotation
+- **Testing Requirements**: Enforce mock Claude CLI usage in all tests
 
 ### Operational Risks
 - **Multi-Module Deployment**: Coordinate server and client deployments
@@ -288,8 +297,9 @@ interface PermissionRequest {
 
 ### Functional Metrics
 - **Message Delivery Rate**: 99.9% successful message delivery
-- **Authentication Success Rate**: 95% first-attempt authentication success
-- **Multi-Client Sync**: 100% consistency across connected clients
+- **Project Persistence**: 100% recovery after server restart
+- **Multi-Client Sync**: 100% consistency across project subscribers
+- **Execution Timeout**: 100% compliance with 5-minute timeout
 
 ### Performance Metrics
 - **Connection Latency**: Sub-100ms WebSocket connection establishment
@@ -305,3 +315,5 @@ interface PermissionRequest {
 
 *Last Updated: 2025-01-27*
 *Modules Involved: server, frontend-android, frontend-react*
+*Platform: Server on Unix/POSIX only (Linux, macOS)*
+*Testing: MUST use mock Claude CLI (FORBIDDEN: real Claude API)*
