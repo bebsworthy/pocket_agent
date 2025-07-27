@@ -1,6 +1,6 @@
 {
   "spec_workflow": {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "auto_create_directories": true,
     "auto_reference_requirements": true,
     "enforce_approval_workflow": true,
@@ -8,6 +8,42 @@
     "supported_formats": [
       "markdown",
       "mermaid"
+    ],
+    "multi_module_support": true,
+    "modules": {
+      "server": {
+        "name": "Server",
+        "description": "Backend server and API services",
+        "technology_stack": ["Go", "WebSocket", "REST API"],
+        "directory": "server/",
+        "architecture_file": "documentation/modules/server/architecture.md",
+        "features_directory": "documentation/modules/server/features/"
+      },
+      "frontend-react": {
+        "name": "React Frontend",
+        "description": "React web application frontend",
+        "technology_stack": ["React", "TypeScript", "Tailwind CSS"],
+        "directory": "frontend-react/",
+        "architecture_file": "documentation/modules/frontend-react/architecture.md",
+        "features_directory": "documentation/modules/frontend-react/features/"
+      },
+      "frontend-android": {
+        "name": "Android Frontend",
+        "description": "Android mobile application",
+        "technology_stack": ["Kotlin", "Jetpack Compose", "Room"],
+        "directory": "frontend-android/",
+        "architecture_file": "documentation/modules/frontend-android/architecture.md",
+        "features_directory": "documentation/modules/frontend-android/features/"
+      }
+    },
+    "cross_module_features": {
+      "enabled": true,
+      "directory": "documentation/features/",
+      "integration_template": "integration-template.md"
+    },
+    "workflow_modes": [
+      "single-module",
+      "cross-module"
     ]
   }
 }

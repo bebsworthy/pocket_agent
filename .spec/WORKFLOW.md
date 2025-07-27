@@ -2,9 +2,11 @@
 
 This project uses the automated Spec workflow for feature development, based on spec-driven methodology. The workflow follows a structured approach: Requirements → Design → Tasks → Implementation.
 
+**VERSION 2.0**: Now supports multi-module architecture with module-specific and cross-module feature development.
+
 ## Workflow Philosophy
 
-You are an AI assistant that specializes in spec-driven development. Your role is to guide users through a systematic approach to feature development that ensures quality, maintainability, and completeness.
+You are an AI assistant that specializes in spec-driven development. Your role is to guide users through a systematic approach to feature development that ensures quality, maintainability, and completeness across multiple modules (server, frontend-react, frontend-android).
 
 ### Core Principles
 - **Structured Development**: Follow the sequential phases without skipping steps
@@ -12,6 +14,7 @@ You are an AI assistant that specializes in spec-driven development. Your role i
 - **Atomic Implementation**: Execute one task at a time during implementation
 - **Requirement Traceability**: All tasks must reference specific requirements
 - **Test-Driven Focus**: Prioritize testing and validation throughout
+- **Module Awareness**: Clearly define module boundaries and cross-module dependencies
 
 ## Available Commands
 
@@ -20,6 +23,8 @@ You are an AI assistant that specializes in spec-driven development. Your role i
 | Phase | Command | Purpose | Usage |
 |-------|---------|---------|-------|
 | 1 | `/spec:1_create <feature-name>` | Create a new feature spec | `/spec:1_create user-auth "Login system"` |
+|   | `/spec:1_create <feature-name> --module <module>` | Create module-specific feature | `/spec:1_create user-auth --module server` |
+|   | `/spec:1_create <feature-name> --cross-module` | Create cross-module feature | `/spec:1_create real-time-sync --cross-module` |
 | 2 | `/spec:2_research <feature-name>` | Research feature-specific context | `/spec:2_research user-auth` |
 | 3 | `/spec:3_requirements` | Generate requirements document | `/spec:3_requirements` |
 | 4 | `/spec:4_design` | Generate design document | `/spec:4_design` |
@@ -31,9 +36,69 @@ You are an AI assistant that specializes in spec-driven development. Your role i
 | Command | Purpose | Usage |
 |---------|---------|-------|
 | `/spec:architecture` | Create/update global architecture doc | `/spec:architecture [--new]` |
+| `/spec:architecture --module <module>` | Create module-specific architecture | `/spec:architecture --module server` |
 | `/{spec-name}-task-{id}` | Execute specific task (auto-generated) | `/user-auth-task-1` |
 | `/spec:status` | Show current spec status | `/spec:status user-auth` |
 | `/spec:list` | List all specs | `/spec:list` |
+| `/spec:modules` | List available modules | `/spec:modules` |
+
+## Multi-Module Architecture
+
+This project consists of three main modules:
+
+### Available Modules
+
+- **server**: Backend server and API services (Go, WebSocket, REST API)
+- **frontend-react**: React web application frontend (React, TypeScript, Tailwind CSS)  
+- **frontend-android**: Android mobile application (Kotlin, Jetpack Compose, Room)
+
+### Workflow Modes
+
+#### 1. Single-Module Features
+For features that exist within one module only:
+```bash
+/spec:1_create user-dashboard --module frontend-react "User dashboard component"
+```
+
+#### 2. Cross-Module Features  
+For features that span multiple modules:
+```bash
+/spec:1_create real-time-messaging --cross-module "Real-time messaging across server and clients"
+```
+
+## File Structure
+
+### Single-Module Features
+```
+documentation/modules/{module}/
+├── architecture.md              # Module-specific architecture
+└── features/{feature-name}/     # Module-specific features
+    ├── context.md
+    ├── research.md
+    ├── requirements.md
+    ├── design.md
+    └── tasks.md
+```
+
+### Cross-Module Features
+```
+documentation/features/{feature-name}/
+├── context.md                   # Overall feature context
+├── integration.md               # Cross-module coordination
+└── modules/                     # Module-specific implementations
+    ├── server/
+    │   ├── requirements.md
+    │   ├── design.md
+    │   └── tasks.md
+    ├── frontend-react/
+    │   ├── requirements.md  
+    │   ├── design.md
+    │   └── tasks.md
+    └── frontend-android/
+        ├── requirements.md
+        ├── design.md
+        └── tasks.md
+```
 
 ## Workflow Sequence
 
@@ -268,25 +333,64 @@ When completing any task during `/spec:6_execute`:
 
 The workflow automatically creates and manages:
 
+### Overall Structure
 ```
 documentation/
-├── architecture.md           # Global codebase architecture (NEW)
-├── features/                 # ← Feature documentation go here
-│   └── {feature-name}/
-│       ├── context.md        # Feature context from create phase
-│       ├── research.md       # Feature-specific research (NEW)
-│       ├── requirements.md   # User stories and acceptance criteria
-│       ├── design.md        # Technical architecture and design
-│       └── tasks.md         # Implementation task breakdown
-
-.claude
-├── commands/
-│   └── spec/*.md            # Main workflow commands
+├── architecture.md           # Global codebase architecture
+├── modules/                  # Module-specific documentation
+│   ├── server/
+│   │   ├── architecture.md   # Server-specific architecture
+│   │   └── features/         # Server-only features
+│   ├── frontend-react/
+│   │   ├── architecture.md   # React-specific architecture  
+│   │   └── features/         # React-only features
+│   └── frontend-android/
+│       ├── architecture.md   # Android-specific architecture
+│       └── features/         # Android-only features
+└── features/                 # Cross-module features
+    └── {feature-name}/
+        ├── context.md        # Overall feature context
+        ├── integration.md    # Cross-module coordination
+        └── modules/          # Module-specific implementations
+            ├── server/
+            ├── frontend-react/
+            └── frontend-android/
 
 .spec/
 ├── templates/
-│   └── *-template.md        # Document templates
-└── spec-config.json         # Workflow configuration
+│   ├── *-template.md         # Standard templates
+│   └── integration-template.md  # Cross-module template
+└── spec-config.json          # Multi-module configuration
+```
+
+### Module Structure (Single-Module Features)
+```
+documentation/modules/{module}/features/{feature-name}/
+├── context.md               # Module-specific feature context
+├── research.md             # Module-specific research
+├── requirements.md         # Module-specific requirements
+├── design.md              # Module-specific design
+└── tasks.md               # Module-specific tasks
+```
+
+### Cross-Module Structure
+```
+documentation/features/{feature-name}/
+├── context.md              # Overall feature context
+├── integration.md          # Cross-module coordination
+└── modules/
+    ├── server/
+    │   ├── requirements.md # Server requirements
+    │   ├── design.md      # Server design
+    │   └── tasks.md       # Server tasks
+    ├── frontend-react/
+    │   ├── requirements.md # React requirements
+    │   ├── design.md      # React design
+    │   └── tasks.md       # React tasks
+    └── frontend-android/
+        ├── requirements.md # Android requirements
+        ├── design.md      # Android design
+        └── tasks.md       # Android tasks
 ```
 
 ## Error Handling
@@ -309,11 +413,25 @@ A successful spec workflow completion includes:
 
 ## Getting Started
 
-1. **Initialize**: `/spec:1_create <feature-name> "Description of feature"`
-2. **Requirements**: Follow the automated requirements generation process
-3. **Design**: Review and approve the technical design
-4. **Tasks**: Review and approve the implementation plan
-5. **Implementation**: Execute tasks one by one with `/spec:6_execute <task-id>`
-6. **Validation**: Ensure each task meets requirements before proceeding
+### Single-Module Features
+1. **Initialize**: `/spec:1_create <feature-name> --module <module> "Description"`
+2. **Research**: `/spec:2_research <feature-name>`
+3. **Requirements**: `/spec:3_requirements`
+4. **Design**: `/spec:4_design`
+5. **Tasks**: `/spec:5_tasks`
+6. **Implementation**: `/spec:6_execute <task-id>`
 
-Remember: The workflow ensures systematic feature development with proper documentation, validation, and quality control at each step.
+### Cross-Module Features
+1. **Initialize**: `/spec:1_create <feature-name> --cross-module "Description"`
+2. **Research**: `/spec:2_research <feature-name>` (analyzes all modules)
+3. **Requirements**: `/spec:3_requirements` (creates module-specific requirements)
+4. **Design**: `/spec:4_design` (creates integration design + module designs)
+5. **Tasks**: `/spec:5_tasks` (creates coordinated task breakdown)
+6. **Implementation**: `/spec:6_execute <task-id>` (execute by module)
+
+### Module Management
+- **List modules**: `/spec:modules`
+- **Module architecture**: `/spec:architecture --module <module>`
+- **Global architecture**: `/spec:architecture`
+
+Remember: The workflow ensures systematic feature development with proper documentation, validation, and quality control at each step, now with clear module boundaries and cross-module coordination.

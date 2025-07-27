@@ -1,0 +1,1 @@
+claude -p analyze this repo --verbose --output-format stream-json

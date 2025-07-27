@@ -1,31 +1,53 @@
 # Architecture Analysis Command
 
-Perform comprehensive codebase analysis to create or update the global architecture documentation.
+Perform comprehensive codebase analysis to create or update architecture documentation.
 
 ## Usage
 ```
-/spec:architecture [--new]
+/spec:architecture [--new]                    # Global architecture
+/spec:architecture --module <module> [--new]  # Module-specific architecture
 ```
 
 ## Options
 - `--new`: Create new architecture.md, replacing any existing one (default: update existing)
+- `--module <module>`: Create/update module-specific architecture
+
+### Available Modules
+- `server`: Backend server and API services
+- `frontend-react`: React web application frontend
+- `frontend-android`: Android mobile application
 
 ## Instructions
 
 You are performing comprehensive analysis of the codebase to document its architecture. This documentation will be reused across all feature specifications to avoid redundant analysis.
 
-### Process
+### Step 1: Determine Analysis Scope
 
-1. **Check Existing Documentation**
-   - Check if `documentation/architecture.md` exists
-   - If exists and `--new` flag NOT provided:
-     - Load existing architecture.md
-     - Focus on updating with new findings
-     - Preserve existing accurate information
-   - If doesn't exist OR `--new` flag provided:
-     - Perform complete analysis from scratch
+**Parse the command arguments:**
+- If `--module <module>` is provided: Analyze **module-specific architecture**
+- If no `--module` flag: Analyze **global architecture**
 
-2. **System Overview Discovery**
+### Step 2: Check Existing Documentation
+
+#### For Global Architecture
+- Check if `documentation/architecture.md` exists
+- Target file: `documentation/architecture.md`
+
+#### For Module-Specific Architecture
+- Check if `documentation/modules/{module}/architecture.md` exists
+- Ensure `documentation/modules/{module}/` directory exists (create if needed)
+- Target file: `documentation/modules/{module}/architecture.md`
+
+**Update vs New Mode:**
+- If exists and `--new` flag NOT provided: Update existing, preserve accurate information
+- If doesn't exist OR `--new` flag provided: Complete analysis from scratch
+
+### Step 3: Analysis Process
+
+#### For Global Architecture
+Focus on system-wide concerns:
+
+1. **System Overview Discovery**
    - Identify architecture style by looking for:
      - Multiple service directories (services/, apps/, packages/)
      - Docker/docker-compose files indicating multi-container setup
@@ -34,7 +56,7 @@ You are performing comprehensive analysis of the codebase to document its archit
      - API gateway configurations
    - Create high-level component inventory
 
-3. **Module/Service Discovery**
+2. **Module/Service Discovery**
    - For monolithic applications:
      - Treat as single module
      - Document complete tech stack in one section
@@ -134,8 +156,47 @@ src/
 └── shared/
 ```
 
+#### For Module-Specific Architecture
+Focus on single module deep-dive:
+
+1. **Module Boundary Analysis**
+   - Analyze only the specified module directory (e.g., `server/`, `frontend-react/`)
+   - Document module-specific responsibilities and scope
+   - Identify what this module owns vs. what it depends on
+
+2. **Technology Stack Deep-Dive**
+   - Language and framework specifics for this module
+   - Build tools, dependency management
+   - Testing frameworks and tools
+   - Development and debugging tools
+
+3. **Internal Structure Analysis**
+   - Directory organization within the module
+   - Code organization patterns (layers, features, etc.)
+   - Key entry points and main components
+   - Configuration management
+
+4. **Module Dependencies**
+   - External dependencies (packages, libraries)
+   - Internal dependencies (other modules in the project)
+   - Database or storage dependencies
+   - Third-party service integrations
+
+5. **Module APIs and Interfaces**
+   - What this module exposes to other modules
+   - How other modules interact with this one
+   - API contracts, schemas, types
+   - Event publishing/consuming
+
+6. **Module-Specific Patterns**
+   - Architectural patterns used within this module
+   - Code organization conventions
+   - Error handling strategies
+   - Logging and monitoring approaches
+
 ### Output
 
+#### For Global Architecture
 1. Use the architecture template from `.spec/templates/architecture-template.md`
 2. Adapt sections based on what you discover:
    - Single module: Simplify to one module section
@@ -143,7 +204,14 @@ src/
    - No inter-service communication: Skip that section
 3. Save to `documentation/architecture.md`
 4. Log the analysis date and scope at the end of the file
-5. Report findings summary: "Architecture analysis complete. Found [X] modules/services with [list technologies]. Documentation saved to documentation/architecture.md"
+5. Report findings summary: "Global architecture analysis complete. Found [X] modules/services with [list technologies]. Documentation saved to documentation/architecture.md"
+
+#### For Module-Specific Architecture
+1. Use appropriate module-specific template or adapt the standard template
+2. Focus only on the specified module
+3. Save to `documentation/modules/{module}/architecture.md`
+4. Log the analysis date and module scope at the end of the file
+5. Report findings summary: "{Module} architecture analysis complete. Technology stack: [list technologies]. Documentation saved to documentation/modules/{module}/architecture.md"
 
 ### Key Principles
 

@@ -1,0 +1,1 @@
+claude -p what does the claim connects too? --verbose --output-format stream-json --resume e9f5ad54-c736-49fb-b80b-81b598b63393

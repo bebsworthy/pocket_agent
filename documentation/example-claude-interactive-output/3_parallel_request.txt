@@ -1,0 +1,1 @@
+claude -p start two task agents in parallel, one that will deeply analyze model_1.dbml and one that will do a in-depth analysis of model_research.md and propose a plan to clarify it for a non technical audience --verbose --output-format stream-json --resume e9f5ad54-c736-49fb-b80b-81b598b63393
