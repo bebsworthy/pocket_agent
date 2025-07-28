@@ -1,0 +1,145 @@
+version: '3.8'
+
+services:
+  pocket-agent:
+    image: pocket-agent-server:${VERSION:-latest}
+    container_name: pocket-agent
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${VERSION:-dev}
+        BUILD_TIME: ${BUILD_TIME:-}
+        GIT_COMMIT: ${GIT_COMMIT:-}
+    ports:
+      - "${PA_PORT:-8443}:8443"
+      - "127.0.0.1:9090:9090"  # Metrics (local only)
+    volumes:
+      - pocket-data:/data
+      - ./certs:/certs:ro
+      - ./configs/production.yaml:/config/config.yaml:ro
+    environment:
+      - PA_LOG_LEVEL=${PA_LOG_LEVEL:-info}
+      - PA_LOG_FORMAT=${PA_LOG_FORMAT:-json}
+      - PA_MAX_CONNECTIONS=${PA_MAX_CONNECTIONS:-100}
+      - PA_MAX_PROJECTS=${PA_MAX_PROJECTS:-100}
+      - PA_EXECUTION_TIMEOUT=${PA_EXECUTION_TIMEOUT:-5m}
+      - PA_IDLE_TIMEOUT=${PA_IDLE_TIMEOUT:-5m}
+    deploy:
+      resources:
+        limits:
+          cpus: '${CPU_LIMIT:-2.0}'
+          memory: ${MEMORY_LIMIT:-2G}
+        reservations:
+          cpus: '${CPU_RESERVATION:-0.5}'
+          memory: ${MEMORY_RESERVATION:-512M}
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+        labels: "service=pocket-agent"
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pocket-net
+    labels:
+      - "com.pocket-agent.description=Pocket Agent WebSocket Server"
+      - "com.pocket-agent.version=${VERSION:-latest}"
+
+  # Optional: Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: pocket-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "127.0.0.1:9091:9090"
+    volumes:
+      - ./configs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+    networks:
+      - pocket-net
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: pocket-grafana
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning:ro
+    restart: unless-stopped
+    networks:
+      - pocket-net
+    depends_on:
+      - prometheus
+    profiles:
+      - monitoring
+
+  # Optional: Loki for log aggregation
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: pocket-loki
+    ports:
+      - "127.0.0.1:3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./configs/loki.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    restart: unless-stopped
+    networks:
+      - pocket-net
+    profiles:
+      - monitoring
+
+  # Optional: Promtail for log shipping
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: pocket-promtail
+    volumes:
+      - ./configs/promtail.yaml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+      - pocket-data:/data:ro
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    networks:
+      - pocket-net
+    depends_on:
+      - loki
+    profiles:
+      - monitoring
+
+networks:
+  pocket-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  pocket-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  loki-data:
+    driver: local

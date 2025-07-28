@@ -1,0 +1,23 @@
+# CODEOWNERS for Pocket Agent Server
+
+# Default owners for everything in the repo
+* @boyd
+
+# Go source files
+*.go @boyd
+
+# Configuration files
+/.github/ @boyd
+*.yml @boyd
+*.yaml @boyd
+Makefile @boyd
+Dockerfile @boyd
+
+# Documentation
+*.md @boyd
+/docs/ @boyd
+
+# Security-sensitive files
+/internal/config/ @boyd
+/internal/auth/ @boyd
+.env* @boyd

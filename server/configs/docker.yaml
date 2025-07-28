@@ -1,0 +1,60 @@
+# Docker default configuration for Pocket Agent Server
+
+server:
+  host: 0.0.0.0
+  port: 8443
+  tls:
+    cert: /certs/server.crt
+    key: /certs/server.key
+    min_version: "1.2"
+    cipher_suites:
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+      - TLS_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_RSA_WITH_AES_128_GCM_SHA256
+
+data:
+  dir: /data
+
+logging:
+  level: ${PA_LOG_LEVEL:-info}
+  format: ${PA_LOG_FORMAT:-json}
+  output: stdout
+
+limits:
+  max_connections: ${PA_MAX_CONNECTIONS:-100}
+  max_projects: ${PA_MAX_PROJECTS:-100}
+  message_size: ${PA_MESSAGE_SIZE_LIMIT:-1048576}
+  
+timeouts:
+  execution: ${PA_EXECUTION_TIMEOUT:-5m}
+  idle: ${PA_IDLE_TIMEOUT:-5m}
+  ping_interval: ${PA_PING_INTERVAL:-30s}
+  pong_timeout: ${PA_PONG_TIMEOUT:-30s}
+
+log_rotation:
+  size: ${PA_LOG_ROTATION_SIZE:-104857600}   # 100MB
+  count: ${PA_LOG_ROTATION_COUNT:-10000}
+  compress: true
+
+claude:
+  binary: ${PA_CLAUDE_BINARY:-/usr/local/bin/claude}
+  default_model: ${PA_CLAUDE_MODEL:-claude-3-5-sonnet-20241022}
+  allowed_tools:
+    - read
+    - write
+    - run
+
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: 30s
+
+# Docker-specific settings
+docker:
+  # Run health checks more frequently in Docker
+  health_check_interval: 10s
+  # Use container-friendly paths
+  temp_dir: /tmp
+  # Enable graceful shutdown handling
+  shutdown_timeout: 30s

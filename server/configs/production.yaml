@@ -1,0 +1,113 @@
+# Production configuration for Pocket Agent Server
+
+server:
+  host: 0.0.0.0
+  port: 8443
+  tls:
+    cert: /etc/pocket-agent/certs/server.crt
+    key: /etc/pocket-agent/certs/server.key
+    min_version: "1.2"
+    cipher_suites:
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+
+data:
+  dir: /var/lib/pocket-agent/data
+
+logging:
+  level: info
+  format: json
+  file: /var/log/pocket-agent/server.log
+  max_size: 100  # MB
+  max_backups: 5
+  max_age: 30    # days
+  compress: true
+
+limits:
+  max_connections: 200
+  max_projects: 100
+  message_size: 1048576   # 1MB
+  connection_rate: 10     # per second
+  
+timeouts:
+  execution: 10m
+  idle: 10m
+  ping_interval: 30s
+  pong_timeout: 60s
+  shutdown: 30s
+
+log_rotation:
+  size: 104857600   # 100MB
+  count: 10000
+  compress: true
+  max_age: 30       # days
+
+claude:
+  binary: /usr/local/bin/claude
+  default_model: claude-3-5-sonnet-20241022
+  allowed_tools:
+    - read
+    - write
+    - run
+  permission_mode: default
+  max_concurrent_executions: 10
+
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  health_check_interval: 30s
+  collect_runtime_metrics: true
+  collect_process_metrics: true
+
+security:
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst: 100
+  
+  # Path restrictions
+  allowed_project_paths:
+    - /home
+    - /var/projects
+    - /opt/projects
+  
+  # Message validation
+  max_message_size: 1048576  # 1MB
+  max_prompt_length: 10000   # characters
+
+performance:
+  # Worker pool settings
+  worker_pool_size: 10
+  queue_size: 100
+  
+  # Buffer sizes
+  read_buffer_size: 4096
+  write_buffer_size: 4096
+  message_buffer_size: 100
+  
+  # Caching
+  enable_response_cache: true
+  cache_ttl: 5m
+
+# Production-specific settings
+production:
+  # Enable production mode optimizations
+  mode: production
+  
+  # Panic recovery
+  recover_panics: true
+  
+  # Graceful shutdown
+  shutdown_timeout: 30s
+  
+  # Health checks
+  startup_probe_delay: 10s
+  liveness_probe_timeout: 5s
+  
+  # Audit logging
+  audit_log:
+    enabled: true
+    file: /var/log/pocket-agent/audit.log
+    include_prompts: false
+    include_ips: true

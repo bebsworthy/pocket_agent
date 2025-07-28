@@ -1,0 +1,75 @@
+[Unit]
+Description=Pocket Agent Server - WebSocket API for Claude CLI
+Documentation=https://github.com/boyd/pocket_agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pocket-agent
+Group=pocket-agent
+WorkingDirectory=/var/lib/pocket-agent
+
+# Executable and configuration
+ExecStart=/usr/local/bin/pocket-agent-server \
+    --config /etc/pocket-agent/config.yaml
+
+# Pre-start checks
+ExecStartPre=/usr/bin/test -f /etc/pocket-agent/config.yaml
+ExecStartPre=/usr/bin/test -f /etc/pocket-agent/certs/server.crt
+ExecStartPre=/usr/bin/test -f /etc/pocket-agent/certs/server.key
+ExecStartPre=/usr/bin/mkdir -p /var/lib/pocket-agent/data
+ExecStartPre=/usr/bin/chown -R pocket-agent:pocket-agent /var/lib/pocket-agent
+
+# Graceful shutdown
+ExecStop=/bin/kill -TERM $MAINPID
+TimeoutStopSec=30
+KillMode=mixed
+KillSignal=SIGTERM
+SendSIGKILL=yes
+
+# Restart configuration
+Restart=always
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Environment
+EnvironmentFile=-/etc/pocket-agent/environment
+Environment="PA_DATA_DIR=/var/lib/pocket-agent/data"
+Environment="PA_LOG_FILE=/var/log/pocket-agent/server.log"
+Environment="PA_TLS_CERT=/etc/pocket-agent/certs/server.crt"
+Environment="PA_TLS_KEY=/etc/pocket-agent/certs/server.key"
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/pocket-agent /var/log/pocket-agent
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+PrivateMounts=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+LimitCORE=0
+MemoryMax=2G
+CPUQuota=200%
+TasksMax=4096
+
+# Logging
+StandardOutput=journal+console
+StandardError=journal+console
+SyslogIdentifier=pocket-agent
+
+[Install]
+WantedBy=multi-user.target

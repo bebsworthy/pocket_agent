@@ -1,0 +1,153 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+  build-tags:
+    - integration
+
+linters:
+  disable-all: true
+  enable:
+    # Core linters
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    
+    # Code quality
+    - bodyclose
+    - dupl
+    - goconst
+    - gocyclo
+    - gocritic
+    - gosec
+    - misspell
+    # - nilerr  # Too noisy, catches valid patterns
+    - prealloc
+    - revive
+    - unconvert
+    
+    # Style
+    - lll
+    - nakedret
+    - whitespace
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+    exclude-functions:
+      - (io.Closer).Close
+      - (os.File).Close
+      - (net.Conn).Close
+      - (net.Listener).Close
+      - os.RemoveAll
+      - rows.Close
+      - db.Close
+  
+  gosec:
+    severity: medium
+    confidence: medium
+    excludes:
+      - G104  # Unhandled errors (we use errcheck for this)
+      - G304  # File path provided as taint input (common in tools)
+      - G306  # Poor file permissions (often intentional in tests)
+  
+  dupl:
+    threshold: 100
+  
+  gocyclo:
+    min-complexity: 20  # Increased from 15 for more practical use
+  
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+  
+  lll:
+    line-length: 120
+  
+  nakedret:
+    max-func-lines: 30
+  
+  goconst:
+    min-len: 5  # Increased from 3 to reduce noise
+    min-occurrences: 4  # Increased from 3 for less aggressive constant detection
+  
+  misspell:
+    locale: US
+  
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: dot-imports
+      - name: error-return
+      - name: error-naming
+      - name: exported
+      - name: if-return
+      - name: increment-decrement
+      - name: var-naming
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: indent-error-flow
+      - name: errorf
+      - name: empty-block
+      - name: superfluous-else
+      - name: unreachable-code
+      # Disabled rules that are too strict:
+      # - name: error-strings  # Sometimes capitalization is needed
+      # - name: package-comments  # Not always necessary for internal packages
+      # - name: unused-parameter  # Common in interface implementations
+
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 10
+  
+  exclude-rules:
+    # Test files - more lenient
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - goconst
+        - errcheck  # Error checking in tests can be verbose
+        - ineffassign
+        - unused
+    
+    # Generated files
+    - path: ".*\\.gen\\.go$"
+      linters:
+        - lll
+        - gocyclo
+        - gocritic
+        - gosec
+        - revive
+    
+    # Specific patterns
+    - text: "Error return value of .*(Close|Write|Flush|Remove|RemoveAll)" 
+      linters:
+        - errcheck
+    
+    # Allow unused parameters in specific contexts
+    - text: "unused-parameter"
+      path: ".*_test\\.go$"
+      linters:
+        - revive
+    
+    # Interface implementations often have unused params
+    - text: "unused-parameter"
+      source: "^func \\(.*\\) (ServeHTTP|Handle|HandleFunc)\\("
+      linters:
+        - revive
+  
+  exclude-use-default: false

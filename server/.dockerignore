@@ -1,0 +1,59 @@
+# .dockerignore - Files to exclude from Docker build context
+
+# Version control
+.git
+.gitignore
+.github
+
+# Documentation
+*.md
+docs/
+LICENSE
+
+# Development files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Test files
+*_test.go
+test/
+coverage.*
+*.test
+*.out
+
+# Build artifacts
+bin/
+dist/
+*.exe
+
+# Local data
+data/
+certs/
+logs/
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# CI/CD
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Scripts (except needed ones)
+scripts/test/
+scripts/dev/
+
+# Examples and samples
+examples/
+samples/
