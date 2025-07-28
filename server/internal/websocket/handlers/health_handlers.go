@@ -18,9 +18,9 @@ import (
 // HealthHandlers provides health check functionality
 // Requirements: Monitoring, Operations
 type HealthHandlers struct {
-	log         *logger.Logger
-	claudePath  string
-	dataDir     string
+	log        *logger.Logger
+	claudePath string
+	dataDir    string
 }
 
 // NewHealthHandlers creates new health handlers
@@ -28,7 +28,7 @@ func NewHealthHandlers(claudePath, dataDir string, log *logger.Logger) *HealthHa
 	if claudePath == "" {
 		claudePath = "claude"
 	}
-	
+
 	return &HealthHandlers{
 		log:        log,
 		claudePath: claudePath,
@@ -230,7 +230,7 @@ func (h *HealthHandlers) checkClaudeCLI() map[string]interface{} {
 // GetHealthSummary returns a simple health summary for HTTP endpoints
 func (h *HealthHandlers) GetHealthSummary() map[string]interface{} {
 	health := h.collectHealthStatus()
-	
+
 	// Simplify for HTTP response
 	return map[string]interface{}{
 		"status":    health["status"],

@@ -158,7 +158,7 @@ func TestGetAllProjects(t *testing.T) {
 
 	// Verify it's a snapshot (modifications don't affect internal state)
 	projects[0].Path = "/modified/path"
-	
+
 	// Get projects again
 	projects2 := manager.GetAllProjects()
 	for _, p := range projects2 {
@@ -218,12 +218,12 @@ func TestGenerateProjectID(t *testing.T) {
 	ids := make(map[string]bool)
 	for i := 0; i < 100; i++ {
 		id := manager.generateProjectID()
-		
+
 		// Check it's a valid UUID format (36 chars)
 		if len(id) != 36 {
 			t.Errorf("invalid ID length: %d", len(id))
 		}
-		
+
 		// Check uniqueness
 		if ids[id] {
 			t.Errorf("duplicate ID generated: %s", id)

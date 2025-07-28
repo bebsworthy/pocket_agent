@@ -117,12 +117,12 @@ func CreateQuickMock(t *testing.T, scenario ClaudeMockScenario) (path string, cl
 
 // PredefinedResponses provides common test responses
 var PredefinedResponses = struct {
-	SimpleSuccess    string
-	MultiMessage     string
-	ErrorResponse    string
-	SessionContinue  string
-	CodeGeneration   string
-	LongExplanation  string
+	SimpleSuccess   string
+	MultiMessage    string
+	ErrorResponse   string
+	SessionContinue string
+	CodeGeneration  string
+	LongExplanation string
 }{
 	SimpleSuccess: `{
 		"session_id": "test-session-123",
@@ -131,7 +131,7 @@ var PredefinedResponses = struct {
 			"content": {"text": "Hello! I've successfully processed your request."}
 		}]
 	}`,
-	
+
 	MultiMessage: `{
 		"session_id": "test-session-456",
 		"messages": [
@@ -153,7 +153,7 @@ var PredefinedResponses = struct {
 			}
 		]
 	}`,
-	
+
 	ErrorResponse: `{
 		"session_id": "",
 		"error": "Failed to process request",
@@ -162,7 +162,7 @@ var PredefinedResponses = struct {
 			"error": "Invalid prompt format"
 		}]
 	}`,
-	
+
 	SessionContinue: `{
 		"session_id": "existing-session-789",
 		"messages": [{
@@ -170,7 +170,7 @@ var PredefinedResponses = struct {
 			"content": {"text": "Continuing from our previous conversation..."}
 		}]
 	}`,
-	
+
 	CodeGeneration: `{
 		"session_id": "code-gen-session",
 		"messages": [
@@ -187,7 +187,7 @@ var PredefinedResponses = struct {
 			}
 		]
 	}`,
-	
+
 	LongExplanation: `{
 		"session_id": "explanation-session",
 		"messages": [{
@@ -213,11 +213,11 @@ func NewTestResponseGenerator() *TestResponseGenerator {
 func (g *TestResponseGenerator) GenerateSuccess(text string) string {
 	g.sessionCounter++
 	sessionID := fmt.Sprintf("test-session-%d", g.sessionCounter)
-	
+
 	builder := NewClaudeMockBuilder().
 		WithSessionID(sessionID).
 		WithTextMessage(text)
-	
+
 	response, _ := builder.Build()
 	return response
 }
@@ -226,13 +226,13 @@ func (g *TestResponseGenerator) GenerateSuccess(text string) string {
 func (g *TestResponseGenerator) GenerateMultiStep(steps []string) string {
 	g.sessionCounter++
 	sessionID := fmt.Sprintf("multi-session-%d", g.sessionCounter)
-	
+
 	builder := NewClaudeMockBuilder().WithSessionID(sessionID)
-	
+
 	for _, step := range steps {
 		builder.WithTextMessage(step)
 	}
-	
+
 	response, _ := builder.Build()
 	return response
 }
@@ -241,12 +241,12 @@ func (g *TestResponseGenerator) GenerateMultiStep(steps []string) string {
 func (g *TestResponseGenerator) GenerateWithCode(explanation, language, code string) string {
 	g.sessionCounter++
 	sessionID := fmt.Sprintf("code-session-%d", g.sessionCounter)
-	
+
 	builder := NewClaudeMockBuilder().
 		WithSessionID(sessionID).
 		WithTextMessage(explanation).
 		WithCodeMessage(language, code)
-	
+
 	response, _ := builder.Build()
 	return response
 }

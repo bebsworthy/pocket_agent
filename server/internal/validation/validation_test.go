@@ -19,14 +19,14 @@ func TestValidatorValidatePath(t *testing.T) {
 
 	// Create test subdirectories
 	validDir := filepath.Join(tempDir, "valid")
-	os.Mkdir(validDir, 0755)
-	
+	os.Mkdir(validDir, 0o755)
+
 	// Create a file for testing
 	testFile := filepath.Join(tempDir, "test.txt")
-	os.WriteFile(testFile, []byte("test"), 0644)
+	os.WriteFile(testFile, []byte("test"), 0o644)
 
 	v := NewValidator()
-	
+
 	tests := []struct {
 		name    string
 		path    string
@@ -140,8 +140,8 @@ func TestValidatorWithAllowedPaths(t *testing.T) {
 
 	allowedDir := filepath.Join(tempDir, "allowed")
 	deniedDir := filepath.Join(tempDir, "denied")
-	os.Mkdir(allowedDir, 0755)
-	os.Mkdir(deniedDir, 0755)
+	os.Mkdir(allowedDir, 0o755)
+	os.Mkdir(deniedDir, 0o755)
 
 	v := NewValidator()
 	v.AllowedPaths = []string{allowedDir}
@@ -469,7 +469,7 @@ func TestValidatorValidateClaudeOptions(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	validDir := filepath.Join(tempDir, "valid")
-	os.Mkdir(validDir, 0755)
+	os.Mkdir(validDir, 0o755)
 
 	tests := []struct {
 		name    string
@@ -560,9 +560,9 @@ func TestValidatorSanitizePath(t *testing.T) {
 	v := NewValidator()
 
 	tests := []struct {
-		name  string
-		path  string
-		want  string
+		name string
+		path string
+		want string
 	}{
 		{
 			name: "clean path",

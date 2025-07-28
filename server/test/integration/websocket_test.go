@@ -113,7 +113,7 @@ func TestProjectManagement(t *testing.T) {
 
 	// Create test project directory
 	projectPath := filepath.Join(testDir, "test_project")
-	os.MkdirAll(projectPath, 0755)
+	os.MkdirAll(projectPath, 0o755)
 
 	t.Run("Create Project", func(t *testing.T) {
 		// Send create project message
@@ -242,12 +242,12 @@ func TestClaudeExecution(t *testing.T) {
 
 			// Create server with short timeout for timeout test
 			cfg := &config.Config{
-				ClaudePath:        claudePath,
-				DataDir:           filepath.Join(testDir, "data"),
-				Port:              0,
-				ExecutionTimeout:  100 * time.Millisecond, // Short timeout
-				MaxConnections:    10,
-				MaxProjectCount:   100,
+				ClaudePath:       claudePath,
+				DataDir:          filepath.Join(testDir, "data"),
+				Port:             0,
+				ExecutionTimeout: 100 * time.Millisecond, // Short timeout
+				MaxConnections:   10,
+				MaxProjectCount:  100,
 			}
 
 			server := createTestServerWithConfig(t, cfg)
@@ -261,7 +261,7 @@ func TestClaudeExecution(t *testing.T) {
 
 			// Create project
 			projectPath := filepath.Join(testDir, tc.name)
-			os.MkdirAll(projectPath, 0755)
+			os.MkdirAll(projectPath, 0o755)
 
 			createMsg := models.ClientMessage{
 				Type: models.MessageTypeProjectCreate,
@@ -319,7 +319,7 @@ func TestMultiClientBroadcast(t *testing.T) {
 	defer ws1.Close()
 
 	projectPath := filepath.Join(testDir, "broadcast_test")
-	os.MkdirAll(projectPath, 0755)
+	os.MkdirAll(projectPath, 0o755)
 
 	createMsg := models.ClientMessage{
 		Type: models.MessageTypeProjectCreate,
@@ -415,7 +415,7 @@ func TestServerRestart(t *testing.T) {
 
 	dataDir := filepath.Join(testDir, "data")
 	projectPath := filepath.Join(testDir, "persistent_project")
-	os.MkdirAll(projectPath, 0755)
+	os.MkdirAll(projectPath, 0o755)
 
 	var projectID string
 	var sessionID string
@@ -560,7 +560,7 @@ func TestConcurrentOperations(t *testing.T) {
 			defer ws.Close()
 
 			projectPath := filepath.Join(testDir, fmt.Sprintf("concurrent_project_%d", idx))
-			os.MkdirAll(projectPath, 0755)
+			os.MkdirAll(projectPath, 0o755)
 
 			createMsg := models.ClientMessage{
 				Type: models.MessageTypeProjectCreate,

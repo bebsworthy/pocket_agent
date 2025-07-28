@@ -17,7 +17,7 @@ func setupTestManager(t *testing.T) (*Manager, string) {
 
 	// Create a test directory that exists
 	testPath := tempDir + "/testproject"
-	if err := os.MkdirAll(testPath, 0755); err != nil {
+	if err := os.MkdirAll(testPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,7 +39,7 @@ func TestCreateProject(t *testing.T) {
 
 	// Create a valid test path
 	validPath := tempDir + "/validproject"
-	if err := os.MkdirAll(validPath, 0755); err != nil {
+	if err := os.MkdirAll(validPath, 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,7 +74,7 @@ func TestCreateProject(t *testing.T) {
 				// Fill up to max projects
 				for i := 0; i < manager.maxProjects; i++ {
 					testPath := tempDir + "/project" + string(rune(i))
-					os.MkdirAll(testPath, 0755)
+					os.MkdirAll(testPath, 0o755)
 					p := models.NewProject(manager.generateProjectID(), testPath)
 					manager.projects[p.ID] = p
 				}
@@ -153,7 +153,7 @@ func TestDeleteProject(t *testing.T) {
 			name: "valid deletion",
 			setupFunc: func() (string, func()) {
 				validPath := tempDir + "/deleteproject1"
-				os.MkdirAll(validPath, 0755)
+				os.MkdirAll(validPath, 0o755)
 				project, _ := manager.CreateProject(validPath)
 				return project.ID, nil
 			},
@@ -179,7 +179,7 @@ func TestDeleteProject(t *testing.T) {
 			name: "project executing",
 			setupFunc: func() (string, func()) {
 				validPath := tempDir + "/deleteproject2"
-				os.MkdirAll(validPath, 0755)
+				os.MkdirAll(validPath, 0o755)
 				project, _ := manager.CreateProject(validPath)
 				// Simulate executing state
 				project.UpdateState(models.StateExecuting)
@@ -227,7 +227,7 @@ func TestGetProjectByID(t *testing.T) {
 
 	// Create test projects
 	validPath := tempDir + "/getproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	tests := []struct {
@@ -292,7 +292,7 @@ func TestGetProject(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/aliasproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	// GetProject should be an alias for GetProjectByID
@@ -315,8 +315,8 @@ func TestGetProjectByPath(t *testing.T) {
 	// Create test projects
 	path1 := tempDir + "/project1"
 	path2 := tempDir + "/project2"
-	os.MkdirAll(path1, 0755)
-	os.MkdirAll(path2, 0755)
+	os.MkdirAll(path1, 0o755)
+	os.MkdirAll(path2, 0o755)
 
 	project1, _ := manager.CreateProject(path1)
 	manager.CreateProject(path2)
@@ -362,7 +362,7 @@ func TestUpdateProject(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/updateproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	tests := []struct {
@@ -440,9 +440,9 @@ func TestProjectNestingValidation(t *testing.T) {
 	child := tempDir + "/parent/child"
 	sibling := tempDir + "/sibling"
 
-	os.MkdirAll(parent, 0755)
-	os.MkdirAll(child, 0755)
-	os.MkdirAll(sibling, 0755)
+	os.MkdirAll(parent, 0o755)
+	os.MkdirAll(child, 0o755)
+	os.MkdirAll(sibling, 0o755)
 
 	// Create parent project
 	manager.CreateProject(parent)

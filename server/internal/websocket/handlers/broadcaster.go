@@ -132,7 +132,7 @@ func (b *Broadcaster) getSubscriberSnapshot(project *models.Project) map[string]
 // Requirements: 3.3, 6.4
 func (b *Broadcaster) BroadcastProjectState(project *models.Project) {
 	msg := models.NewProjectStateMessage(project)
-	b.BroadcastToProject(project, msg)
+	b.BroadcastToProject(project, &msg)
 }
 
 // BroadcastProjectUpdate broadcasts project update notification
@@ -191,7 +191,7 @@ func (b *Broadcaster) BroadcastError(project *models.Project, err error) {
 		appErr.Details,
 	)
 
-	b.BroadcastToProject(project, msg)
+	b.BroadcastToProject(project, &msg)
 }
 
 // BroadcastSessionReset broadcasts session reset notification

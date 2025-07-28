@@ -5,6 +5,7 @@ import (
 
 	"github.com/boyd/pocket_agent/server/internal/executor"
 	"github.com/boyd/pocket_agent/server/internal/logger"
+	"github.com/boyd/pocket_agent/server/internal/models"
 	"github.com/boyd/pocket_agent/server/internal/project"
 	"github.com/boyd/pocket_agent/server/internal/websocket"
 )
@@ -68,4 +69,14 @@ func (h *Handlers) Start(ctx context.Context) {
 // Stop stops all background tasks
 func (h *Handlers) Stop() {
 	h.Status.Stop()
+}
+
+// HandleMessage implements the MessageHandler interface by using a router
+func (h *Handlers) HandleMessage(ctx context.Context, session *models.Session, msg *models.ClientMessage) error {
+	// Create a router and register all handlers
+	router := websocket.NewMessageRouter(h.Project.log)
+	h.RegisterAll(router)
+	
+	// Route the message
+	return router.HandleMessage(ctx, session, msg)
 }

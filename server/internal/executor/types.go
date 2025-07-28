@@ -1,8 +1,6 @@
 package executor
 
 import (
-	"time"
-
 	"github.com/boyd/pocket_agent/server/internal/models"
 )
 

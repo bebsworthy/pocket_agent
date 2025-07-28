@@ -3,24 +3,21 @@ package internal
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
 	"runtime"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/boyd/pocket_agent/server/internal/config"
 	"github.com/boyd/pocket_agent/server/internal/errors"
 	"github.com/boyd/pocket_agent/server/internal/executor"
 	"github.com/boyd/pocket_agent/server/internal/logger"
+	"github.com/boyd/pocket_agent/server/internal/metrics"
+	"github.com/boyd/pocket_agent/server/internal/platform"
 	"github.com/boyd/pocket_agent/server/internal/project"
 	"github.com/boyd/pocket_agent/server/internal/validation"
 	"github.com/boyd/pocket_agent/server/internal/websocket"
 	"github.com/boyd/pocket_agent/server/internal/websocket/handlers"
-	"github.com/boyd/pocket_agent/server/internal/metrics"
-	"github.com/boyd/pocket_agent/server/internal/platform"
 )
 
 // Server represents the main application server that integrates all components
@@ -34,15 +31,15 @@ type Server struct {
 	validator      *validation.Validator
 
 	// Resource management
-	maxConnections  int32
-	maxProjects     int32
-	activeConns     int32
-	memoryLimit     uint64 // in bytes
-	goroutineLimit  int
+	maxConnections int32
+	maxProjects    int32
+	activeConns    int32
+	memoryLimit    uint64 // in bytes
+	goroutineLimit int
 
 	// Metrics
-	startTime          time.Time
-	metricsCollector   *metrics.Collector
+	startTime        time.Time
+	metricsCollector *metrics.Collector
 
 	// Lifecycle
 	ctx            context.Context
@@ -54,11 +51,11 @@ type Server struct {
 
 // ServerConfig contains configuration for the Server
 type ServerConfig struct {
-	Config          *config.Config
-	MaxConnections  int
-	MaxProjects     int
-	MemoryLimitMB   int
-	GoroutineLimit  int
+	Config                *config.Config
+	MaxConnections        int
+	MaxProjects           int
+	MemoryLimitMB         int
+	GoroutineLimit        int
 	ResourceCheckInterval time.Duration
 }
 
@@ -98,8 +95,8 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	// Create Claude executor
 	executorCfg := executor.Config{
-		ClaudePath:              cfg.Config.ClaudePath,
-		DefaultTimeout:          cfg.Config.ExecutionTimeout,
+		ClaudePath:              cfg.Config.Execution.ClaudeBinaryPath,
+		DefaultTimeout:          cfg.Config.Execution.CommandTimeout,
 		MaxConcurrentExecutions: 10,
 	}
 	claudeExecutor, err := executor.NewClaudeExecutor(executorCfg)
@@ -112,15 +109,15 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	// Create server instance
 	s := &Server{
-		config:         cfg.Config,
-		logger:         log,
-		projectManager: projectManager,
-		executor:       claudeExecutor,
-		validator:      validator,
-		maxConnections: int32(cfg.MaxConnections),
-		maxProjects:    int32(cfg.MaxProjects),
-		memoryLimit:    uint64(cfg.MemoryLimitMB) * 1024 * 1024,
-		goroutineLimit: cfg.GoroutineLimit,
+		config:           cfg.Config,
+		logger:           log,
+		projectManager:   projectManager,
+		executor:         claudeExecutor,
+		validator:        validator,
+		maxConnections:   int32(cfg.MaxConnections),
+		maxProjects:      int32(cfg.MaxProjects),
+		memoryLimit:      uint64(cfg.MemoryLimitMB) * 1024 * 1024,
+		goroutineLimit:   cfg.GoroutineLimit,
 		startTime:        time.Now(),
 		ctx:              ctx,
 		cancel:           cancel,
@@ -138,7 +135,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		ConnectionTimeout:   5 * time.Minute,
 		PingInterval:        30 * time.Second,
 		PongTimeout:         60 * time.Second,
-		AllowedOrigins:      cfg.Config.AllowedOrigins,
+		AllowedOrigins:      []string{"*"}, // TODO: Configure from config
 		RateLimitPerIP:      60,
 		MaxMessageSize:      1024 * 1024, // 1MB
 		BufferSize:          1024,
@@ -146,12 +143,14 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	// Create handlers with all dependencies
 	handlerCfg := handlers.Config{
-		ProjectManager: projectManager,
-		Executor:       claudeExecutor,
-		Logger:         log,
-		Validator:      validator,
+		ProjectManager:  projectManager,
+		Executor:        claudeExecutor,
+		Logger:          log,
+		BroadcastConfig: handlers.BroadcasterConfig{},
+		ClaudePath:      cfg.Config.Execution.ClaudeBinaryPath,
+		DataDir:         cfg.Config.DataDir,
 	}
-	handler := handlers.NewHandler(handlerCfg)
+	handler := handlers.NewHandlers(handlerCfg, s)
 
 	// Create WebSocket server
 	s.wsServer = websocket.NewServer(wsConfig, handler, log)
@@ -166,12 +165,12 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 func (s *Server) Start() error {
 	// Platform-specific checks
 	s.performPlatformChecks()
-	
+
 	// Set resource limits
 	if err := platform.SetResourceLimits(10000); err != nil {
 		s.logger.Warn("Failed to set resource limits", "error", err)
 	}
-	
+
 	s.logger.Info("Starting Pocket Agent Server",
 		"version", "1.0.0",
 		"platform", runtime.GOOS,
@@ -224,26 +223,26 @@ func (s *Server) Start() error {
 // Shutdown performs graceful shutdown of the server
 func (s *Server) Shutdown() error {
 	var shutdownErr error
-	
+
 	s.shutdownOnce.Do(func() {
 		s.logger.Info("Starting graceful shutdown")
-		
+
 		// Stop accepting new connections
 		s.cancel()
-		
+
 		// Stop resource ticker
 		s.resourceTicker.Stop()
-		
+
 		// Create shutdown context with timeout
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer shutdownCancel()
-		
+
 		// Shutdown WebSocket server
 		if err := s.wsServer.Stop(30 * time.Second); err != nil {
 			s.logger.Error("Failed to stop WebSocket server", "error", err)
 			shutdownErr = err
 		}
-		
+
 		// Shutdown executor
 		if err := s.executor.Shutdown(shutdownCtx); err != nil {
 			s.logger.Error("Failed to shutdown executor", "error", err)
@@ -251,22 +250,23 @@ func (s *Server) Shutdown() error {
 				shutdownErr = err
 			}
 		}
-		
+
 		// Save all project metadata
 		projects := s.projectManager.GetAllProjects()
 		for _, proj := range projects {
-			if err := s.projectManager.UpdateProjectSession(proj); err != nil {
+			// UpdateProject saves the project metadata to disk
+			if err := s.projectManager.UpdateProject(proj); err != nil {
 				s.logger.Error("Failed to save project", "project_id", proj.ID, "error", err)
 			}
 		}
-		
+
 		// Wait for all goroutines
 		done := make(chan struct{})
 		go func() {
 			s.wg.Wait()
 			close(done)
 		}()
-		
+
 		select {
 		case <-done:
 			s.logger.Info("All goroutines stopped")
@@ -276,20 +276,20 @@ func (s *Server) Shutdown() error {
 				shutdownErr = errors.New(errors.CodeExecutionTimeout, "shutdown timeout")
 			}
 		}
-		
+
 		// Log final metrics
 		s.logFinalMetrics()
-		
+
 		s.logger.Info("Server shutdown complete")
 	})
-	
+
 	return shutdownErr
 }
 
 // monitorResources monitors system resource usage
 func (s *Server) monitorResources() {
 	defer s.wg.Done()
-	
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -304,14 +304,14 @@ func (s *Server) monitorResources() {
 func (s *Server) checkResources() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
-	
+
 	// Update metrics collector
 	s.metricsCollector.UpdateResourceMetrics(
 		m.Alloc/1024/1024,
 		runtime.NumGoroutine(),
 		s.getCPUUsage(),
 	)
-	
+
 	// Check memory usage
 	if m.Alloc > s.memoryLimit {
 		s.logger.Warn("Memory limit exceeded",
@@ -320,7 +320,7 @@ func (s *Server) checkResources() {
 		)
 		// Force garbage collection
 		runtime.GC()
-		
+
 		// If still over limit after GC, may need to reject new operations
 		runtime.ReadMemStats(&m)
 		if m.Alloc > s.memoryLimit {
@@ -328,7 +328,7 @@ func (s *Server) checkResources() {
 			s.logger.Error("Memory limit still exceeded after GC")
 		}
 	}
-	
+
 	// Check goroutine count
 	numGoroutines := runtime.NumGoroutine()
 	if numGoroutines > s.goroutineLimit {
@@ -337,7 +337,7 @@ func (s *Server) checkResources() {
 			"limit", s.goroutineLimit,
 		)
 	}
-	
+
 	// Check connection limit
 	currentConns := atomic.LoadInt32(&s.activeConns)
 	if currentConns > s.maxConnections {
@@ -346,7 +346,7 @@ func (s *Server) checkResources() {
 			"limit", s.maxConnections,
 		)
 	}
-	
+
 	// Check project limit
 	projectCount := s.projectManager.GetProjectCount()
 	if projectCount > int(s.maxProjects) {
@@ -355,10 +355,10 @@ func (s *Server) checkResources() {
 			"limit", s.maxProjects,
 		)
 	}
-	
+
 	// Update metrics
 	s.metricsCollector.SetActiveProjects(int64(projectCount))
-	
+
 	// Log resource metrics
 	s.logger.Debug("Resource check",
 		"memory_mb", m.Alloc/1024/1024,
@@ -372,10 +372,10 @@ func (s *Server) checkResources() {
 // collectMetrics collects and aggregates server metrics
 func (s *Server) collectMetrics() {
 	defer s.wg.Done()
-	
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -390,7 +390,7 @@ func (s *Server) collectMetrics() {
 func (s *Server) collectWebSocketMetrics() {
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -407,7 +407,7 @@ func (s *Server) collectWebSocketMetrics() {
 // publishMetrics publishes current metrics
 func (s *Server) publishMetrics() {
 	snapshot := s.metricsCollector.GetSnapshot()
-	
+
 	metrics := map[string]interface{}{
 		"uptime_seconds": time.Since(s.startTime).Seconds(),
 		"counters": map[string]interface{}{
@@ -422,9 +422,9 @@ func (s *Server) publishMetrics() {
 			"active_projects":    snapshot.Gauges.ActiveProjects,
 		},
 		"resources": map[string]interface{}{
-			"memory_mb":       snapshot.Resources.MemoryMB,
-			"goroutines":      snapshot.Resources.GoroutineCount,
-			"cpu_percent":     snapshot.Resources.CPUPercent,
+			"memory_mb":   snapshot.Resources.MemoryMB,
+			"goroutines":  snapshot.Resources.GoroutineCount,
+			"cpu_percent": snapshot.Resources.CPUPercent,
 		},
 		"performance": map[string]interface{}{
 			"execution_p50_ms":      snapshot.Performance.ExecutionDurations.P50.Milliseconds(),
@@ -433,7 +433,7 @@ func (s *Server) publishMetrics() {
 			"message_throughput_ps": snapshot.Performance.MessageThroughput,
 		},
 	}
-	
+
 	s.logger.Info("Server metrics", metrics)
 }
 
@@ -441,7 +441,7 @@ func (s *Server) publishMetrics() {
 func (s *Server) logFinalMetrics() {
 	uptime := time.Since(s.startTime)
 	snapshot := s.metricsCollector.GetSnapshot()
-	
+
 	s.logger.Info("Final server metrics",
 		"uptime", uptime.String(),
 		"total_executions", snapshot.Counters.TotalExecutions,
@@ -494,10 +494,10 @@ func (s *Server) GetMetrics() map[string]interface{} {
 	snapshot := s.metricsCollector.GetSnapshot()
 	wsMetrics := s.wsServer.GetMetrics()
 	executorStats := s.executor.GetStats()
-	
+
 	// Get platform info
 	platformInfo := s.getPlatformInfo()
-	
+
 	return map[string]interface{}{
 		"server": map[string]interface{}{
 			"uptime_seconds": time.Since(s.startTime).Seconds(),
@@ -532,8 +532,8 @@ func (s *Server) GetMetrics() map[string]interface{} {
 		},
 		"websocket": wsMetrics,
 		"projects": map[string]interface{}{
-			"total":  s.projectManager.GetProjectCount(),
-			"limit":  s.maxProjects,
+			"total": s.projectManager.GetProjectCount(),
+			"limit": s.maxProjects,
 		},
 		"executor": executorStats,
 		"platform": platformInfo,
@@ -543,22 +543,23 @@ func (s *Server) GetMetrics() map[string]interface{} {
 // performPlatformChecks performs platform-specific compatibility checks
 func (s *Server) performPlatformChecks() {
 	issues := platform.CheckPermissions()
-	
+
 	// Platform-specific checks
 	switch runtime.GOOS {
 	case "darwin":
 		macIssues := platform.CheckMacOSPermissions()
 		issues = append(issues, macIssues...)
 	case "linux":
-		linuxIssues := platform.CheckLinuxPermissions()
-		issues = append(issues, linuxIssues...)
+		// Platform-specific checks are handled via build tags
+		platformIssues := platform.CheckPlatformSpecificPermissions()
+		issues = append(issues, platformIssues...)
 	}
-	
+
 	// Log any issues found
 	for _, issue := range issues {
 		s.logger.Warn("Platform compatibility issue", "issue", issue)
 	}
-	
+
 	// Check if running as root (generally not recommended)
 	if platform.IsRoot() {
 		s.logger.Warn("Running as root user - this is not recommended for security reasons")
@@ -571,7 +572,7 @@ func (s *Server) getPlatformInfo() map[string]interface{} {
 		"os":   runtime.GOOS,
 		"arch": runtime.GOARCH,
 	}
-	
+
 	// Get platform-specific system info
 	switch runtime.GOOS {
 	case "darwin":
@@ -585,7 +586,7 @@ func (s *Server) getPlatformInfo() map[string]interface{} {
 			info[k] = v
 		}
 	}
-	
+
 	// Get resource limits
 	if limits, err := platform.GetResourceLimits(); err == nil {
 		info["limits"] = map[string]interface{}{
@@ -594,7 +595,7 @@ func (s *Server) getPlatformInfo() map[string]interface{} {
 			"max_cpu_time":   limits.MaxCPUTime,
 		}
 	}
-	
+
 	return info
 }
 

@@ -83,10 +83,10 @@ func (h *ExecutionHandlers) HandleExecute(ctx context.Context, session *models.S
 // executeClaudeCommand runs Claude execution and handles results
 func (h *ExecutionHandlers) executeClaudeCommand(ctx context.Context, session *models.Session, project *models.Project, req executor.ExecuteCommand) {
 	startTime := time.Now()
-	
+
 	// Execute Claude
 	response, err := h.executor.Execute(project, req)
-	
+
 	// Update project state based on result
 	newState := models.StateIdle
 	if err != nil {
@@ -96,7 +96,7 @@ func (h *ExecutionHandlers) executeClaudeCommand(ctx context.Context, session *m
 			"error", err,
 			"duration", time.Since(startTime),
 		)
-		
+
 		// Broadcast error to subscribers
 		h.broadcast.BroadcastError(project, err)
 	} else {
@@ -105,25 +105,25 @@ func (h *ExecutionHandlers) executeClaudeCommand(ctx context.Context, session *m
 			"session_id", response.SessionID,
 			"duration", time.Since(startTime),
 		)
-		
+
 		// Update project session ID if changed
 		if response.SessionID != "" && response.SessionID != project.SessionID {
 			if err := h.projectMgr.UpdateProjectSession(project.ID, response.SessionID); err != nil {
 				h.log.Error("Failed to update project session", "error", err)
 			}
 		}
-		
+
 		// Broadcast Claude messages to all subscribers
 		for _, msg := range response.Messages {
 			h.broadcast.BroadcastClaudeMessage(project, msg)
 		}
 	}
-	
+
 	// Update project state
 	if err := h.projectMgr.UpdateProjectState(project.ID, newState); err != nil {
 		h.log.Error("Failed to update project state", "error", err)
 	}
-	
+
 	// Get updated project and broadcast final state
 	if updatedProject, err := h.projectMgr.GetProjectByID(project.ID); err == nil {
 		h.broadcast.BroadcastProjectState(updatedProject)

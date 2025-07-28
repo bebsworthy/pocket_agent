@@ -21,7 +21,7 @@ func TestNewClaudeExecutor(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	mockClaude := filepath.Join(tempDir, "claude")
-	if err := os.WriteFile(mockClaude, []byte("#!/bin/sh\necho mock"), 0755); err != nil {
+	if err := os.WriteFile(mockClaude, []byte("#!/bin/sh\necho mock"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

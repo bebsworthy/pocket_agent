@@ -14,15 +14,15 @@ import (
 type ClaudeMockScenario string
 
 const (
-	ScenarioSuccess        ClaudeMockScenario = "success"
-	ScenarioError          ClaudeMockScenario = "error"
-	ScenarioTimeout        ClaudeMockScenario = "timeout"
-	ScenarioInvalidJSON    ClaudeMockScenario = "invalid_json"
-	ScenarioEmpty          ClaudeMockScenario = "empty"
-	ScenarioPartialJSON    ClaudeMockScenario = "partial_json"
-	ScenarioMultiMessage   ClaudeMockScenario = "multi_message"
-	ScenarioLongResponse   ClaudeMockScenario = "long_response"
-	ScenarioSlowStream     ClaudeMockScenario = "slow_stream"
+	ScenarioSuccess      ClaudeMockScenario = "success"
+	ScenarioError        ClaudeMockScenario = "error"
+	ScenarioTimeout      ClaudeMockScenario = "timeout"
+	ScenarioInvalidJSON  ClaudeMockScenario = "invalid_json"
+	ScenarioEmpty        ClaudeMockScenario = "empty"
+	ScenarioPartialJSON  ClaudeMockScenario = "partial_json"
+	ScenarioMultiMessage ClaudeMockScenario = "multi_message"
+	ScenarioLongResponse ClaudeMockScenario = "long_response"
+	ScenarioSlowStream   ClaudeMockScenario = "slow_stream"
 )
 
 // ClaudeMessage represents a message from Claude
@@ -90,7 +90,7 @@ func generateSuccessResponse(config ClaudeMockConfig) (string, error) {
 
 	messages := []ClaudeMessage{
 		{
-			Type: "text",
+			Type:    "text",
 			Content: json.RawMessage(`{"text": "Hello! I successfully processed your request."}`),
 		},
 	}
@@ -146,14 +146,14 @@ func generateMultiMessageResponse(config ClaudeMockConfig) (string, error) {
 	messages := make([]ClaudeMessage, 0, messageCount)
 	for i := 0; i < messageCount; i++ {
 		messages = append(messages, ClaudeMessage{
-			Type: "text",
+			Type:    "text",
 			Content: json.RawMessage(fmt.Sprintf(`{"text": "Message %d of %d"}`, i+1, messageCount)),
 		})
 	}
 
 	// Add a code block message
 	messages = append(messages, ClaudeMessage{
-		Type: "code",
+		Type:    "code",
 		Content: json.RawMessage(`{"language": "go", "code": "func main() {\n\tfmt.Println(\"Hello, World!\")\n}"}`),
 	})
 
@@ -185,7 +185,7 @@ func generateLongResponse(config ClaudeMockConfig) (string, error) {
 
 	messages := []ClaudeMessage{
 		{
-			Type: "text",
+			Type:    "text",
 			Content: json.RawMessage(fmt.Sprintf(`{"text": %q}`, longText.String())),
 		},
 	}
@@ -358,7 +358,7 @@ exit $EXIT_CODE
 `, config.Scenario, config.SessionID, config.ExitCode, int(config.Delay.Milliseconds()), config.MessageCount)
 
 	// Write script to file
-	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 		return fmt.Errorf("failed to write mock script: %w", err)
 	}
 

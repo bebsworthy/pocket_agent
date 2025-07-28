@@ -61,7 +61,7 @@ func TestConcurrentConnections(t *testing.T) {
 	// Test parameters
 	numConnections := 120 // Test with 120 concurrent connections
 	connectTimeout := 30 * time.Second
-	
+
 	// Metrics
 	var successfulConnects int64
 	var failedConnects int64
@@ -95,7 +95,7 @@ func TestConcurrentConnections(t *testing.T) {
 			}
 
 			atomic.AddInt64(&successfulConnects, 1)
-			
+
 			connMu.Lock()
 			connections = append(connections, conn)
 			connMu.Unlock()
@@ -104,7 +104,7 @@ func TestConcurrentConnections(t *testing.T) {
 			msg := models.ClientMessage{
 				Type: models.MessageTypeProjectList,
 			}
-			
+
 			if err := conn.WriteJSON(msg); err == nil {
 				atomic.AddInt64(&totalMessages, 1)
 			}
@@ -140,7 +140,7 @@ func TestConcurrentConnections(t *testing.T) {
 	t.Logf("  Connections/sec: %.2f", float64(successfulConnects)/connectDuration.Seconds())
 
 	// Verify we achieved target
-	require.GreaterOrEqual(t, atomic.LoadInt64(&successfulConnects), int64(100), 
+	require.GreaterOrEqual(t, atomic.LoadInt64(&successfulConnects), int64(100),
 		"Should support at least 100 concurrent connections")
 
 	// Cleanup connections
@@ -183,7 +183,7 @@ func TestMessageThroughput(t *testing.T) {
 	// Create persistent connections
 	numConnections := 10
 	connections := make([]*ws.Conn, 0, numConnections)
-	
+
 	for i := 0; i < numConnections; i++ {
 		conn, _, err := ws.DefaultDialer.Dial(wsURL, nil)
 		require.NoError(t, err)
@@ -195,11 +195,11 @@ func TestMessageThroughput(t *testing.T) {
 	var messagesSent int64
 	var messagesReceived int64
 	var errors int64
-	
+
 	// Test duration
 	testDuration := 5 * time.Second
 	messagesPerConnection := 200 // Each connection sends this many messages
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
 	defer cancel()
 
@@ -238,15 +238,15 @@ func TestMessageThroughput(t *testing.T) {
 					msg := models.ClientMessage{
 						Type: models.MessageTypeProjectList,
 					}
-					
+
 					err := c.WriteJSON(msg)
 					if err != nil {
 						atomic.AddInt64(&errors, 1)
 						continue
 					}
-					
+
 					atomic.AddInt64(&messagesSent, 1)
-					
+
 					// Small delay between messages to avoid overwhelming
 					time.Sleep(5 * time.Millisecond)
 				}
@@ -269,7 +269,7 @@ func TestMessageThroughput(t *testing.T) {
 	}
 
 	duration := time.Since(startTime)
-	
+
 	// Calculate throughput
 	sentPerSecond := float64(atomic.LoadInt64(&messagesSent)) / duration.Seconds()
 	receivedPerSecond := float64(atomic.LoadInt64(&messagesReceived)) / duration.Seconds()
@@ -280,9 +280,9 @@ func TestMessageThroughput(t *testing.T) {
 	t.Logf("  Messages Sent: %d (%.2f/sec)", messagesSent, sentPerSecond)
 	t.Logf("  Messages Received: %d (%.2f/sec)", messagesReceived, receivedPerSecond)
 	t.Logf("  Errors: %d", errors)
-	
+
 	// Verify throughput
-	require.GreaterOrEqual(t, sentPerSecond, 1000.0, 
+	require.GreaterOrEqual(t, sentPerSecond, 1000.0,
 		"Should handle at least 1000 messages per second")
 }
 
@@ -305,8 +305,8 @@ func TestResourceLimits(t *testing.T) {
 		DataDir:          filepath.Join(testDir, "data"),
 		Port:             0,
 		ExecutionTimeout: 30 * time.Second,
-		MaxConnections:   10,  // Low limit
-		MaxProjectCount:  5,   // Low limit
+		MaxConnections:   10, // Low limit
+		MaxProjectCount:  5,  // Low limit
 	}
 
 	server := createLoadTestServer(t, cfg)
@@ -345,17 +345,17 @@ func TestResourceLimits(t *testing.T) {
 		defer conn.Close()
 
 		successfulProjects := 0
-		
+
 		// Try to create more projects than limit
 		for i := 0; i < cfg.MaxProjectCount+5; i++ {
 			projectPath := filepath.Join(testDir, fmt.Sprintf("project_%d", i))
-			os.MkdirAll(projectPath, 0755)
+			os.MkdirAll(projectPath, 0o755)
 
 			msg := models.ClientMessage{
 				Type: models.MessageTypeProjectCreate,
 				Data: json.RawMessage(fmt.Sprintf(`{"path": "%s"}`, projectPath)),
 			}
-			
+
 			err := conn.WriteJSON(msg)
 			require.NoError(t, err)
 
@@ -415,7 +415,7 @@ func TestMemoryUsage(t *testing.T) {
 	// Create connections and projects
 	numOperations := 20
 	connections := make([]*ws.Conn, 0, numOperations)
-	
+
 	for i := 0; i < numOperations; i++ {
 		conn, _, err := ws.DefaultDialer.Dial(wsURL, nil)
 		require.NoError(t, err)
@@ -424,14 +424,14 @@ func TestMemoryUsage(t *testing.T) {
 
 		// Create project
 		projectPath := filepath.Join(testDir, fmt.Sprintf("mem_test_%d", i))
-		os.MkdirAll(projectPath, 0755)
+		os.MkdirAll(projectPath, 0o755)
 
 		createMsg := models.ClientMessage{
 			Type: models.MessageTypeProjectCreate,
 			Data: json.RawMessage(fmt.Sprintf(`{"path": "%s"}`, projectPath)),
 		}
 		conn.WriteJSON(createMsg)
-		
+
 		var resp models.ServerMessage
 		conn.ReadJSON(&resp)
 	}
@@ -442,13 +442,13 @@ func TestMemoryUsage(t *testing.T) {
 		wg.Add(1)
 		go func(idx int, c *ws.Conn) {
 			defer wg.Done()
-			
+
 			// Get project list to find our project
 			listMsg := models.ClientMessage{
 				Type: models.MessageTypeProjectList,
 			}
 			c.WriteJSON(listMsg)
-			
+
 			var listResp models.ServerMessage
 			if err := c.ReadJSON(&listResp); err != nil {
 				return
@@ -464,7 +464,7 @@ func TestMemoryUsage(t *testing.T) {
 							Data:      json.RawMessage(`{"prompt": "Generate large response"}`),
 						}
 						c.WriteJSON(execMsg)
-						
+
 						// Read response
 						var execResp models.ServerMessage
 						c.ReadJSON(&execResp)
@@ -492,7 +492,7 @@ func TestMemoryUsage(t *testing.T) {
 	t.Logf("  Goroutines: %d", runtime.NumGoroutine())
 
 	// Verify reasonable memory usage
-	require.Less(t, heapGrowthMB, 500.0, 
+	require.Less(t, heapGrowthMB, 500.0,
 		"Memory growth should be reasonable (< 500MB)")
 }
 
@@ -539,7 +539,7 @@ func BenchmarkMessageRouting(b *testing.B) {
 	defer ts.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
-	
+
 	conn, _, err := ws.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		b.Fatal(err)
@@ -555,7 +555,7 @@ func BenchmarkMessageRouting(b *testing.B) {
 		if err := conn.WriteJSON(msg); err != nil {
 			b.Fatal(err)
 		}
-		
+
 		var resp models.ServerMessage
 		if err := conn.ReadJSON(&resp); err != nil {
 			b.Fatal(err)
@@ -581,14 +581,14 @@ func BenchmarkConcurrentBroadcast(b *testing.B) {
 	// Create a project first
 	conn, _, _ := ws.DefaultDialer.Dial(wsURL, nil)
 	projectPath := filepath.Join(testDir, "bench_project")
-	os.MkdirAll(projectPath, 0755)
-	
+	os.MkdirAll(projectPath, 0o755)
+
 	createMsg := models.ClientMessage{
 		Type: models.MessageTypeProjectCreate,
 		Data: json.RawMessage(fmt.Sprintf(`{"path": "%s"}`, projectPath)),
 	}
 	conn.WriteJSON(createMsg)
-	
+
 	var createResp models.ServerMessage
 	conn.ReadJSON(&createResp)
 	projectData := createResp.Data.(map[string]interface{})
@@ -598,7 +598,7 @@ func BenchmarkConcurrentBroadcast(b *testing.B) {
 	// Create multiple subscribers
 	numSubscribers := 10
 	subscribers := make([]*ws.Conn, 0, numSubscribers)
-	
+
 	for i := 0; i < numSubscribers; i++ {
 		subConn, _, _ := ws.DefaultDialer.Dial(wsURL, nil)
 		joinMsg := models.ClientMessage{
@@ -610,7 +610,7 @@ func BenchmarkConcurrentBroadcast(b *testing.B) {
 		subConn.ReadJSON(&joinResp)
 		subscribers = append(subscribers, subConn)
 	}
-	
+
 	defer func() {
 		for _, s := range subscribers {
 			s.Close()

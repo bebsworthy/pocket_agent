@@ -16,7 +16,7 @@ func TestUpdateProjectState(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/stateproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	tests := []struct {
@@ -63,7 +63,7 @@ func TestSetProjectError(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/errorproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	errorDetails := "test error occurred"
@@ -89,7 +89,7 @@ func TestUpdateProjectSession(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/sessionproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	newSessionID := "new-session-123"
@@ -112,7 +112,7 @@ func TestClearProjectSession(t *testing.T) {
 
 	// Create test project with session
 	validPath := tempDir + "/clearproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 	manager.UpdateProjectSession(project.ID, "session-to-clear")
 
@@ -134,7 +134,7 @@ func TestProjectSubscribers(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/subproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	// Create mock sessions
@@ -186,7 +186,7 @@ func TestIsProjectExecuting(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/execproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	// Initially not executing
@@ -216,7 +216,7 @@ func TestCanProjectExecute(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/canexecproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	// Initially can execute
@@ -245,7 +245,7 @@ func TestTransitionProjectState(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/transproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	tests := []struct {
@@ -296,7 +296,7 @@ func TestGetProjectStats(t *testing.T) {
 	// Create test projects in different states
 	for i := 0; i < 3; i++ {
 		path := tempDir + "/statproject" + string(rune('0'+i))
-		os.MkdirAll(path, 0755)
+		os.MkdirAll(path, 0o755)
 		project, _ := manager.CreateProject(path)
 
 		// Set different states
@@ -353,7 +353,7 @@ func TestStateConcurrency(t *testing.T) {
 
 	// Create test project
 	validPath := tempDir + "/concproject"
-	os.MkdirAll(validPath, 0755)
+	os.MkdirAll(validPath, 0o755)
 	project, _ := manager.CreateProject(validPath)
 
 	// Test concurrent state updates

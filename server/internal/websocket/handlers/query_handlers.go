@@ -31,10 +31,10 @@ func NewQueryHandlers(projectMgr *project.Manager, log *logger.Logger) *QueryHan
 func (h *QueryHandlers) HandleGetMessages(ctx context.Context, session *models.Session, data json.RawMessage) error {
 	var req struct {
 		ProjectID string `json:"project_id"`
-		Since     string `json:"since"`      // RFC3339 timestamp
-		Limit     int    `json:"limit"`      // Max messages to return
-		Offset    int    `json:"offset"`     // For pagination
-		Direction string `json:"direction"`  // "all", "client", "claude" (default: "all")
+		Since     string `json:"since"`     // RFC3339 timestamp
+		Limit     int    `json:"limit"`     // Max messages to return
+		Offset    int    `json:"offset"`    // For pagination
+		Direction string `json:"direction"` // "all", "client", "claude" (default: "all")
 	}
 
 	if err := json.Unmarshal(data, &req); err != nil {
@@ -101,7 +101,7 @@ func (h *QueryHandlers) HandleGetMessages(ctx context.Context, session *models.S
 	if start >= totalMessages {
 		start = totalMessages
 	}
-	
+
 	end := start + req.Limit
 	if end > totalMessages {
 		end = totalMessages
@@ -135,12 +135,12 @@ func (h *QueryHandlers) HandleGetMessages(ctx context.Context, session *models.S
 }
 
 // filterMessages filters messages by direction
-func (h *QueryHandlers) filterMessages(messages []*models.TimestampedMessage, direction string) []*models.TimestampedMessage {
+func (h *QueryHandlers) filterMessages(messages []models.TimestampedMessage, direction string) []models.TimestampedMessage {
 	if direction == "all" {
 		return messages
 	}
 
-	filtered := make([]*models.TimestampedMessage, 0, len(messages))
+	filtered := make([]models.TimestampedMessage, 0, len(messages))
 	for _, msg := range messages {
 		if msg.Direction == direction {
 			filtered = append(filtered, msg)

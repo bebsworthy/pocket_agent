@@ -1,3 +1,4 @@
+//go:build darwin
 // +build darwin
 
 package platform
@@ -12,22 +13,22 @@ import (
 // CheckMacOSPermissions checks for macOS-specific permissions
 func CheckMacOSPermissions() []string {
 	var issues []string
-	
+
 	// Check for Terminal/iTerm permissions
 	if !hasTerminalAccess() {
 		issues = append(issues, "Terminal access may be restricted - check System Preferences > Security & Privacy > Privacy > Developer Tools")
 	}
-	
+
 	// Check for Full Disk Access if needed
 	if needsFullDiskAccess() && !hasFullDiskAccess() {
 		issues = append(issues, "Full Disk Access may be needed for some operations - check System Preferences > Security & Privacy > Privacy > Full Disk Access")
 	}
-	
+
 	// Check for code signing issues
 	if err := checkCodeSigning(); err != nil {
 		issues = append(issues, fmt.Sprintf("Code signing issue: %v", err))
 	}
-	
+
 	return issues
 }
 
@@ -46,14 +47,14 @@ func needsFullDiskAccess() bool {
 	if home == "" {
 		return false
 	}
-	
+
 	// These directories typically require full disk access
 	protectedDirs := []string{
 		home + "/Desktop",
 		home + "/Documents",
 		home + "/Downloads",
 	}
-	
+
 	for _, dir := range protectedDirs {
 		if _, err := os.Stat(dir); err == nil {
 			// Try to list the directory
@@ -62,7 +63,7 @@ func needsFullDiskAccess() bool {
 			}
 		}
 	}
-	
+
 	return false
 }
 
@@ -73,14 +74,14 @@ func hasFullDiskAccess() bool {
 	if home == "" {
 		return true // Assume we have access if we can't determine
 	}
-	
+
 	testFile := home + "/Library/Safari/.pocket_agent_test"
 	if f, err := os.Create(testFile); err == nil {
 		f.Close()
 		os.Remove(testFile)
 		return true
 	}
-	
+
 	return false
 }
 
@@ -91,7 +92,7 @@ func checkCodeSigning() error {
 	if err != nil {
 		return err
 	}
-	
+
 	cmd := exec.Command("codesign", "-v", executable)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -101,7 +102,7 @@ func checkCodeSigning() error {
 		}
 		return fmt.Errorf("codesign verification failed: %s", output)
 	}
-	
+
 	return nil
 }
 
@@ -110,7 +111,7 @@ func SetupMacOSProcess(cmd *exec.Cmd) {
 	if cmd.Env == nil {
 		cmd.Env = os.Environ()
 	}
-	
+
 	// Ensure PATH includes common locations
 	pathSet := false
 	for i, env := range cmd.Env {
@@ -128,7 +129,7 @@ func SetupMacOSProcess(cmd *exec.Cmd) {
 			break
 		}
 	}
-	
+
 	if !pathSet {
 		cmd.Env = append(cmd.Env, "PATH=/opt/homebrew/bin:/usr/local/bin:"+os.Getenv("PATH"))
 	}
@@ -137,17 +138,17 @@ func SetupMacOSProcess(cmd *exec.Cmd) {
 // GetSystemInfo returns macOS-specific system information
 func GetSystemInfo() map[string]string {
 	info := make(map[string]string)
-	
+
 	// Get macOS version
 	if output, err := exec.Command("sw_vers", "-productVersion").Output(); err == nil {
 		info["macos_version"] = strings.TrimSpace(string(output))
 	}
-	
+
 	// Get hardware info
 	if output, err := exec.Command("sysctl", "-n", "hw.model").Output(); err == nil {
 		info["hardware_model"] = strings.TrimSpace(string(output))
 	}
-	
+
 	// Check if running on Apple Silicon
 	if output, err := exec.Command("sysctl", "-n", "hw.optional.arm64").Output(); err == nil {
 		if strings.TrimSpace(string(output)) == "1" {
@@ -156,6 +157,17 @@ func GetSystemInfo() map[string]string {
 			info["architecture"] = "x86_64 (Intel)"
 		}
 	}
-	
+
 	return info
+}
+
+// SetupLinuxProcess is a no-op on Darwin
+func SetupLinuxProcess(cmd *exec.Cmd) {
+	// Linux-specific process setup not needed on Darwin
+}
+
+// CheckPlatformSpecificPermissions checks platform-specific permissions
+func CheckPlatformSpecificPermissions() []string {
+	// On Darwin, platform-specific checks are handled by CheckMacOSPermissions
+	return nil
 }

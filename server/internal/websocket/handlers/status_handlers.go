@@ -14,14 +14,14 @@ import (
 // StatusHandlers handles periodic status updates and broadcasts
 // Requirements: 3.3, 4.4, 5.4, 6.5
 type StatusHandlers struct {
-	projectMgr  *project.Manager
-	executor    *executor.ClaudeExecutor
-	broadcast   *Broadcaster
-	log         *logger.Logger
-	server      ServerStats
-	mu          sync.RWMutex
-	stopChan    chan struct{}
-	wg          sync.WaitGroup
+	projectMgr *project.Manager
+	executor   *executor.ClaudeExecutor
+	broadcast  *Broadcaster
+	log        *logger.Logger
+	server     ServerStats
+	mu         sync.RWMutex
+	stopChan   chan struct{}
+	wg         sync.WaitGroup
 }
 
 // ServerStats provides server statistics
@@ -168,11 +168,11 @@ func (h *StatusHandlers) collectProjectStats(projects []*models.Project) map[str
 	}
 
 	return map[string]interface{}{
-		"total":                len(projects),
-		"total_subscribers":    totalSubscribers,
-		"with_sessions":        projectsWithSessions,
-		"by_state":             stateCount,
-		"average_subscribers":  float64(totalSubscribers) / float64(len(projects)),
+		"total":               len(projects),
+		"total_subscribers":   totalSubscribers,
+		"with_sessions":       projectsWithSessions,
+		"by_state":            stateCount,
+		"average_subscribers": float64(totalSubscribers) / float64(len(projects)),
 	}
 }
 

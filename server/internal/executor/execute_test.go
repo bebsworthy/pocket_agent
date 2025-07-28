@@ -21,7 +21,7 @@ func createMockClaude(t *testing.T, script string) string {
 
 	mockPath := filepath.Join(tempDir, "claude")
 	content := "#!/bin/sh\n" + script
-	if err := os.WriteFile(mockPath, []byte(content), 0755); err != nil {
+	if err := os.WriteFile(mockPath, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

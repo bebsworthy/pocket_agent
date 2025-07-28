@@ -9,25 +9,25 @@ import (
 // Collector collects and aggregates metrics
 type Collector struct {
 	// Counters
-	totalExecutions   uint64
-	totalMessages     uint64
-	totalConnections  uint64
-	totalErrors       uint64
-	
+	totalExecutions  uint64
+	totalMessages    uint64
+	totalConnections uint64
+	totalErrors      uint64
+
 	// Gauges
 	activeConnections int64
 	activeExecutions  int64
 	activeProjects    int64
-	
+
 	// Histograms
 	executionDurations *DurationHistogram
 	messageThroughput  *ThroughputCounter
-	
+
 	// Resource metrics
-	memoryUsage      uint64
-	goroutineCount   int32
-	cpuPercent       float64
-	
+	memoryUsage    uint64
+	goroutineCount int32
+	cpuPercent     float64
+
 	mu sync.RWMutex
 }
 
@@ -40,9 +40,9 @@ type DurationHistogram struct {
 
 // ThroughputCounter tracks throughput over time windows
 type ThroughputCounter struct {
-	mu       sync.Mutex
-	windows  map[time.Time]uint64
-	window   time.Duration
+	mu      sync.Mutex
+	windows map[time.Time]uint64
+	window  time.Duration
 }
 
 // NewCollector creates a new metrics collector
@@ -116,7 +116,7 @@ func (c *Collector) RecordExecutionDuration(duration time.Duration) {
 func (c *Collector) UpdateResourceMetrics(memoryMB uint64, goroutines int, cpuPercent float64) {
 	atomic.StoreUint64(&c.memoryUsage, memoryMB)
 	atomic.StoreInt32(&c.goroutineCount, int32(goroutines))
-	
+
 	c.mu.Lock()
 	c.cpuPercent = cpuPercent
 	c.mu.Unlock()
@@ -127,7 +127,7 @@ func (c *Collector) GetSnapshot() Snapshot {
 	c.mu.RLock()
 	cpu := c.cpuPercent
 	c.mu.RUnlock()
-	
+
 	return Snapshot{
 		Counters: CounterSnapshot{
 			TotalExecutions:  atomic.LoadUint64(&c.totalExecutions),
@@ -156,7 +156,7 @@ func (c *Collector) GetSnapshot() Snapshot {
 func (h *DurationHistogram) Record(duration time.Duration) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	
+
 	h.durations = append(h.durations, duration)
 	if len(h.durations) > h.maxSize {
 		h.durations = h.durations[1:]
@@ -167,15 +167,15 @@ func (h *DurationHistogram) Record(duration time.Duration) {
 func (h *DurationHistogram) GetPercentiles() DurationPercentiles {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	
+
 	if len(h.durations) == 0 {
 		return DurationPercentiles{}
 	}
-	
+
 	// Create a copy for sorting
 	sorted := make([]time.Duration, len(h.durations))
 	copy(sorted, h.durations)
-	
+
 	// Simple bubble sort for percentile calculation
 	for i := 0; i < len(sorted); i++ {
 		for j := i + 1; j < len(sorted); j++ {
@@ -184,7 +184,7 @@ func (h *DurationHistogram) GetPercentiles() DurationPercentiles {
 			}
 		}
 	}
-	
+
 	return DurationPercentiles{
 		P50: sorted[len(sorted)/2],
 		P90: sorted[len(sorted)*9/10],
@@ -198,10 +198,10 @@ func (h *DurationHistogram) GetPercentiles() DurationPercentiles {
 func (t *ThroughputCounter) Increment() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	
+
 	now := time.Now().Truncate(time.Second)
 	t.windows[now]++
-	
+
 	// Clean old windows
 	cutoff := now.Add(-t.window)
 	for ts := range t.windows {
@@ -215,24 +215,24 @@ func (t *ThroughputCounter) Increment() {
 func (t *ThroughputCounter) GetRate() float64 {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	
+
 	now := time.Now()
 	cutoff := now.Add(-t.window)
-	
+
 	var total uint64
 	var windows int
-	
+
 	for ts, count := range t.windows {
 		if ts.After(cutoff) {
 			total += count
 			windows++
 		}
 	}
-	
+
 	if windows == 0 {
 		return 0
 	}
-	
+
 	return float64(total) / t.window.Seconds()
 }
 
