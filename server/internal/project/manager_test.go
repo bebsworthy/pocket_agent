@@ -140,7 +140,8 @@ func TestGetAllProjects(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	manager, err := NewManager(Config{
-		DataDir: tempDir,
+		DataDir:     tempDir,
+		MaxProjects: 10,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +174,8 @@ func TestGetExistingPaths(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	manager, err := NewManager(Config{
-		DataDir: tempDir,
+		DataDir:     tempDir,
+		MaxProjects: 10,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -208,7 +210,8 @@ func TestGenerateProjectID(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	manager, err := NewManager(Config{
-		DataDir: tempDir,
+		DataDir:     tempDir,
+		MaxProjects: 10,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -237,7 +240,8 @@ func TestManagerConcurrency(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	manager, err := NewManager(Config{
-		DataDir: tempDir,
+		DataDir:     tempDir,
+		MaxProjects: 10,
 	})
 	if err != nil {
 		t.Fatal(err)

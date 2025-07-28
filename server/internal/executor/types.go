@@ -38,9 +38,7 @@ func (ce *ClaudeExecutor) Execute(project *models.Project, cmd ExecuteCommand) (
 	return ce.ExecuteWithOptions(project, options)
 }
 
-// ExecuteWithOptions is the renamed original Execute method
+// ExecuteWithOptions runs Claude with specific options (internal use)
 func (ce *ClaudeExecutor) ExecuteWithOptions(project *models.Project, options ExecuteOptions) (*ExecuteResult, error) {
-	// This is the original Execute implementation
-	// We'll rename the existing Execute method to this
 	return ce.executeInternal(project, options)
 }

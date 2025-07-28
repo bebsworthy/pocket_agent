@@ -434,7 +434,7 @@ func (s *Server) publishMetrics() {
 		},
 	}
 
-	s.logger.Info("Server metrics", metrics)
+	s.logger.Info("Server metrics", "data", metrics)
 }
 
 // logFinalMetrics logs final metrics at shutdown

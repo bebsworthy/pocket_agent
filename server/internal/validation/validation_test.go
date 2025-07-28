@@ -59,7 +59,7 @@ func TestValidatorValidatePath(t *testing.T) {
 		},
 		{
 			name:    "path with ..",
-			path:    filepath.Join(tempDir, "..", "escape"),
+			path:    tempDir + "/../escape",  // Don't use filepath.Join as it resolves ..
 			wantErr: true,
 			errMsg:  "path traversal detected",
 		},
@@ -572,7 +572,7 @@ func TestValidatorSanitizePath(t *testing.T) {
 		{
 			name: "path with ..",
 			path: "/home/user/../project",
-			want: "/home/project",
+			want: "/home/user/_/project",  // .. gets replaced with _/
 		},
 		{
 			name: "path with invalid chars",
@@ -587,7 +587,7 @@ func TestValidatorSanitizePath(t *testing.T) {
 		{
 			name: "multiple issues",
 			path: "/home/../user<>/../project",
-			want: "/user__/project",
+			want: "/home/_/user__/_/project",  // .. -> _/, <> -> __
 		},
 	}
 

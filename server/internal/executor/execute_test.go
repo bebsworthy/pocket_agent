@@ -57,7 +57,7 @@ echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content"
 		name       string
 		claudePath string
 		project    *models.Project
-		options    ExecuteOptions
+		cmd        ExecuteCommand
 		wantErr    bool
 		errCode    errors.ErrorCode
 		check      func(*ExecuteResult)
@@ -66,7 +66,7 @@ echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content"
 			name:       "successful execution",
 			claudePath: successPath,
 			project:    project,
-			options: ExecuteOptions{
+			cmd: ExecuteCommand{
 				Prompt: "test prompt",
 			},
 			wantErr: false,
@@ -86,7 +86,7 @@ echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content"
 			name:       "nil project",
 			claudePath: successPath,
 			project:    nil,
-			options: ExecuteOptions{
+			cmd: ExecuteCommand{
 				Prompt: "test",
 			},
 			wantErr: true,
@@ -96,7 +96,7 @@ echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content"
 			name:       "empty prompt",
 			claudePath: successPath,
 			project:    project,
-			options:    ExecuteOptions{},
+			cmd:        ExecuteCommand{},
 			wantErr:    true,
 			errCode:    errors.CodeValidationFailed,
 		},
@@ -104,7 +104,7 @@ echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content"
 			name:       "execution failure",
 			claudePath: failPath,
 			project:    project,
-			options: ExecuteOptions{
+			cmd: ExecuteCommand{
 				Prompt: "test",
 			},
 			wantErr: true,
@@ -122,9 +122,8 @@ echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content"
 			name:       "timeout",
 			claudePath: timeoutPath,
 			project:    project,
-			options: ExecuteOptions{
-				Prompt:  "test",
-				Timeout: 100 * time.Millisecond,
+			cmd: ExecuteCommand{
+				Prompt: "test",
 			},
 			wantErr: true,
 			errCode: errors.CodeExecutionTimeout,
@@ -143,7 +142,7 @@ echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content"
 				logger: logger.New("info"),
 			}
 
-			result, err := ce.Execute(tt.project, tt.options)
+			result, err := ce.Execute(tt.project, tt.cmd)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Execute() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -419,11 +418,11 @@ echo '{"session_id": "test", "messages": []}'
 
 	done := make(chan error, 2)
 	go func() {
-		_, err := ce.Execute(project1, ExecuteOptions{Prompt: "test"})
+		_, err := ce.Execute(project1, ExecuteCommand{Prompt: "test"})
 		done <- err
 	}()
 	go func() {
-		_, err := ce.Execute(project2, ExecuteOptions{Prompt: "test"})
+		_, err := ce.Execute(project2, ExecuteCommand{Prompt: "test"})
 		done <- err
 	}()
 
@@ -432,7 +431,7 @@ echo '{"session_id": "test", "messages": []}'
 
 	// Try third execution (should fail)
 	project3 := &models.Project{ID: "p3", Path: "/tmp"}
-	_, err := ce.Execute(project3, ExecuteOptions{Prompt: "test"})
+	_, err := ce.Execute(project3, ExecuteCommand{Prompt: "test"})
 
 	if err == nil {
 		t.Error("expected error for exceeding concurrent limit")
@@ -467,7 +466,7 @@ func TestExecuteProcessCleanup(t *testing.T) {
 	project := &models.Project{ID: "cleanup-test", Path: "/tmp"}
 
 	// Execute
-	_, err := ce.Execute(project, ExecuteOptions{Prompt: "test"})
+	_, err := ce.Execute(project, ExecuteCommand{Prompt: "test"})
 	if err != nil {
 		t.Errorf("Execute() unexpected error: %v", err)
 	}

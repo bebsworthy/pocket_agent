@@ -2,8 +2,10 @@ package executor
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -114,68 +116,263 @@ func TestNewClaudeExecutor(t *testing.T) {
 }
 
 func TestProcessTracking(t *testing.T) {
-	ce := &ClaudeExecutor{
-		activeProcesses: make(map[string]*ProcessInfo),
-		config: Config{
-			MaxConcurrentExecutions: 2,
-		},
+	// Create mock CLI helper
+	mockCLI := createMockCLI(t)
+	defer os.RemoveAll(filepath.Dir(mockCLI))
+	
+	// Setup executor with real components
+	config := Config{
+		ClaudePath:              mockCLI,
+		MaxConcurrentExecutions: 2,
+		DefaultTimeout:          5 * time.Second,
 	}
-
-	// Test registering a process
-	info1 := &ProcessInfo{
-		ProjectID: "project-1",
-		StartTime: time.Now(),
-	}
-
-	err := ce.registerProcess("project-1", info1)
+	
+	executor, err := NewClaudeExecutor(config)
 	if err != nil {
-		t.Errorf("registerProcess() unexpected error: %v", err)
+		t.Fatal(err)
 	}
+	
+	t.Run("process lifecycle through public API", func(t *testing.T) {
+		// Create test project directory
+		projectPath, err := os.MkdirTemp("", "test-project")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(projectPath)
+		
+		// Execute command that will be tracked
+		options := ExecuteOptions{
+			Prompt: "test prompt",
+			Timeout: 2 * time.Second,
+		}
+		
+		// Start execution
+		result := make(chan struct {
+			Result *ExecuteResult
+			Error  error
+		}, 1)
+		
+		go func() {
+			res, err := executor.ExecuteWithProject("project-1", projectPath, options)
+			result <- struct {
+				Result *ExecuteResult
+				Error  error
+			}{Result: res, Error: err}
+		}()
+		
+		// Verify process is registered
+		time.Sleep(100 * time.Millisecond)
+		if !executor.IsProjectExecuting("project-1") {
+			t.Error("expected project to be executing")
+		}
+		
+		// Wait for completion
+		res := <-result
+		if res.Error != nil {
+			t.Errorf("unexpected error: %v", res.Error)
+		}
+		
+		// Verify process was cleaned up
+		if executor.IsProjectExecuting("project-1") {
+			t.Error("expected process to be cleaned up after completion")
+		}
+	})
+	
+	t.Run("concurrent execution limits", func(t *testing.T) {
+		// Create test project directories
+		projectPaths := make([]string, 3)
+		for i := 0; i < 3; i++ {
+			path, err := os.MkdirTemp("", fmt.Sprintf("test-project-%d", i))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(path)
+			projectPaths[i] = path
+		}
+		
+		// Start two executions (at limit)
+		var wg sync.WaitGroup
+		for i := 1; i <= 2; i++ {
+			wg.Add(1)
+			go func(id int) {
+				defer wg.Done()
+				options := ExecuteOptions{
+					Prompt: "sleep for test",
+					Timeout: 5 * time.Second,
+				}
+				executor.ExecuteWithProject(fmt.Sprintf("project-%d", id), projectPaths[id-1], options)
+			}(i)
+		}
+		
+		// Wait for both to start
+		time.Sleep(200 * time.Millisecond)
+		
+		// Verify count
+		if count := executor.GetActiveProcessCount(); count != 2 {
+			t.Errorf("expected 2 active processes, got %d", count)
+		}
+		
+		// Try to start third (should fail)
+		options := ExecuteOptions{
+			Prompt: "should fail",
+		}
+		
+		_, err := executor.ExecuteWithProject("project-3", projectPaths[2], options)
+		if err == nil {
+			t.Error("expected error for exceeding concurrent limit")
+		}
+		
+		appErr, ok := err.(*errors.AppError)
+		if !ok || appErr.Code != errors.CodeResourceLimit {
+			t.Errorf("expected CodeResourceLimit, got %v", err)
+		}
+		
+		// Wait for others to complete
+		wg.Wait()
+	})
+	
+	t.Run("duplicate execution prevention", func(t *testing.T) {
+		// Create project directory
+		projectPath, err := os.MkdirTemp("", "test-dup-project")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(projectPath)
+		
+		// Start first execution
+		options := ExecuteOptions{
+			Prompt: "long running",
+			Timeout: 5 * time.Second,
+		}
+		
+		go executor.ExecuteWithProject("project-dup", projectPath, options)
+		time.Sleep(100 * time.Millisecond)
+		
+		// Try duplicate
+		_, err = executor.ExecuteWithProject("project-dup", projectPath, options)
+		if err == nil {
+			t.Error("expected error for duplicate execution")
+		}
+		
+		appErr, ok := err.(*errors.AppError)
+		if !ok || appErr.Code != errors.CodeProcessActive {
+			t.Errorf("expected CodeProcessActive, got %v", err)
+		}
+	})
+	
+	t.Run("cancellation handling", func(t *testing.T) {
+		// Create project directory
+		projectPath, err := os.MkdirTemp("", "test-cancel-project")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.RemoveAll(projectPath)
+		
+		// Create cancellable options
+		options := ExecuteOptions{
+			Prompt: "will be cancelled",
+			Timeout: 5 * time.Second,
+		}
+		
+		// Start execution in goroutine with context
+		done := make(chan error, 1)
+		ctx, cancel := context.WithCancel(context.Background())
+		
+		go func() {
+			// We need to use ExecuteWithContext to pass the context
+			res, err := executor.ExecuteWithContext(ctx, "project-cancel", projectPath, options)
+			if err != nil {
+				done <- err
+			} else if res != nil {
+				done <- fmt.Errorf("expected nil result on cancellation")
+			} else {
+				done <- nil
+			}
+		}()
+		
+		// Wait for it to start
+		time.Sleep(100 * time.Millisecond)
+		
+		// Verify it's running
+		if !executor.IsProjectExecuting("project-cancel") {
+			t.Error("expected project to be executing")
+		}
+		
+		// Cancel
+		cancel()
+		
+		// Wait for cleanup
+		err = <-done
+		if err == nil || (!strings.Contains(err.Error(), "cancelled") && !strings.Contains(err.Error(), "canceled")) {
+			t.Errorf("expected cancellation error, got %v", err)
+		}
+		
+		// Verify cleanup
+		time.Sleep(100 * time.Millisecond)
+		if executor.IsProjectExecuting("project-cancel") {
+			t.Error("expected process to be cleaned up after cancellation")
+		}
+	})
+}
 
-	// Test duplicate registration
-	err = ce.registerProcess("project-1", info1)
-	if err == nil {
-		t.Error("expected error for duplicate registration")
-	}
-	appErr, _ := err.(*errors.AppError)
-	if appErr.Code != errors.CodeProcessActive {
-		t.Errorf("expected CodeProcessActive, got %s", appErr.Code)
-	}
-
-	// Test max concurrent limit
-	info2 := &ProcessInfo{ProjectID: "project-2"}
-	ce.registerProcess("project-2", info2)
-
-	info3 := &ProcessInfo{ProjectID: "project-3"}
-	err = ce.registerProcess("project-3", info3)
-	if err == nil {
-		t.Error("expected error for exceeding concurrent limit")
-	}
-	appErr, _ = err.(*errors.AppError)
-	if appErr.Code != errors.CodeResourceLimit {
-		t.Errorf("expected CodeResourceLimit, got %s", appErr.Code)
-	}
-
-	// Test unregistering
-	ce.unregisterProcess("project-1")
-	if _, exists := ce.activeProcesses["project-1"]; exists {
-		t.Error("process was not unregistered")
-	}
-
-	// Test getting process
-	proc, err := ce.getProcess("project-2")
+// createMockCLI creates a mock Claude CLI executable for testing
+func createMockCLI(t *testing.T) string {
+	tempDir, err := os.MkdirTemp("", "mock_claude")
 	if err != nil {
-		t.Errorf("getProcess() unexpected error: %v", err)
+		t.Fatal(err)
 	}
-	if proc != info2 {
-		t.Error("getProcess returned wrong info")
-	}
+	
+	mockCLI := filepath.Join(tempDir, "claude")
+	
+	// Create a simple script that simulates Claude behavior
+	script := `#!/bin/bash
+# Mock Claude CLI for testing
 
-	// Test getting non-existent process
-	_, err = ce.getProcess("non-existent")
-	if err == nil {
-		t.Error("expected error for non-existent process")
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		--project-dir)
+			PROJECT_DIR="$2"
+			shift 2
+			;;
+		*)
+			shift
+			;;
+	esac
+done
+
+# Read prompt from stdin
+PROMPT=$(cat)
+
+# Simulate different behaviors based on prompt
+case "$PROMPT" in
+	*"sleep for test"*)
+		sleep 1
+		echo "Sleeping for test"
+		;;
+	*"will be cancelled"*)
+		sleep 10  # Long sleep to allow cancellation
+		echo "Should not see this"
+		;;
+	*"long running"*)
+		sleep 2
+		echo "Long running task completed"
+		;;
+	*)
+		echo "Mock response to: $PROMPT"
+		echo "Project directory: $PROJECT_DIR"
+		;;
+esac
+
+# Simulate some output
+echo "Mock execution complete"
+`
+	
+	if err := os.WriteFile(mockCLI, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
 	}
+	
+	return mockCLI
 }
 
 func TestGetActiveProcessCount(t *testing.T) {
