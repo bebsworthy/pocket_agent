@@ -35,6 +35,10 @@ func (r *MessageRouter) Register(msgType models.MessageType, handler HandlerFunc
 
 // HandleMessage implements MessageHandler interface
 func (r *MessageRouter) HandleMessage(ctx context.Context, session *models.Session, msg *models.ClientMessage) error {
+	if msg == nil {
+		return errors.New(errors.CodeValidationFailed, "message is nil")
+	}
+	
 	r.log.Debug("Routing message",
 		"session_id", session.ID,
 		"type", msg.Type,

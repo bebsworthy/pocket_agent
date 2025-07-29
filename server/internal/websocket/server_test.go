@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -61,35 +62,165 @@ func TestServerLifecycle(t *testing.T) {
 }
 
 func TestWebSocketUpgrade(t *testing.T) {
+	// Create real WebSocket configuration
 	config := DefaultConfig()
-	handler := &mockHandler{}
-	log := logger.New("debug")
-	server := NewServer(config, handler, log)
+	config.PingInterval = 30 * time.Second
+	config.PongTimeout = 60 * time.Second
+	config.ConnectionTimeout = 5 * time.Minute
+	config.MaxConnections = 100
+	config.MaxConnectionsPerIP = 10
+	config.RateLimitPerIP = 60
 
-	// Create test server
+	// Create a real message router to test the upgrade process
+	log := logger.New("debug")
+	router := NewMessageRouter(log)
+	
+	// Register a simple handler for testing
+	router.Register(models.MessageTypeProjectList, func(ctx context.Context, session *models.Session, data json.RawMessage) error {
+		// Simple handler that just returns success
+		return session.WriteJSON(&models.ServerMessage{
+			Type: models.MessageTypeProjectState,
+			Data: []interface{}{},
+		})
+	})
+
+	// Create server with real components
+	server := NewServer(config, router, log)
+
+	// Create test HTTP server
 	ts := httptest.NewServer(http.HandlerFunc(server.handleWebSocket))
 	defer ts.Close()
 
 	// Convert http:// to ws://
 	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
 
-	// Connect to WebSocket
-	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("Failed to connect: %v", err)
-	}
-	defer ws.Close()
+	t.Run("Successful WebSocket Upgrade", func(t *testing.T) {
+		// Test real WebSocket upgrade
+		dialer := websocket.Dialer{
+			HandshakeTimeout: 5 * time.Second,
+		}
+		
+		headers := http.Header{}
+		headers.Set("Origin", "http://localhost:3000")
+		
+		ws, resp, err := dialer.Dial(wsURL, headers)
+		if err != nil {
+			t.Fatalf("Failed to connect: %v", err)
+		}
+		defer ws.Close()
 
-	// Check that session was created
-	count := 0
-	server.sessions.Range(func(key, value interface{}) bool {
-		count++
-		return true
+		// Verify response headers
+		if resp.StatusCode != http.StatusSwitchingProtocols {
+			t.Errorf("Expected status %d, got %d", http.StatusSwitchingProtocols, resp.StatusCode)
+		}
+
+		// Verify connection is tracked
+		var sessionFound bool
+		server.sessions.Range(func(key, value interface{}) bool {
+			if session, ok := value.(*models.Session); ok {
+				if session.Conn == ws {
+					sessionFound = true
+					return false
+				}
+			}
+			return true
+		})
+
+		if !sessionFound {
+			t.Error("Session not properly tracked in server")
+		}
+
+		// Verify metrics updated
+		if active := server.activeConnections; active != 1 {
+			t.Errorf("Expected 1 active connection, got %d", active)
+		}
+
+		// Test message handling through upgraded connection
+		msg := models.ClientMessage{
+			Type: models.MessageTypeProjectList,
+		}
+		
+		if err := ws.WriteJSON(msg); err != nil {
+			t.Fatalf("Failed to send message: %v", err)
+		}
+
+		// Read response
+		var response models.ServerMessage
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		if err := ws.ReadJSON(&response); err != nil {
+			t.Fatalf("Failed to read response: %v", err)
+		}
+
+		if response.Type != models.MessageTypeProjectState {
+			t.Errorf("Expected response type %s, got %s", models.MessageTypeProjectState, response.Type)
+		}
 	})
 
-	if count != 1 {
-		t.Errorf("Expected 1 session, got %d", count)
-	}
+	t.Run("WebSocket Upgrade with Invalid Protocol", func(t *testing.T) {
+		// Try to connect with invalid WebSocket version
+		req, err := http.NewRequest("GET", ts.URL+"/ws", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		
+		req.Header.Set("Upgrade", "websocket")
+		req.Header.Set("Connection", "Upgrade")
+		req.Header.Set("Sec-WebSocket-Version", "99") // Invalid version
+		req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer resp.Body.Close()
+
+		// Should fail with bad request
+		if resp.StatusCode == http.StatusSwitchingProtocols {
+			t.Error("Should not upgrade with invalid protocol version")
+		}
+	})
+
+	t.Run("Connection Cleanup on Close", func(t *testing.T) {
+		// Connect
+		ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		if err != nil {
+			t.Fatalf("Failed to connect: %v", err)
+		}
+
+		// Get session count before close
+		var beforeCount int
+		server.sessions.Range(func(key, value interface{}) bool {
+			beforeCount++
+			return true
+		})
+
+		// Close connection properly
+		err = ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, "test complete"))
+		if err != nil {
+			t.Logf("Error writing close message: %v", err)
+		}
+		ws.Close()
+
+		// Give server time to clean up
+		time.Sleep(100 * time.Millisecond)
+
+		// Verify session cleaned up
+		var afterCount int
+		server.sessions.Range(func(key, value interface{}) bool {
+			afterCount++
+			return true
+		})
+
+		if afterCount >= beforeCount {
+			t.Error("Session not cleaned up after connection close")
+		}
+
+		// Verify metrics updated
+		if active := server.activeConnections; active != int64(afterCount) {
+			t.Errorf("Active connections mismatch: expected %d, got %d", afterCount, active)
+		}
+	})
 }
 
 func TestOriginValidation(t *testing.T) {
@@ -278,10 +409,44 @@ func TestPingPong(t *testing.T) {
 }
 
 func TestMessageHandling(t *testing.T) {
+	// Create real WebSocket configuration
 	config := DefaultConfig()
-	handler := &mockHandler{}
 	log := logger.New("debug")
-	server := NewServer(config, handler, log)
+	
+	// Create message dispatcher with middleware
+	router := NewMessageRouter(log)
+	dispatcher := NewMessageDispatcher(router, log)
+	
+	// Add real middleware
+	dispatcher.Use(LoggingMiddleware(log))
+	dispatcher.Use(RecoveryMiddleware(log))
+	dispatcher.Use(ValidationMiddleware())
+	
+	// Track handled messages
+	handledMessages := make(chan *models.ClientMessage, 10)
+	
+	// Register handlers for different message types
+	router.Register(models.MessageTypeProjectList, func(ctx context.Context, session *models.Session, data json.RawMessage) error {
+		handledMessages <- &models.ClientMessage{Type: models.MessageTypeProjectList}
+		return SendSuccess(session, models.MessageTypeProjectState, []interface{}{})
+	})
+	
+	router.Register(models.MessageTypeProjectCreate, func(ctx context.Context, session *models.Session, data json.RawMessage) error {
+		var createData struct {
+			Path string `json:"path"`
+		}
+		if err := json.Unmarshal(data, &createData); err != nil {
+			return err
+		}
+		handledMessages <- &models.ClientMessage{Type: models.MessageTypeProjectCreate}
+		return SendProjectState(session, &models.Project{
+			ID:   "test-project-id",
+			Path: createData.Path,
+		})
+	})
+
+	// Create server with dispatcher
+	server := NewServer(config, dispatcher, log)
 
 	// Create test server
 	ts := httptest.NewServer(http.HandlerFunc(server.handleWebSocket))
@@ -289,34 +454,167 @@ func TestMessageHandling(t *testing.T) {
 
 	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
 
-	// Connect
-	ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("Failed to connect: %v", err)
-	}
-	defer ws.Close()
+	t.Run("Message Routing and Middleware", func(t *testing.T) {
+		// Connect
+		ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		if err != nil {
+			t.Fatalf("Failed to connect: %v", err)
+		}
+		defer ws.Close()
 
-	// Send valid message
-	msg := models.ClientMessage{
-		Type: models.MessageTypeProjectList,
-	}
+		// Test ProjectList message
+		msg1 := models.ClientMessage{
+			Type: models.MessageTypeProjectList,
+		}
 
-	if err := ws.WriteJSON(msg); err != nil {
-		t.Fatalf("Failed to send message: %v", err)
-	}
+		if err := ws.WriteJSON(msg1); err != nil {
+			t.Fatalf("Failed to send message: %v", err)
+		}
 
-	// Give handler time to process
-	time.Sleep(100 * time.Millisecond)
+		// Read response
+		var resp1 models.ServerMessage
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		if err := ws.ReadJSON(&resp1); err != nil {
+			t.Fatalf("Failed to read response: %v", err)
+		}
 
-	// Check handler received message
-	messages := handler.getMessages()
-	if len(messages) != 1 {
-		t.Fatalf("Expected 1 message, got %d", len(messages))
-	}
+		if resp1.Type != models.MessageTypeProjectState {
+			t.Errorf("Expected response type %s, got %s", models.MessageTypeProjectState, resp1.Type)
+		}
 
-	if messages[0].Type != models.MessageTypeProjectList {
-		t.Errorf("Expected type %s, got %s", models.MessageTypeProjectList, messages[0].Type)
-	}
+		// Verify handler was called
+		select {
+		case handled := <-handledMessages:
+			if handled.Type != models.MessageTypeProjectList {
+				t.Errorf("Expected handled message type %s, got %s", models.MessageTypeProjectList, handled.Type)
+			}
+		case <-time.After(time.Second):
+			t.Error("Handler not called for ProjectList message")
+		}
+
+		// Test ProjectCreate message
+		msg2 := models.ClientMessage{
+			Type: models.MessageTypeProjectCreate,
+			Data: json.RawMessage(`{"path": "/test/project"}`),
+		}
+
+		if err := ws.WriteJSON(msg2); err != nil {
+			t.Fatalf("Failed to send message: %v", err)
+		}
+
+		// Read response
+		var resp2 models.ServerMessage
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		if err := ws.ReadJSON(&resp2); err != nil {
+			t.Fatalf("Failed to read response: %v", err)
+		}
+
+		if resp2.Type != models.MessageTypeProjectState {
+			t.Errorf("Expected response type %s, got %s", models.MessageTypeProjectState, resp2.Type)
+		}
+
+		// Verify project data in response
+		if projectData, ok := resp2.Data.(map[string]interface{}); ok {
+			if projectData["path"] != "/test/project" {
+				t.Errorf("Expected project path /test/project, got %v", projectData["path"])
+			}
+		}
+	})
+
+	t.Run("Invalid Message Handling", func(t *testing.T) {
+		// Connect
+		ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+		if err != nil {
+			t.Fatalf("Failed to connect: %v", err)
+		}
+		defer ws.Close()
+
+		// Send invalid message (empty type)
+		invalidMsg := models.ClientMessage{
+			Type: "",
+		}
+
+		if err := ws.WriteJSON(invalidMsg); err != nil {
+			t.Fatalf("Failed to send message: %v", err)
+		}
+
+		// Should receive error response
+		var errorResp models.ServerMessage
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		if err := ws.ReadJSON(&errorResp); err != nil {
+			t.Fatalf("Failed to read response: %v", err)
+		}
+
+		if errorResp.Type != models.MessageTypeError {
+			t.Errorf("Expected error response, got %s", errorResp.Type)
+		}
+
+		// Send unknown message type
+		unknownMsg := models.ClientMessage{
+			Type: "unknown_type",
+		}
+
+		if err := ws.WriteJSON(unknownMsg); err != nil {
+			t.Fatalf("Failed to send message: %v", err)
+		}
+
+		// Should receive error response
+		var errorResp2 models.ServerMessage
+		ws.SetReadDeadline(time.Now().Add(2 * time.Second))
+		if err := ws.ReadJSON(&errorResp2); err != nil {
+			t.Fatalf("Failed to read response: %v", err)
+		}
+
+		if errorResp2.Type != models.MessageTypeError {
+			t.Errorf("Expected error response for unknown type, got %s", errorResp2.Type)
+		}
+	})
+
+	t.Run("Concurrent Message Handling", func(t *testing.T) {
+		// Connect multiple clients
+		numClients := 5
+		clients := make([]*websocket.Conn, numClients)
+		
+		for i := 0; i < numClients; i++ {
+			ws, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+			if err != nil {
+				t.Fatalf("Failed to connect client %d: %v", i, err)
+			}
+			defer ws.Close()
+			clients[i] = ws
+		}
+
+		// Send messages concurrently
+		var wg sync.WaitGroup
+		for i, ws := range clients {
+			wg.Add(1)
+			go func(idx int, conn *websocket.Conn) {
+				defer wg.Done()
+				
+				msg := models.ClientMessage{
+					Type: models.MessageTypeProjectList,
+				}
+				
+				if err := conn.WriteJSON(msg); err != nil {
+					t.Errorf("Client %d: Failed to send message: %v", idx, err)
+					return
+				}
+
+				var resp models.ServerMessage
+				conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+				if err := conn.ReadJSON(&resp); err != nil {
+					t.Errorf("Client %d: Failed to read response: %v", idx, err)
+					return
+				}
+
+				if resp.Type != models.MessageTypeProjectState {
+					t.Errorf("Client %d: Expected response type %s, got %s", idx, models.MessageTypeProjectState, resp.Type)
+				}
+			}(i, ws)
+		}
+
+		wg.Wait()
+	})
 }
 
 func TestInvalidMessage(t *testing.T) {

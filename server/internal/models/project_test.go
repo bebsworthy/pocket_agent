@@ -188,6 +188,106 @@ func TestProjectValidate(t *testing.T) {
 	}
 }
 
+func TestProjectCopy(t *testing.T) {
+	// Create original project
+	original := NewProject("test-id", "/test/path")
+	original.SessionID = "session-123"
+	original.State = StateExecuting
+	original.ErrorDetails = "some error"
+	original.CreatedAt = time.Now().Add(-1 * time.Hour)
+	original.LastActive = time.Now().Add(-5 * time.Minute)
+
+	// Add a subscriber to verify it's not copied
+	session := &Session{ID: "session1"}
+	original.AddSubscriber(session)
+
+	// Create copy
+	copy := original.Copy()
+
+	// Verify all fields are copied correctly
+	if copy.ID != original.ID {
+		t.Errorf("ID not copied: got %s, want %s", copy.ID, original.ID)
+	}
+	if copy.Path != original.Path {
+		t.Errorf("Path not copied: got %s, want %s", copy.Path, original.Path)
+	}
+	if copy.SessionID != original.SessionID {
+		t.Errorf("SessionID not copied: got %s, want %s", copy.SessionID, original.SessionID)
+	}
+	if copy.State != original.State {
+		t.Errorf("State not copied: got %s, want %s", copy.State, original.State)
+	}
+	if copy.ErrorDetails != original.ErrorDetails {
+		t.Errorf("ErrorDetails not copied: got %s, want %s", copy.ErrorDetails, original.ErrorDetails)
+	}
+	if !copy.CreatedAt.Equal(original.CreatedAt) {
+		t.Errorf("CreatedAt not copied: got %v, want %v", copy.CreatedAt, original.CreatedAt)
+	}
+	if !copy.LastActive.Equal(original.LastActive) {
+		t.Errorf("LastActive not copied: got %v, want %v", copy.LastActive, original.LastActive)
+	}
+
+	// Verify subscribers are not copied
+	if len(copy.Subscribers) != 0 {
+		t.Errorf("Subscribers should be empty in copy, got %d", len(copy.Subscribers))
+	}
+
+	// Verify copy is independent - modify copy and check original is unchanged
+	copy.Path = "/modified/path"
+	copy.State = StateError
+	
+	if original.Path == "/modified/path" {
+		t.Error("Modifying copy affected original path")
+	}
+	if original.State == StateError {
+		t.Error("Modifying copy affected original state")
+	}
+
+	// Verify original still has its subscriber
+	if !original.HasSubscriber("session1") {
+		t.Error("Original lost its subscriber")
+	}
+}
+
+func TestProjectCopyThreadSafety(t *testing.T) {
+	// Create project
+	project := NewProject("test-id", "/test/path")
+	project.State = StateExecuting
+
+	// Concurrently copy and modify
+	done := make(chan bool)
+	
+	// Multiple readers copying
+	for i := 0; i < 5; i++ {
+		go func() {
+			for j := 0; j < 100; j++ {
+				copy := project.Copy()
+				if copy.ID != project.ID {
+					t.Error("Copy corrupted during concurrent access")
+				}
+			}
+			done <- true
+		}()
+	}
+
+	// Writer modifying state
+	go func() {
+		for j := 0; j < 100; j++ {
+			if j%2 == 0 {
+				project.UpdateState(StateIdle)
+			} else {
+				project.UpdateState(StateExecuting)
+			}
+		}
+		done <- true
+	}()
+
+	// Wait for all goroutines
+	for i := 0; i < 6; i++ {
+		<-done
+	}
+}
+
 func TestProjectConcurrency(t *testing.T) {
 	project := NewProject("test-id", "/test/path")
 

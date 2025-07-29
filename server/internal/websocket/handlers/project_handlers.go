@@ -152,7 +152,7 @@ func (h *ProjectHandlers) HandleProjectDelete(ctx context.Context, session *mode
 	h.broadcast.BroadcastProjectDeletion(project)
 
 	// Send success to requester
-	return websocket.SendSuccess(session, models.MessageTypeProjectDelete, map[string]string{
+	return websocket.SendSuccess(session, models.MessageTypeProjectDeleted, map[string]string{
 		"project_id": req.ProjectID,
 		"status":     "deleted",
 	})

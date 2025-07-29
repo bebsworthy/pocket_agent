@@ -257,6 +257,11 @@ func (s *Server) HandleUpgrade(w http.ResponseWriter, r *http.Request) (*models.
 	return session, nil
 }
 
+// HandleWebSocket handles WebSocket upgrade requests - public method for testing
+func (s *Server) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+	s.handleWebSocket(w, r)
+}
+
 // handleWebSocket handles WebSocket upgrade requests
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	session, err := s.HandleUpgrade(w, r)
@@ -303,9 +308,11 @@ func (s *Server) handleConnection(session *models.Session) {
 			timeoutTimer.Reset(s.config.ConnectionTimeout)
 			session.UpdatePing()
 
-			// Handle message
-			if err := s.handler.HandleMessage(s.ctx, session, msg); err != nil {
-				s.handleError(session, err)
+			// Handle message if not nil
+			if msg != nil {
+				if err := s.handler.HandleMessage(s.ctx, session, msg); err != nil {
+					s.handleError(session, err)
+				}
 			}
 
 		case err := <-errChan:

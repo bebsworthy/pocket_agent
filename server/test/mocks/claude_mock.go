@@ -328,6 +328,20 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Add delay if configured (in milliseconds)
+if [ $DELAY -gt 0 ]; then
+  # Convert milliseconds to seconds with decimal
+  # Using awk for portability (bc might not be available)
+  DELAY_SEC=$(awk "BEGIN {print $DELAY/1000}")
+  # Use perl for sub-second sleep if available, otherwise use sleep 1
+  if command -v perl >/dev/null 2>&1; then
+    perl -e "select(undef, undef, undef, $DELAY_SEC)"
+  else
+    # Fallback to integer sleep
+    sleep 1
+  fi
+fi
+
 # Generate response based on scenario
 case "$SCENARIO" in
   "success")
@@ -348,6 +362,23 @@ case "$SCENARIO" in
     ;;
   "empty")
     # Output nothing
+    ;;
+  "multi_message")
+    if [ -z "$SESSION_ID" ]; then
+      SESSION_ID="session-$(date +%%s)"
+    fi
+    COUNT=$MESSAGE_COUNT
+    if [ -z "$COUNT" ] || [ "$COUNT" -eq 0 ]; then
+      COUNT=3
+    fi
+    echo '{"session_id": "'$SESSION_ID'", "messages": ['
+    for i in $(seq 1 $COUNT); do
+      echo '{"type": "text", "content": {"text": "Message '$i' of '$COUNT'"}}'
+      if [ $i -lt $COUNT ]; then
+        echo ','
+      fi
+    done
+    echo ']}'
     ;;
   *)
     echo '{"session_id": "default", "messages": [{"type": "text", "content": {"text": "Default mock"}}]}'

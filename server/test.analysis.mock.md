@@ -6,12 +6,12 @@
 - ✅ Test 2: TestHandleProjectDelete - **COMPLETED**
 - ✅ Test 3: TestHandleProjectJoin - **COMPLETED**
 - ✅ Test 4: TestHandleProjectList - **COMPLETED**
-- ⬜ Test 5: TestWebSocketUpgrade - **PENDING**
-- ⬜ Test 6: TestMessageHandling - **PENDING**
-- ⬜ Test 7: TestMessageRouter - **PENDING**
+- ✅ Test 5: TestWebSocketUpgrade - **COMPLETED**
+- ✅ Test 6: TestMessageHandling - **COMPLETED**
+- ✅ Test 7: TestMessageRouter - **COMPLETED**
 - ⬜ Test 8: TestValidationMiddleware - **PENDING**
 - ⬜ Test 9: TestSendHelpers - **PENDING**
-- ⬜ Test 10: TestProcessTracking - **PENDING**
+- ✅ Test 10: TestProcessTracking - **COMPLETED**
 
 This document contains a comprehensive analysis of tests identified as overly reliant on mocks, along with detailed improvement plans for each test.
 
@@ -161,7 +161,7 @@ func TestHandleProjectList_RealBehavior(t *testing.T) {
 
 **✅ IMPLEMENTED** - This test has been successfully refactored in `project_handlers_test.go`
 
-## Test 5: TestWebSocketUpgrade
+## Test 5: TestWebSocketUpgrade ✅
 
 ### Current Issues
 - Tests WebSocket protocol mechanics rather than business logic
@@ -186,7 +186,9 @@ func TestHandleProjectList_RealBehavior(t *testing.T) {
 - Session creation
 - Concurrent connection handling
 
-## Test 6: TestMessageHandling
+**✅ IMPLEMENTED** - Now uses real message router, tests WebSocket upgrade with connection tracking and cleanup
+
+## Test 6: TestMessageHandling ✅
 
 ### Current Issues
 - Only tests that router was called
@@ -211,7 +213,9 @@ func TestHandleProjectList_RealBehavior(t *testing.T) {
 - Session state management
 - Concurrent message processing
 
-## Test 7: TestMessageRouter
+**✅ IMPLEMENTED** - Uses real message dispatcher with middleware, tests routing, error handling, and concurrent messages
+
+## Test 7: TestMessageRouter ✅
 
 ### Current Issues
 - Tests only routing mechanics
@@ -235,6 +239,8 @@ func TestHandleProjectList_RealBehavior(t *testing.T) {
 - Context propagation
 - Error handling
 - Unknown message type handling
+
+**✅ IMPLEMENTED** - Full middleware pipeline with real WebSocket integration, context propagation, and error recovery
 
 ## Test 8: TestValidationMiddleware
 
@@ -286,7 +292,7 @@ func TestHandleProjectList_RealBehavior(t *testing.T) {
 - Project state serialization
 - Connection error handling
 
-## Test 10: TestProcessTracking
+## Test 10: TestProcessTracking ✅
 
 ### Current Issues
 - Directly manipulates internal state
@@ -310,6 +316,8 @@ func TestHandleProjectList_RealBehavior(t *testing.T) {
 - Process cleanup on completion
 - Cancellation handling
 - Duplicate execution prevention
+
+**✅ IMPLEMENTED** - Tests real process lifecycle with streaming output, concurrent execution limits, and cancellation
 
 ## Summary
 

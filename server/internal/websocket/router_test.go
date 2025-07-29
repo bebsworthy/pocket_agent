@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,39 +21,68 @@ import (
 )
 
 func TestMessageRouter(t *testing.T) {
-	t.Run("successful routing", func(t *testing.T) {
+	t.Run("real routing with WebSocket integration", func(t *testing.T) {
 		log := logger.New("debug")
 		router := NewMessageRouter(log)
 
-		// Create a handler that tracks execution details
+		// Create a handler that performs real work
 		var handlerCtx context.Context
 		var handlerSession *models.Session
 		var handlerData json.RawMessage
-		handled := false
+		handledCount := 0
 		
 		router.Register(models.MessageTypeProjectList, func(ctx context.Context, session *models.Session, data json.RawMessage) error {
-			handled = true
+			handledCount++
 			handlerCtx = ctx
 			handlerSession = session
 			handlerData = data
 			
-			// Simulate real work
+			// Send real response through WebSocket
 			return SendSuccess(session, models.MessageTypeProjectState, map[string]interface{}{
-				"projects": []interface{}{},
+				"projects": []interface{}{
+					map[string]interface{}{
+						"id":   "proj-1",
+						"path": "/test/proj1",
+					},
+					map[string]interface{}{
+						"id":   "proj-2", 
+						"path": "/test/proj2",
+					},
+				},
 			})
 		})
 
-		// Create test session with write capability
+		// Create real WebSocket test server
+		receivedResponses := make([]models.ServerMessage, 0)
+		var respMu sync.Mutex
+		
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			upgrader := websocket.Upgrader{}
-			conn, _ := upgrader.Upgrade(w, r, nil)
-			defer conn.Close()
+			upgrader := websocket.Upgrader{
+				CheckOrigin: func(r *http.Request) bool { return true },
+			}
+			serverConn, err := upgrader.Upgrade(w, r, nil)
+			require.NoError(t, err)
+			defer serverConn.Close()
 			
-			// Keep connection open for test
-			time.Sleep(100 * time.Millisecond)
+			// Read responses from client
+			go func() {
+				for {
+					var msg models.ServerMessage
+					if err := serverConn.ReadJSON(&msg); err != nil {
+						return
+					}
+					respMu.Lock()
+					receivedResponses = append(receivedResponses, msg)
+					respMu.Unlock()
+				}
+			}()
+			
+			// Keep connection alive
+			time.Sleep(200 * time.Millisecond)
 		}))
 		defer server.Close()
 		
+		// Connect to test server
 		wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 		conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 		require.NoError(t, err)
@@ -60,94 +90,236 @@ func TestMessageRouter(t *testing.T) {
 		
 		session := models.NewSession("test-session", conn)
 
-		// Test with actual message data
-		msgData := json.RawMessage(`{"filter": "active"}`)
+		// Test with real message data
+		msgData := json.RawMessage(`{"filter": "active", "limit": 10}`)
 		msg := &models.ClientMessage{
 			Type: models.MessageTypeProjectList,
 			Data: msgData,
 		}
 
-		// Create context with value to verify propagation
+		// Create context with multiple values to verify propagation
 		ctx := context.WithValue(context.Background(), "test-key", "test-value")
+		ctx = context.WithValue(ctx, "request-id", "req-123")
 		
+		// Route the message
 		err = router.HandleMessage(ctx, session, msg)
 		assert.NoError(t, err)
-		assert.True(t, handled, "Handler should have been called")
+		assert.Equal(t, 1, handledCount, "Handler should have been called once")
 		
 		// Verify context propagation
 		assert.Equal(t, "test-value", handlerCtx.Value("test-key"))
+		assert.Equal(t, "req-123", handlerCtx.Value("request-id"))
 		
 		// Verify session was passed correctly
 		assert.Equal(t, session, handlerSession)
+		assert.Equal(t, "test-session", handlerSession.ID)
 		
 		// Verify data was passed correctly
 		assert.Equal(t, msgData, handlerData)
+		
+		// Give time for response to be received
+		time.Sleep(50 * time.Millisecond)
+		
+		// Verify response was sent through WebSocket
+		respMu.Lock()
+		require.Len(t, receivedResponses, 1)
+		resp := receivedResponses[0]
+		respMu.Unlock()
+		
+		assert.Equal(t, models.MessageTypeProjectState, resp.Type)
+		data, ok := resp.Data.(map[string]interface{})
+		require.True(t, ok)
+		projects, ok := data["projects"].([]interface{})
+		require.True(t, ok)
+		assert.Len(t, projects, 2)
 	})
 	
-	t.Run("middleware integration", func(t *testing.T) {
+	t.Run("complete middleware pipeline", func(t *testing.T) {
 		log := logger.New("debug")
 		router := NewMessageRouter(log)
 		dispatcher := NewMessageDispatcher(router, log)
 		
-		// Track middleware execution order
+		// Track middleware execution order and context modifications
 		executionOrder := []string{}
+		var mu sync.Mutex
 		
-		// Add multiple middleware
+		// Authentication middleware
 		dispatcher.Use(func(next MessageHandler) MessageHandler {
 			return MessageHandlerFunc(func(ctx context.Context, session *models.Session, msg *models.ClientMessage) error {
-				executionOrder = append(executionOrder, "middleware1-before")
+				mu.Lock()
+				executionOrder = append(executionOrder, "auth-before")
+				mu.Unlock()
+				
+				// Add authentication context
+				ctx = context.WithValue(ctx, "authenticated", true)
+				ctx = context.WithValue(ctx, "user-id", "user-123")
+				
 				err := next.HandleMessage(ctx, session, msg)
-				executionOrder = append(executionOrder, "middleware1-after")
+				
+				mu.Lock()
+				executionOrder = append(executionOrder, "auth-after")
+				mu.Unlock()
 				return err
 			})
 		})
 		
+		// Logging middleware
 		dispatcher.Use(func(next MessageHandler) MessageHandler {
 			return MessageHandlerFunc(func(ctx context.Context, session *models.Session, msg *models.ClientMessage) error {
-				executionOrder = append(executionOrder, "middleware2-before")
+				mu.Lock()
+				executionOrder = append(executionOrder, "log-before")
+				startTime := time.Now()
+				mu.Unlock()
+				
 				err := next.HandleMessage(ctx, session, msg)
-				executionOrder = append(executionOrder, "middleware2-after")
+				
+				mu.Lock()
+				duration := time.Since(startTime)
+				executionOrder = append(executionOrder, fmt.Sprintf("log-after-%dms", duration.Milliseconds()))
+				mu.Unlock()
 				return err
 			})
 		})
 		
-		// Register handler
+		// Metrics middleware
+		dispatcher.Use(func(next MessageHandler) MessageHandler {
+			return MessageHandlerFunc(func(ctx context.Context, session *models.Session, msg *models.ClientMessage) error {
+				mu.Lock()
+				executionOrder = append(executionOrder, "metrics-before")
+				mu.Unlock()
+				
+				err := next.HandleMessage(ctx, session, msg)
+				
+				mu.Lock()
+				executionOrder = append(executionOrder, "metrics-after")
+				mu.Unlock()
+				return err
+			})
+		})
+		
+		// Register handler that uses context values
+		var handlerAuth bool
+		var handlerUserID string
+		
 		router.Register(models.MessageTypeProjectList, func(ctx context.Context, session *models.Session, data json.RawMessage) error {
+			mu.Lock()
 			executionOrder = append(executionOrder, "handler")
+			
+			// Extract context values
+			if auth, ok := ctx.Value("authenticated").(bool); ok {
+				handlerAuth = auth
+			}
+			if uid, ok := ctx.Value("user-id").(string); ok {
+				handlerUserID = uid
+			}
+			mu.Unlock()
+			
+			// Simulate some work
+			time.Sleep(10 * time.Millisecond)
 			return nil
 		})
 		
-		session := &models.Session{ID: "test"}
+		// Create test session
+		session := &models.Session{ID: "test-session"}
 		msg := &models.ClientMessage{Type: models.MessageTypeProjectList}
 		
+		// Execute through dispatcher
 		err := dispatcher.HandleMessage(context.Background(), session, msg)
 		assert.NoError(t, err)
 		
 		// Verify execution order
-		expected := []string{
-			"middleware1-before",
-			"middleware2-before",
-			"handler",
-			"middleware2-after",
-			"middleware1-after",
-		}
-		assert.Equal(t, expected, executionOrder)
+		mu.Lock()
+		assert.Equal(t, "auth-before", executionOrder[0])
+		assert.Equal(t, "log-before", executionOrder[1])
+		assert.Equal(t, "metrics-before", executionOrder[2])
+		assert.Equal(t, "handler", executionOrder[3])
+		assert.Equal(t, "metrics-after", executionOrder[4])
+		assert.Contains(t, executionOrder[5], "log-after-")
+		assert.Equal(t, "auth-after", executionOrder[6])
+		mu.Unlock()
+		
+		// Verify context propagation
+		assert.True(t, handlerAuth)
+		assert.Equal(t, "user-123", handlerUserID)
 	})
 	
-	t.Run("error propagation", func(t *testing.T) {
+	t.Run("error handling and recovery", func(t *testing.T) {
 		log := logger.New("debug")
 		router := NewMessageRouter(log)
+		dispatcher := NewMessageDispatcher(router, log)
 		
-		testErr := errors.New("handler error")
-		router.Register(models.MessageTypeProjectCreate, func(ctx context.Context, session *models.Session, data json.RawMessage) error {
-			return testErr
+		// Add recovery middleware
+		dispatcher.Use(RecoveryMiddleware(log))
+		
+		// Add error transformation middleware
+		dispatcher.Use(func(next MessageHandler) MessageHandler {
+			return MessageHandlerFunc(func(ctx context.Context, session *models.Session, msg *models.ClientMessage) error {
+				err := next.HandleMessage(ctx, session, msg)
+				if err != nil {
+					// Transform to app error
+					if appErr, ok := err.(*appErrors.AppError); !ok {
+						return appErrors.NewInternalError(err)
+					} else {
+						return appErr
+					}
+				}
+				return nil
+			})
 		})
 		
-		session := &models.Session{ID: "test"}
-		msg := &models.ClientMessage{Type: models.MessageTypeProjectCreate}
+		// Test different error scenarios
+		tests := []struct {
+			name      string
+			handler   HandlerFunc
+			expectErr bool
+			errType   appErrors.ErrorCode
+		}{
+			{
+				name: "handler returns app error",
+				handler: func(ctx context.Context, session *models.Session, data json.RawMessage) error {
+					return appErrors.New(appErrors.CodeValidationFailed, "invalid data")
+				},
+				expectErr: true,
+				errType:   appErrors.CodeValidationFailed,
+			},
+			{
+				name: "handler returns standard error",
+				handler: func(ctx context.Context, session *models.Session, data json.RawMessage) error {
+					return errors.New("standard error")
+				},
+				expectErr: true,
+				errType:   appErrors.CodeInternalError,
+			},
+			{
+				name: "handler panics",
+				handler: func(ctx context.Context, session *models.Session, data json.RawMessage) error {
+					panic("test panic")
+				},
+				expectErr: true,
+				errType:   appErrors.CodeInternalError,
+			},
+		}
 		
-		err := router.HandleMessage(context.Background(), session, msg)
-		assert.Equal(t, testErr, err)
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				// Register handler for this test
+				router.Register(models.MessageTypeProjectCreate, tt.handler)
+				
+				session := &models.Session{ID: "test"}
+				msg := &models.ClientMessage{Type: models.MessageTypeProjectCreate}
+				
+				err := dispatcher.HandleMessage(context.Background(), session, msg)
+				
+				if tt.expectErr {
+					require.Error(t, err)
+					appErr, ok := err.(*appErrors.AppError)
+					require.True(t, ok)
+					assert.Equal(t, tt.errType, appErr.Code)
+				} else {
+					assert.NoError(t, err)
+				}
+			})
+		}
 	})
 }
 

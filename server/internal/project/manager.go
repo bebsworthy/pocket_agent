@@ -126,7 +126,8 @@ func (m *Manager) GetAllProjects() []*models.Project {
 
 	projects := make([]*models.Project, 0, len(m.projects))
 	for _, project := range m.projects {
-		projects = append(projects, project)
+		// Create a deep copy to prevent external modifications
+		projects = append(projects, project.Copy())
 	}
 
 	return projects

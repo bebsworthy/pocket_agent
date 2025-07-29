@@ -18,6 +18,7 @@ type testWebSocketServer struct {
 	clientConn      *websocket.Conn
 	receivedMessages []interface{}
 	mu              sync.Mutex
+	connMu          sync.Mutex  // Separate mutex for connection access
 }
 
 // newTestWebSocketServer creates a test WebSocket server
@@ -33,7 +34,9 @@ func newTestWebSocketServer(t *testing.T) *testWebSocketServer {
 		}
 		
 		var err error
+		tws.connMu.Lock()
 		tws.serverConn, err = upgrader.Upgrade(w, r, nil)
+		tws.connMu.Unlock()
 		if err != nil {
 			t.Fatalf("Failed to upgrade: %v", err)
 		}
@@ -70,9 +73,11 @@ func (tws *testWebSocketServer) Close() {
 	if tws.clientConn != nil {
 		tws.clientConn.Close()
 	}
+	tws.connMu.Lock()
 	if tws.serverConn != nil {
 		tws.serverConn.Close()
 	}
+	tws.connMu.Unlock()
 	tws.server.Close()
 }
 

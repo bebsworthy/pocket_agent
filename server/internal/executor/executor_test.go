@@ -12,6 +12,7 @@ import (
 
 	"github.com/boyd/pocket_agent/server/internal/errors"
 	"github.com/boyd/pocket_agent/server/internal/logger"
+	"github.com/boyd/pocket_agent/server/internal/models"
 )
 
 func TestNewClaudeExecutor(t *testing.T) {
@@ -116,14 +117,14 @@ func TestNewClaudeExecutor(t *testing.T) {
 }
 
 func TestProcessTracking(t *testing.T) {
-	// Create mock CLI helper
-	mockCLI := createMockCLI(t)
+	// Create mock CLI that simulates real Claude behavior
+	mockCLI := createAdvancedMockCLI(t)
 	defer os.RemoveAll(filepath.Dir(mockCLI))
 	
-	// Setup executor with real components
+	// Setup executor with real components and proper logger
 	config := Config{
 		ClaudePath:              mockCLI,
-		MaxConcurrentExecutions: 2,
+		MaxConcurrentExecutions: 5, // Increase to avoid conflicts between tests
 		DefaultTimeout:          5 * time.Second,
 	}
 	
@@ -132,7 +133,12 @@ func TestProcessTracking(t *testing.T) {
 		t.Fatal(err)
 	}
 	
-	t.Run("process lifecycle through public API", func(t *testing.T) {
+	// Set logger if needed
+	if executor.logger == nil {
+		executor.logger = logger.New("debug")
+	}
+	
+	t.Run("real process lifecycle with streaming output", func(t *testing.T) {
 		// Create test project directory
 		projectPath, err := os.MkdirTemp("", "test-project")
 		if err != nil {
@@ -140,30 +146,62 @@ func TestProcessTracking(t *testing.T) {
 		}
 		defer os.RemoveAll(projectPath)
 		
-		// Execute command that will be tracked
-		options := ExecuteOptions{
-			Prompt: "test prompt",
-			Timeout: 2 * time.Second,
+		// Create test file in project
+		testFile := filepath.Join(projectPath, "test.go")
+		os.WriteFile(testFile, []byte(`package main
+func main() {
+	println("Hello")
+}`), 0o644)
+		
+		// Execute command with real streaming
+		cmd := ExecuteCommand{
+			Prompt: "analyze test.go file",
 		}
 		
-		// Start execution
+		// Track output messages
+		outputReceived := make([]string, 0)
+		var outputMu sync.Mutex
+		
+		// Create project with mock models.Project
+		project := &models.Project{
+			ID:   "project-1",
+			Path: projectPath,
+		}
+		
+		// Start execution with goroutine to capture streaming output
 		result := make(chan struct {
 			Result *ExecuteResult
 			Error  error
 		}, 1)
 		
 		go func() {
-			res, err := executor.ExecuteWithProject("project-1", projectPath, options)
+			res, err := executor.Execute(project, cmd)
 			result <- struct {
 				Result *ExecuteResult
 				Error  error
 			}{Result: res, Error: err}
+			
+			// Capture output if available
+			if res != nil && res.Stdout != "" {
+				outputMu.Lock()
+				outputReceived = append(outputReceived, res.Stdout)
+				outputMu.Unlock()
+			}
 		}()
 		
-		// Verify process is registered
-		time.Sleep(100 * time.Millisecond)
+		// Allow process to start
+		time.Sleep(200 * time.Millisecond)
+		
+		// Verify process is registered with correct project ID
 		if !executor.IsProjectExecuting("project-1") {
 			t.Error("expected project to be executing")
+		}
+		
+		// Check active process info
+		stats := executor.GetStats()
+		activeProjects, ok := stats["active_projects"].([]string)
+		if !ok || len(activeProjects) != 1 || activeProjects[0] != "project-1" {
+			t.Errorf("expected active_projects to contain project-1, got %v", stats["active_projects"])
 		}
 		
 		// Wait for completion
@@ -172,66 +210,156 @@ func TestProcessTracking(t *testing.T) {
 			t.Errorf("unexpected error: %v", res.Error)
 		}
 		
+		// Verify result
+		if res.Result == nil {
+			t.Error("expected non-nil result")
+		} else {
+			if res.Result.SessionID == "" {
+				t.Error("expected session ID in result")
+			}
+			if res.Result.Stdout == "" && len(res.Result.Messages) == 0 {
+				t.Error("expected output or messages in result")
+			}
+			if res.Result.ExitCode != 0 {
+				t.Errorf("expected exit code 0, got %d", res.Result.ExitCode)
+			}
+		}
+		
 		// Verify process was cleaned up
 		if executor.IsProjectExecuting("project-1") {
 			t.Error("expected process to be cleaned up after completion")
 		}
+		
+		// Verify final state
+		if count := executor.GetActiveProcessCount(); count != 0 {
+			t.Errorf("expected 0 active processes after cleanup, got %d", count)
+		}
 	})
 	
-	t.Run("concurrent execution limits", func(t *testing.T) {
+	t.Run("real concurrent execution with resource limits", func(t *testing.T) {
+		// Create a separate executor with limit of 2 for this test
+		testConfig := Config{
+			ClaudePath:              mockCLI,
+			MaxConcurrentExecutions: 2, // Test limit
+			DefaultTimeout:          5 * time.Second,
+		}
+		
+		testExecutor, err := NewClaudeExecutor(testConfig)
+		if err != nil {
+			t.Fatal(err)
+		}
+		
 		// Create test project directories
-		projectPaths := make([]string, 3)
+		projects := make([]*models.Project, 3)
 		for i := 0; i < 3; i++ {
 			path, err := os.MkdirTemp("", fmt.Sprintf("test-project-%d", i))
 			if err != nil {
 				t.Fatal(err)
 			}
 			defer os.RemoveAll(path)
-			projectPaths[i] = path
+			
+			projects[i] = &models.Project{
+				ID:   fmt.Sprintf("concurrent-project-%d", i+1),
+				Path: path,
+			}
 		}
 		
-		// Start two executions (at limit)
-		var wg sync.WaitGroup
-		for i := 1; i <= 2; i++ {
-			wg.Add(1)
-			go func(id int) {
-				defer wg.Done()
+		// Use contexts to control execution lifetime
+		ctx1, cancel1 := context.WithCancel(context.Background())
+		ctx2, cancel2 := context.WithCancel(context.Background())
+		defer cancel1()
+		defer cancel2()
+		
+		// Start two blocking executions that will run until cancelled
+		started := make(chan int, 2)
+		execErrors := make(chan error, 2)
+		
+		for i := 0; i < 2; i++ {
+			go func(idx int, ctx context.Context) {
 				options := ExecuteOptions{
-					Prompt: "sleep for test",
-					Timeout: 5 * time.Second,
+					Prompt:  "task that will be cancelled",
+					Timeout: 10 * time.Second,
 				}
-				executor.ExecuteWithProject(fmt.Sprintf("project-%d", id), projectPaths[id-1], options)
-			}(i)
+				
+				started <- idx
+				
+				_, err := testExecutor.ExecuteWithContext(ctx, projects[idx].ID, projects[idx].Path, options)
+				execErrors <- err
+			}(i, []context.Context{ctx1, ctx2}[i])
 		}
 		
 		// Wait for both to start
-		time.Sleep(200 * time.Millisecond)
+		<-started
+		<-started
+		time.Sleep(100 * time.Millisecond)
 		
-		// Verify count
-		if count := executor.GetActiveProcessCount(); count != 2 {
-			t.Errorf("expected 2 active processes, got %d", count)
+		// Verify both are running
+		activeCount := testExecutor.GetActiveProcessCount()
+		if activeCount != 2 {
+			t.Errorf("expected 2 active processes, got %d", activeCount)
 		}
 		
-		// Try to start third (should fail)
-		options := ExecuteOptions{
-			Prompt: "should fail",
+		// Check that both projects are marked as executing
+		if !testExecutor.IsProjectExecuting("concurrent-project-1") {
+			t.Error("expected concurrent-project-1 to be executing")
+		}
+		if !testExecutor.IsProjectExecuting("concurrent-project-2") {
+			t.Error("expected concurrent-project-2 to be executing")
 		}
 		
-		_, err := executor.ExecuteWithProject("project-3", projectPaths[2], options)
+		// Try to start third (should fail due to limit)
+		cmd := ExecuteCommand{
+			Prompt: "test third concurrent request",
+		}
+		
+		_, err = testExecutor.Execute(projects[2], cmd)
 		if err == nil {
 			t.Error("expected error for exceeding concurrent limit")
 		}
 		
+		// Verify it's a resource limit error
 		appErr, ok := err.(*errors.AppError)
 		if !ok || appErr.Code != errors.CodeResourceLimit {
 			t.Errorf("expected CodeResourceLimit, got %v", err)
 		}
 		
-		// Wait for others to complete
-		wg.Wait()
+		// Cancel one execution to free up a slot
+		cancel1()
+		
+		// Wait for cancellation to complete
+		<-execErrors
+		
+		// Wait a bit longer for cleanup to happen
+		time.Sleep(200 * time.Millisecond)
+		
+		// Wait for process count to decrease
+		// Note: We just need to ensure we can eventually run the third process
+		maxRetries := 20
+		for i := 0; i < maxRetries; i++ {
+			if testExecutor.GetActiveProcessCount() < 2 {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		
+		// Now the third should succeed
+		res, err := testExecutor.Execute(projects[2], cmd)
+		if err != nil {
+			t.Errorf("third execution should succeed after slot freed: %v", err)
+		}
+		if res == nil || (res.Stdout == "" && len(res.Messages) == 0) {
+			t.Error("expected valid result from third execution")
+		}
+		
+		// Clean up remaining execution
+		cancel2()
+		<-execErrors
+		
+		// Ensure final cleanup
+		time.Sleep(100 * time.Millisecond)
 	})
 	
-	t.Run("duplicate execution prevention", func(t *testing.T) {
+	t.Run("duplicate execution prevention with real project state", func(t *testing.T) {
 		// Create project directory
 		projectPath, err := os.MkdirTemp("", "test-dup-project")
 		if err != nil {
@@ -239,17 +367,42 @@ func TestProcessTracking(t *testing.T) {
 		}
 		defer os.RemoveAll(projectPath)
 		
-		// Start first execution
-		options := ExecuteOptions{
-			Prompt: "long running",
-			Timeout: 5 * time.Second,
-		}
+		projectID := "project-dup"
 		
-		go executor.ExecuteWithProject("project-dup", projectPath, options)
+		// Start a blocking execution
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		
+		started := make(chan bool, 1)
+		done := make(chan error, 1)
+		
+		go func() {
+			options := ExecuteOptions{
+				Prompt:  "task that will be cancelled",
+				Timeout: 10 * time.Second,
+			}
+			
+			started <- true
+			_, err := executor.ExecuteWithContext(ctx, projectID, projectPath, options)
+			done <- err
+		}()
+		
+		// Wait for first to start
+		<-started
 		time.Sleep(100 * time.Millisecond)
 		
-		// Try duplicate
-		_, err = executor.ExecuteWithProject("project-dup", projectPath, options)
+		// Verify it's executing
+		if !executor.IsProjectExecuting(projectID) {
+			t.Error("expected first execution to be active")
+		}
+		
+		// Try duplicate execution - should fail
+		options := ExecuteOptions{
+			Prompt:  "duplicate attempt",
+			Timeout: 1 * time.Second,
+		}
+		
+		_, err = executor.ExecuteWithProject(projectID, projectPath, options)
 		if err == nil {
 			t.Error("expected error for duplicate execution")
 		}
@@ -258,9 +411,47 @@ func TestProcessTracking(t *testing.T) {
 		if !ok || appErr.Code != errors.CodeProcessActive {
 			t.Errorf("expected CodeProcessActive, got %v", err)
 		}
+		
+		// Cancel the first execution
+		cancel()
+		
+		// Wait for cleanup
+		<-done
+		time.Sleep(200 * time.Millisecond)
+		
+		// Wait for cleanup to complete
+		maxRetries := 20
+		for i := 0; i < maxRetries; i++ {
+			if !executor.IsProjectExecuting(projectID) {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		
+		// Verify cleanup eventually happened
+		if executor.IsProjectExecuting(projectID) {
+			t.Error("expected process to be cleaned up after cancellation")
+		}
+		
+		// Now a new execution should succeed
+		project := &models.Project{
+			ID:   projectID,
+			Path: projectPath,
+		}
+		cmd := ExecuteCommand{
+			Prompt: "new execution after cleanup",
+		}
+		
+		res, err := executor.Execute(project, cmd)
+		if err != nil {
+			t.Errorf("should be able to execute after cleanup: %v", err)
+		}
+		if res == nil || (res.Stdout == "" && len(res.Messages) == 0) {
+			t.Error("expected valid result")
+		}
 	})
 	
-	t.Run("cancellation handling", func(t *testing.T) {
+	t.Run("context cancellation with real process cleanup", func(t *testing.T) {
 		// Create project directory
 		projectPath, err := os.MkdirTemp("", "test-cancel-project")
 		if err != nil {
@@ -268,49 +459,89 @@ func TestProcessTracking(t *testing.T) {
 		}
 		defer os.RemoveAll(projectPath)
 		
-		// Create cancellable options
-		options := ExecuteOptions{
-			Prompt: "will be cancelled",
-			Timeout: 5 * time.Second,
-		}
+		projectID := "project-cancel"
 		
-		// Start execution in goroutine with context
-		done := make(chan error, 1)
+		// Create cancellable context
 		ctx, cancel := context.WithCancel(context.Background())
 		
+		// Track process state
+		processStarted := make(chan bool)
+		processDone := make(chan error, 1)
+		
+		// Start long-running execution
 		go func() {
-			// We need to use ExecuteWithContext to pass the context
-			res, err := executor.ExecuteWithContext(ctx, "project-cancel", projectPath, options)
+			options := ExecuteOptions{
+				Prompt:  "task that will be cancelled",
+				Timeout: 10 * time.Second,
+			}
+			
+			// Signal start
+			processStarted <- true
+			
+			res, err := executor.ExecuteWithContext(ctx, projectID, projectPath, options)
 			if err != nil {
-				done <- err
-			} else if res != nil {
-				done <- fmt.Errorf("expected nil result on cancellation")
+				processDone <- err
+			} else if res != nil && (res.Stdout != "" || len(res.Messages) > 0) {
+				processDone <- fmt.Errorf("unexpected successful completion with output")
 			} else {
-				done <- nil
+				processDone <- nil
 			}
 		}()
 		
-		// Wait for it to start
-		time.Sleep(100 * time.Millisecond)
+		// Wait for process to start
+		<-processStarted
+		time.Sleep(200 * time.Millisecond)
 		
 		// Verify it's running
-		if !executor.IsProjectExecuting("project-cancel") {
-			t.Error("expected project to be executing")
+		if !executor.IsProjectExecuting(projectID) {
+			t.Error("expected project to be executing before cancellation")
 		}
 		
-		// Cancel
+		// Cancel the context
 		cancel()
 		
-		// Wait for cleanup
-		err = <-done
-		if err == nil || (!strings.Contains(err.Error(), "cancelled") && !strings.Contains(err.Error(), "canceled")) {
-			t.Errorf("expected cancellation error, got %v", err)
+		// Wait for error with timeout
+		select {
+		case err := <-processDone:
+			if err == nil {
+				t.Error("expected cancellation error, got nil")
+			} else if !strings.Contains(err.Error(), "cancel") && !strings.Contains(err.Error(), "context") {
+				t.Errorf("expected cancellation error, got: %v", err)
+			}
+		case <-time.After(2 * time.Second):
+			t.Error("timeout waiting for cancellation to complete")
 		}
 		
-		// Verify cleanup
-		time.Sleep(100 * time.Millisecond)
-		if executor.IsProjectExecuting("project-cancel") {
+		// Wait for cleanup to complete
+		maxRetries := 20
+		cleaned := false
+		for i := 0; i < maxRetries; i++ {
+			if !executor.IsProjectExecuting(projectID) {
+				cleaned = true
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		
+		if !cleaned {
 			t.Error("expected process to be cleaned up after cancellation")
+		}
+		
+		// Verify we can execute on the same project again
+		project := &models.Project{
+			ID:   projectID,
+			Path: projectPath,
+		}
+		cmd := ExecuteCommand{
+			Prompt: "new execution after cancel",
+		}
+		
+		res, err := executor.Execute(project, cmd)
+		if err != nil {
+			t.Errorf("should be able to execute after cancellation: %v", err)
+		}
+		if res == nil || (res.Stdout == "" && len(res.Messages) == 0) {
+			t.Error("expected valid result after re-execution")
 		}
 	})
 }
@@ -366,6 +597,168 @@ esac
 
 # Simulate some output
 echo "Mock execution complete"
+`
+	
+	if err := os.WriteFile(mockCLI, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	
+	return mockCLI
+}
+
+// createAdvancedMockCLI creates a more sophisticated mock Claude CLI for testing real behaviors
+func createAdvancedMockCLI(t *testing.T) string {
+	tempDir, err := os.MkdirTemp("", "advanced_mock_claude")
+	if err != nil {
+		t.Fatal(err)
+	}
+	
+	mockCLI := filepath.Join(tempDir, "claude")
+	
+	// Create an advanced mock that simulates streaming output and real Claude behaviors
+	script := `#!/bin/bash
+# Advanced Mock Claude CLI for testing real component interactions
+
+# Parse arguments
+PROJECT_DIR=""
+SESSION_ID=""
+PROMPT=""
+while [[ $# -gt 0 ]]; do
+	case $1 in
+		-p|--project-dir)
+			PROJECT_DIR="$2"
+			shift 2
+			;;
+		-c|--session-id)
+			SESSION_ID="$2"
+			shift 2
+			;;
+		*)
+			# Capture prompt as the last argument
+			PROMPT="$1"
+			shift
+			;;
+	esac
+done
+
+# Generate session ID if not provided
+if [ -z "$SESSION_ID" ]; then
+	SESSION_ID="mock-session-$(date +%s)-$$"
+fi
+
+# Debug: log the prompt to stderr
+echo "DEBUG: Received prompt: '$PROMPT' from args" >&2
+
+# Function to collect messages for final output
+MESSAGES=()
+add_message() {
+	local msg_type="$1"
+	local content="$2"
+	MESSAGES+=("{\"type\":\"$msg_type\",\"content\":\"$content\"}")
+}
+
+# Function to output final JSON result
+output_result() {
+	echo -n "{\"session_id\":\"$SESSION_ID\",\"messages\":["
+	local first=true
+	for msg in "${MESSAGES[@]}"; do
+		if [ "$first" = true ]; then
+			first=false
+		else
+			echo -n ","
+		fi
+		echo -n "$msg"
+	done
+	echo "]}"
+}
+
+# Simulate different behaviors based on prompt
+case "$PROMPT" in
+	*"analyze"*".go file"*)
+		# Simulate analyzing a Go file - with brief delay before output
+		sleep 0.5  # Brief delay to allow process tracking
+		add_message "thinking" "Analyzing Go file in project directory..."
+		if [ -n "$PROJECT_DIR" ] && [ -d "$PROJECT_DIR" ]; then
+			# Look for .go files
+			GO_FILES=$(find "$PROJECT_DIR" -name "*.go" -type f 2>/dev/null | head -5)
+			if [ -n "$GO_FILES" ]; then
+				add_message "message" "Found Go files in project:"
+				for file in $GO_FILES; do
+					add_message "message" "- $(basename "$file")"
+				done
+			fi
+		fi
+		add_message "message" "Analysis complete. The code appears to be well-structured."
+		output_result
+		;;
+		
+	*"analyze main"*"with delay"*)
+		# Simulate analyzing with delay for concurrent testing
+		sleep 2  # Delay before output to test concurrency
+		add_message "thinking" "Starting analysis..."
+		add_message "message" "Analyzing main.go file..."
+		add_message "message" "Found package declaration and comments."
+		add_message "complete" "Analysis finished successfully."
+		output_result
+		;;
+		
+	*"long running task"*)
+		# Simulate a long-running task
+		sleep 3  # Long delay before output to allow duplicate detection
+		add_message "thinking" "Starting long-running task..."
+		add_message "message" "Task completed after delay."
+		add_message "complete" "Long running task completed."
+		output_result
+		;;
+		
+	*"task that will be cancelled"*|"")
+		# Simulate a task that runs forever (to test cancellation)
+		# Run forever until killed - no output
+		echo "DEBUG: Running infinite loop for cancellation test" >&2
+		while true; do
+			sleep 0.5
+			echo -n "." >&2  # Progress indicator to stderr
+		done
+		;;
+		
+	*"sleep for 1 second"*)
+		# Sleep command for testing concurrency
+		sleep 1
+		add_message "message" "Slept for 1 second"
+		add_message "complete" "Sleep completed"
+		output_result
+		;;
+		
+	*"should fail"*)
+		# Simulate a failure
+		sleep 0.1  # Brief delay
+		echo "{\"session_id\":\"$SESSION_ID\",\"messages\":[{\"type\":\"error\",\"content\":\"Task failed due to simulated error\"}],\"error\":\"Task failed due to simulated error\"}"
+		exit 1
+		;;
+		
+	*"new execution after cancel"*)
+		# Quick task to verify execution works after cancellation
+		sleep 0.1  # Brief delay
+		add_message "message" "Executing new task after cancellation."
+		add_message "complete" "Task completed successfully."
+		output_result
+		;;
+		
+	*)
+		# Default response
+		sleep 0.1  # Brief delay
+		add_message "thinking" "Processing request..."
+		add_message "message" "Received prompt: $PROMPT"
+		if [ -n "$PROJECT_DIR" ]; then
+			add_message "message" "Working in project: $PROJECT_DIR"
+		fi
+		add_message "complete" "Mock execution complete."
+		output_result
+		;;
+esac
+
+# Exit successfully unless we intentionally failed
+exit 0
 `
 	
 	if err := os.WriteFile(mockCLI, []byte(script), 0o755); err != nil {

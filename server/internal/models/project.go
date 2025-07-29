@@ -183,6 +183,26 @@ func FromMetadata(meta ProjectMetadata) *Project {
 	}
 }
 
+// Copy creates a deep copy of the project for safe external access
+// Note: This does not copy MessageLog or Subscribers as they are not meant to be shared
+func (p *Project) Copy() *Project {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	
+	return &Project{
+		ID:           p.ID,
+		Path:         p.Path,
+		SessionID:    p.SessionID,
+		State:        p.State,
+		CreatedAt:    p.CreatedAt,
+		LastActive:   p.LastActive,
+		ErrorDetails: p.ErrorDetails,
+		// MessageLog is not copied - it's a reference to the storage layer
+		// Subscribers are not copied - they belong to the original project
+		Subscribers: make(map[string]*Session), // Empty map for the copy
+	}
+}
+
 // Validate checks if the project data is valid
 func (p *Project) Validate() error {
 	if p.ID == "" {
