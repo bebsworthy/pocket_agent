@@ -193,7 +193,7 @@ docker-push: ## Push Docker image
 .PHONY: run
 run: build ## Build and run the application
 	@echo "$(COLOR_BLUE)Running $(BINARY_NAME)...$(COLOR_RESET)"
-	$(BUILD_DIR)/$(BINARY_NAME)
+	$(BUILD_DIR)/$(BINARY_NAME) -config run/config.json
 
 .PHONY: dev
 dev: ## Run with hot reload (requires air)

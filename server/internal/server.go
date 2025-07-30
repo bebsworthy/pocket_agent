@@ -96,7 +96,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	// Create Claude executor
 	executorCfg := executor.Config{
 		ClaudePath:              cfg.Config.Execution.ClaudeBinaryPath,
-		DefaultTimeout:          cfg.Config.Execution.CommandTimeout,
+		DefaultTimeout:          cfg.Config.Execution.CommandTimeout.Get(),
 		MaxConcurrentExecutions: 10,
 	}
 	claudeExecutor, err := executor.NewClaudeExecutor(executorCfg)
@@ -128,17 +128,23 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	// Create WebSocket configuration
 	wsConfig := websocket.Config{
 		Port:                cfg.Config.Port,
-		TLSCert:             cfg.Config.TLSCertFile,
-		TLSKey:              cfg.Config.TLSKeyFile,
+		ReadTimeout:         cfg.Config.WebSocket.ReadTimeout.Get(),
+		WriteTimeout:        cfg.Config.WebSocket.WriteTimeout.Get(),
 		MaxConnections:      cfg.MaxConnections,
 		MaxConnectionsPerIP: 10,
 		ConnectionTimeout:   5 * time.Minute,
-		PingInterval:        30 * time.Second,
-		PongTimeout:         60 * time.Second,
+		PingInterval:        cfg.Config.WebSocket.PingInterval.Get(),
+		PongTimeout:         cfg.Config.WebSocket.PongTimeout.Get(),
 		AllowedOrigins:      []string{"*"}, // TODO: Configure from config
 		RateLimitPerIP:      60,
-		MaxMessageSize:      1024 * 1024, // 1MB
-		BufferSize:          1024,
+		MaxMessageSize:      cfg.Config.WebSocket.MaxMessageSize,
+		BufferSize:          cfg.Config.WebSocket.WriteBufferSize,
+	}
+
+	// Only set TLS certificate paths if TLS is enabled
+	if cfg.Config.TLSEnabled {
+		wsConfig.TLSCert = cfg.Config.TLSCertFile
+		wsConfig.TLSKey = cfg.Config.TLSKeyFile
 	}
 
 	// Create handlers with all dependencies
@@ -171,13 +177,55 @@ func (s *Server) Start() error {
 		s.logger.Warn("Failed to set resource limits", "error", err)
 	}
 
+	// Log server configuration
 	s.logger.Info("Starting Pocket Agent Server",
 		"version", "1.0.0",
 		"platform", runtime.GOOS,
+		"arch", runtime.GOARCH,
+		"go_version", runtime.Version(),
+	)
+
+	// Log network configuration
+	s.logger.Info("Network configuration",
+		"host", s.config.Host,
+		"port", s.config.Port,
+		"tls_enabled", s.config.TLSEnabled,
+		"tls_cert", s.config.TLSCertFile,
+		"tls_key", s.config.TLSKeyFile,
+	)
+
+	// Log WebSocket configuration
+	s.logger.Info("WebSocket configuration",
+		"read_timeout", s.config.WebSocket.ReadTimeout.Get().String(),
+		"write_timeout", s.config.WebSocket.WriteTimeout.Get().String(),
+		"ping_interval", s.config.WebSocket.PingInterval.Get().String(),
+		"pong_timeout", s.config.WebSocket.PongTimeout.Get().String(),
+		"max_message_size", s.config.WebSocket.MaxMessageSize,
+		"buffer_size", s.config.WebSocket.WriteBufferSize,
+	)
+
+	// Log execution configuration
+	s.logger.Info("Execution configuration",
+		"claude_binary", s.config.Execution.ClaudeBinaryPath,
+		"command_timeout", s.config.Execution.CommandTimeout.Get().String(),
+		"max_projects", s.config.Execution.MaxProjects,
+		"max_log_size", s.config.Execution.MaxLogSize,
+		"max_messages_per_log", s.config.Execution.MaxMessagesPerLog,
+	)
+
+	// Log resource limits
+	s.logger.Info("Resource limits",
 		"max_connections", s.maxConnections,
 		"max_projects", s.maxProjects,
 		"memory_limit_mb", s.memoryLimit/1024/1024,
 		"goroutine_limit", s.goroutineLimit,
+	)
+
+	// Log data directories
+	s.logger.Info("Data directories",
+		"data_dir", s.config.DataDir,
+		"log_file", s.config.LogFile,
+		"log_level", s.config.LogLevel,
 	)
 
 	// Start resource monitoring

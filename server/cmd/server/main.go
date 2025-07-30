@@ -21,11 +21,12 @@ var (
 func main() {
 	// Command line flags
 	var (
+		rootDir     = flag.String("root-dir", "", "Root directory for all server files (defaults to ~/.pocket_agent)")
 		configPath  = flag.String("config", "", "Path to configuration file")
 		showVersion = flag.Bool("version", false, "Show version information")
 		logLevel    = flag.String("log-level", "info", "Log level (debug, info, warn, error)")
-		port        = flag.Int("port", 8443, "Server port")
-		dataDir     = flag.String("data-dir", "./data", "Data directory path")
+		port        = flag.Int("port", 0, "Server port (overrides config)")
+		dataDir     = flag.String("data-dir", "", "Data directory path (overrides config)")
 	)
 	flag.Parse()
 
@@ -46,8 +47,26 @@ func main() {
 		"git_commit", GitCommit,
 	)
 
+	// Log root directory if specified
+	if *rootDir != "" {
+		log.Info("Using root directory", "path", *rootDir)
+	}
+
+	// Determine config path
+	cfgPath := *configPath
+	if cfgPath == "" {
+		// Ensure default config exists with root directory
+		if err := config.EnsureDefaultConfigWithRoot(*rootDir); err != nil {
+			log.Error("Failed to ensure default configuration", "error", err)
+			os.Exit(1)
+		}
+		cfgPath = config.DefaultConfigPathWithRoot(*rootDir)
+		log.Info("Using default configuration", "path", cfgPath)
+	}
+
 	// Load configuration
-	cfg, err := config.Load(*configPath, config.Options{
+	cfg, err := config.Load(cfgPath, config.Options{
+		RootDir: *rootDir,
 		Port:    *port,
 		DataDir: *dataDir,
 	})

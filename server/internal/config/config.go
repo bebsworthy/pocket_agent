@@ -36,51 +36,58 @@ type Config struct {
 
 // WebSocketConfig contains WebSocket-specific configuration.
 type WebSocketConfig struct {
-	ReadTimeout     time.Duration `json:"read_timeout"`
-	WriteTimeout    time.Duration `json:"write_timeout"`
-	PingInterval    time.Duration `json:"ping_interval"`
-	PongTimeout     time.Duration `json:"pong_timeout"`
-	MaxMessageSize  int64         `json:"max_message_size"`
-	WriteBufferSize int           `json:"write_buffer_size"`
-	ReadBufferSize  int           `json:"read_buffer_size"`
+	ReadTimeout     Duration `json:"read_timeout"`
+	WriteTimeout    Duration `json:"write_timeout"`
+	PingInterval    Duration `json:"ping_interval"`
+	PongTimeout     Duration `json:"pong_timeout"`
+	MaxMessageSize  int64    `json:"max_message_size"`
+	WriteBufferSize int      `json:"write_buffer_size"`
+	ReadBufferSize  int      `json:"read_buffer_size"`
 }
 
 // ExecutionConfig contains Claude execution configuration.
 type ExecutionConfig struct {
-	CommandTimeout    time.Duration `json:"command_timeout"`
-	MaxProjects       int           `json:"max_projects"`
-	MaxLogSize        int64         `json:"max_log_size"`
-	MaxMessagesPerLog int           `json:"max_messages_per_log"`
-	ClaudeBinaryPath  string        `json:"claude_binary_path"`
+	CommandTimeout    Duration `json:"command_timeout"`
+	MaxProjects       int      `json:"max_projects"`
+	MaxLogSize        int64    `json:"max_log_size"`
+	MaxMessagesPerLog int      `json:"max_messages_per_log"`
+	ClaudeBinaryPath  string   `json:"claude_binary_path"`
 }
 
 // Options represents configuration options passed via command line.
 type Options struct {
+	RootDir string
 	Port    int
 	DataDir string
 }
 
 // DefaultConfig returns a configuration with sensible defaults.
 func DefaultConfig() *Config {
+	homeDir, _ := os.UserHomeDir()
+	baseDir := filepath.Join(homeDir, ".pocket_agent")
+	
 	return &Config{
-		Port:       8443,
-		Host:       "0.0.0.0",
-		TLSEnabled: true,
-		DataDir:    "./data",
-		LogLevel:   "info",
+		Port:        8443,
+		Host:        "0.0.0.0",
+		TLSEnabled:  false,
+		DataDir:     baseDir,
+		LogLevel:    "info",
+		LogFile:     filepath.Join(baseDir, "logs", "pocket-agent.log"),
+		TLSCertFile: filepath.Join(baseDir, "certs", "server.crt"),
+		TLSKeyFile:  filepath.Join(baseDir, "certs", "server.key"),
 
 		WebSocket: WebSocketConfig{
-			ReadTimeout:     10 * time.Minute,
-			WriteTimeout:    10 * time.Second,
-			PingInterval:    5 * time.Minute,
-			PongTimeout:     30 * time.Second,
+			ReadTimeout:     Duration{10 * time.Minute},
+			WriteTimeout:    Duration{10 * time.Second},
+			PingInterval:    Duration{5 * time.Minute},
+			PongTimeout:     Duration{30 * time.Second},
 			MaxMessageSize:  1024 * 1024, // 1MB
 			WriteBufferSize: 1024,
 			ReadBufferSize:  1024,
 		},
 
 		Execution: ExecutionConfig{
-			CommandTimeout:    5 * time.Minute,
+			CommandTimeout:    Duration{5 * time.Minute},
 			MaxProjects:       100,
 			MaxLogSize:        100 * 1024 * 1024, // 100MB
 			MaxMessagesPerLog: 10000,
@@ -89,9 +96,80 @@ func DefaultConfig() *Config {
 	}
 }
 
+// DefaultConfigPath returns the default configuration file path
+func DefaultConfigPath() string {
+	return DefaultConfigPathWithRoot("")
+}
+
+// DefaultConfigPathWithRoot returns the configuration file path for a given root directory
+func DefaultConfigPathWithRoot(rootDir string) string {
+	if rootDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		rootDir = filepath.Join(homeDir, ".pocket_agent")
+	}
+	return filepath.Join(rootDir, "config.json")
+}
+
+// EnsureDefaultConfig ensures the default config file and directories exist
+func EnsureDefaultConfig() error {
+	return EnsureDefaultConfigWithRoot("")
+}
+
+// EnsureDefaultConfigWithRoot ensures the config file and directories exist for a given root
+func EnsureDefaultConfigWithRoot(rootDir string) error {
+	if rootDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		rootDir = filepath.Join(homeDir, ".pocket_agent")
+	}
+
+	// Create directory structure
+	dirs := []string{
+		rootDir,
+		filepath.Join(rootDir, "certs"),
+		filepath.Join(rootDir, "projects"),
+	}
+
+	for _, dir := range dirs {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Check if config file exists
+	configPath := filepath.Join(rootDir, "config.json")
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// Create default config file with paths relative to root
+		cfg := DefaultConfig()
+		// Override paths to use the specified root
+		cfg.DataDir = rootDir
+		cfg.LogFile = filepath.Join(rootDir, "logs", "pocket-agent.log")
+		cfg.TLSCertFile = filepath.Join(rootDir, "certs", "server.crt")
+		cfg.TLSKeyFile = filepath.Join(rootDir, "certs", "server.key")
+		
+		data, err := json.MarshalIndent(cfg, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal default config: %w", err)
+		}
+
+		if err := os.WriteFile(configPath, data, 0o644); err != nil {
+			return fmt.Errorf("failed to write default config file: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // Load loads configuration from file and applies command line options.
 func Load(configPath string, opts Options) (*Config, error) {
 	cfg := DefaultConfig()
+
+	// If root directory is specified, update default paths
+	if opts.RootDir != "" {
+		cfg.DataDir = opts.RootDir
+		cfg.LogFile = filepath.Join(opts.RootDir, "logs", "pocket-agent.log")
+		cfg.TLSCertFile = filepath.Join(opts.RootDir, "certs", "server.crt")
+		cfg.TLSKeyFile = filepath.Join(opts.RootDir, "certs", "server.key")
+	}
 
 	// Load from file if provided
 	if configPath != "" {
@@ -132,6 +210,14 @@ func Load(configPath string, opts Options) (*Config, error) {
 	projectsDir := filepath.Join(cfg.DataDir, "projects")
 	if err := os.MkdirAll(projectsDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create projects directory: %w", err)
+	}
+
+	// Ensure log directory exists
+	if cfg.LogFile != "" {
+		logDir := filepath.Dir(cfg.LogFile)
+		if err := os.MkdirAll(logDir, 0o755); err != nil {
+			return nil, fmt.Errorf("failed to create log directory: %w", err)
+		}
 	}
 
 	return cfg, nil
@@ -175,13 +261,13 @@ func (c *Config) Validate() error {
 	if c.WebSocket.MaxMessageSize > 10*1024*1024 {
 		return fmt.Errorf("max_message_size cannot exceed 10MB")
 	}
-	if c.WebSocket.ReadTimeout < time.Second {
+	if c.WebSocket.ReadTimeout.Get() < time.Second {
 		return fmt.Errorf("read_timeout must be at least 1 second")
 	}
-	if c.WebSocket.PingInterval < time.Second {
+	if c.WebSocket.PingInterval.Get() < time.Second {
 		return fmt.Errorf("ping_interval must be at least 1 second")
 	}
-	if c.WebSocket.PongTimeout < time.Second {
+	if c.WebSocket.PongTimeout.Get() < time.Second {
 		return fmt.Errorf("pong_timeout must be at least 1 second")
 	}
 
@@ -192,7 +278,7 @@ func (c *Config) Validate() error {
 	if c.Execution.MaxProjects > 1000 {
 		return fmt.Errorf("max_projects cannot exceed 1000")
 	}
-	if c.Execution.CommandTimeout < time.Second {
+	if c.Execution.CommandTimeout.Get() < time.Second {
 		return fmt.Errorf("command_timeout must be at least 1 second")
 	}
 	if c.Execution.MaxLogSize < 1024*1024 {
@@ -270,7 +356,7 @@ func (c *Config) loadFromEnv() error {
 		if err != nil {
 			return fmt.Errorf("invalid POCKET_AGENT_WEBSOCKET_READ_TIMEOUT: %w", err)
 		}
-		c.WebSocket.ReadTimeout = dur
+		c.WebSocket.ReadTimeout = Duration{dur}
 	}
 
 	if val := os.Getenv("POCKET_AGENT_WEBSOCKET_WRITE_TIMEOUT"); val != "" {
@@ -278,7 +364,7 @@ func (c *Config) loadFromEnv() error {
 		if err != nil {
 			return fmt.Errorf("invalid POCKET_AGENT_WEBSOCKET_WRITE_TIMEOUT: %w", err)
 		}
-		c.WebSocket.WriteTimeout = dur
+		c.WebSocket.WriteTimeout = Duration{dur}
 	}
 
 	if val := os.Getenv("POCKET_AGENT_WEBSOCKET_PING_INTERVAL"); val != "" {
@@ -286,7 +372,7 @@ func (c *Config) loadFromEnv() error {
 		if err != nil {
 			return fmt.Errorf("invalid POCKET_AGENT_WEBSOCKET_PING_INTERVAL: %w", err)
 		}
-		c.WebSocket.PingInterval = dur
+		c.WebSocket.PingInterval = Duration{dur}
 	}
 
 	if val := os.Getenv("POCKET_AGENT_WEBSOCKET_PONG_TIMEOUT"); val != "" {
@@ -294,7 +380,7 @@ func (c *Config) loadFromEnv() error {
 		if err != nil {
 			return fmt.Errorf("invalid POCKET_AGENT_WEBSOCKET_PONG_TIMEOUT: %w", err)
 		}
-		c.WebSocket.PongTimeout = dur
+		c.WebSocket.PongTimeout = Duration{dur}
 	}
 
 	if val := os.Getenv("POCKET_AGENT_WEBSOCKET_MAX_MESSAGE_SIZE"); val != "" {
@@ -327,7 +413,7 @@ func (c *Config) loadFromEnv() error {
 		if err != nil {
 			return fmt.Errorf("invalid POCKET_AGENT_EXECUTION_COMMAND_TIMEOUT: %w", err)
 		}
-		c.Execution.CommandTimeout = dur
+		c.Execution.CommandTimeout = Duration{dur}
 	}
 
 	if val := os.Getenv("POCKET_AGENT_EXECUTION_MAX_PROJECTS"); val != "" {

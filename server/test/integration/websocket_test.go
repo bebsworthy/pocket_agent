@@ -825,7 +825,7 @@ func createTestServerWithConfig(t *testing.T, cfg *config.Config) http.Handler {
 
 	executorCfg := executor.Config{
 		ClaudePath:              cfg.Execution.ClaudeBinaryPath,
-		DefaultTimeout:          cfg.Execution.CommandTimeout,
+		DefaultTimeout:          cfg.Execution.CommandTimeout.Get(),
 		MaxConcurrentExecutions: 10,
 	}
 	claudeExec, err := executor.NewClaudeExecutor(executorCfg)

@@ -17,30 +17,34 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Host != "0.0.0.0" {
 		t.Errorf("expected host 0.0.0.0, got %s", cfg.Host)
 	}
-	if !cfg.TLSEnabled {
-		t.Error("expected TLS to be enabled by default")
+	if cfg.TLSEnabled {
+		t.Error("expected TLS to be disabled by default")
 	}
-	if cfg.DataDir != "./data" {
-		t.Errorf("expected data dir ./data, got %s", cfg.DataDir)
+	
+	// Check that data dir is in home directory
+	homeDir, _ := os.UserHomeDir()
+	expectedDataDir := filepath.Join(homeDir, ".pocket_agent")
+	if cfg.DataDir != expectedDataDir {
+		t.Errorf("expected data dir %s, got %s", expectedDataDir, cfg.DataDir)
 	}
 	if cfg.LogLevel != "info" {
 		t.Errorf("expected log level info, got %s", cfg.LogLevel)
 	}
 
 	// WebSocket defaults
-	if cfg.WebSocket.ReadTimeout != 10*time.Minute {
-		t.Errorf("expected read timeout 10m, got %v", cfg.WebSocket.ReadTimeout)
+	if cfg.WebSocket.ReadTimeout.Get() != 10*time.Minute {
+		t.Errorf("expected read timeout 10m, got %v", cfg.WebSocket.ReadTimeout.Get())
 	}
-	if cfg.WebSocket.PingInterval != 5*time.Minute {
-		t.Errorf("expected ping interval 5m, got %v", cfg.WebSocket.PingInterval)
+	if cfg.WebSocket.PingInterval.Get() != 5*time.Minute {
+		t.Errorf("expected ping interval 5m, got %v", cfg.WebSocket.PingInterval.Get())
 	}
 	if cfg.WebSocket.MaxMessageSize != 1024*1024 {
 		t.Errorf("expected max message size 1MB, got %d", cfg.WebSocket.MaxMessageSize)
 	}
 
 	// Execution defaults
-	if cfg.Execution.CommandTimeout != 5*time.Minute {
-		t.Errorf("expected command timeout 5m, got %v", cfg.Execution.CommandTimeout)
+	if cfg.Execution.CommandTimeout.Get() != 5*time.Minute {
+		t.Errorf("expected command timeout 5m, got %v", cfg.Execution.CommandTimeout.Get())
 	}
 	if cfg.Execution.MaxProjects != 100 {
 		t.Errorf("expected max projects 100, got %d", cfg.Execution.MaxProjects)
@@ -149,14 +153,14 @@ func TestLoadFromEnv(t *testing.T) {
 	if cfg.WebSocket.MaxMessageSize != 5*1024*1024 {
 		t.Errorf("expected max message size 5MB, got %d", cfg.WebSocket.MaxMessageSize)
 	}
-	if cfg.WebSocket.PingInterval != time.Minute {
-		t.Errorf("expected ping interval 1m, got %v", cfg.WebSocket.PingInterval)
+	if cfg.WebSocket.PingInterval.Get() != time.Minute {
+		t.Errorf("expected ping interval 1m, got %v", cfg.WebSocket.PingInterval.Get())
 	}
 	if cfg.Execution.MaxProjects != 200 {
 		t.Errorf("expected max projects 200, got %d", cfg.Execution.MaxProjects)
 	}
-	if cfg.Execution.CommandTimeout != 10*time.Minute {
-		t.Errorf("expected command timeout 10m, got %v", cfg.Execution.CommandTimeout)
+	if cfg.Execution.CommandTimeout.Get() != 10*time.Minute {
+		t.Errorf("expected command timeout 10m, got %v", cfg.Execution.CommandTimeout.Get())
 	}
 }
 

@@ -671,7 +671,7 @@ func createLoadTestServer(t *testing.T, cfg *config.Config) http.Handler {
 	// Create executor
 	executorCfg := executor.Config{
 		ClaudePath:              cfg.Execution.ClaudeBinaryPath,
-		DefaultTimeout:          cfg.Execution.CommandTimeout,
+		DefaultTimeout:          cfg.Execution.CommandTimeout.Get(),
 		MaxConcurrentExecutions: 10,
 	}
 	claudeExec, err := executor.NewClaudeExecutor(executorCfg)
@@ -739,7 +739,7 @@ func createBenchServer(dataDir, claudePath string) http.Handler {
 	// Create executor
 	executorCfg := executor.Config{
 		ClaudePath:              cfg.Execution.ClaudeBinaryPath,
-		DefaultTimeout:          cfg.Execution.CommandTimeout,
+		DefaultTimeout:          cfg.Execution.CommandTimeout.Get(),
 		MaxConcurrentExecutions: 10,
 	}
 	claudeExec, _ := executor.NewClaudeExecutor(executorCfg)
