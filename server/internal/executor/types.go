@@ -40,5 +40,5 @@ func (ce *ClaudeExecutor) Execute(project *models.Project, cmd ExecuteCommand) (
 
 // ExecuteWithOptions runs Claude with specific options (internal use)
 func (ce *ClaudeExecutor) ExecuteWithOptions(project *models.Project, options ExecuteOptions) (*ExecuteResult, error) {
-	return ce.executeInternal(project, options)
+	return ce.executeInternalWithStreaming(project, options, nil)
 }

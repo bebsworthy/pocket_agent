@@ -27,8 +27,8 @@ func (ce *ClaudeExecutor) ExecuteWithProject(projectID, projectPath string, opti
 			"maximum concurrent executions (%d) reached", ce.config.MaxConcurrentExecutions)
 	}
 
-	// Use the internal execute method
-	return ce.executeInternal(project, options)
+	// Use the streaming execute method
+	return ce.executeInternalWithStreaming(project, options, nil)
 }
 
 // ExecuteWithContext executes Claude CLI with a cancellable context

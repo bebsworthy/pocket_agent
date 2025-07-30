@@ -15,7 +15,7 @@
     "read_buffer_size": 1024
   },
   "execution": {
-    "command_timeout": "5m0s",
+    "command_timeout": "0s",
     "max_projects": 100,
     "max_log_size": 104857600,
     "max_messages_per_log": 10000,

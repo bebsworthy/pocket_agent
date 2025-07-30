@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -168,12 +169,32 @@ func (b *Broadcaster) BroadcastProjectDeletion(project *models.Project) {
 // BroadcastClaudeMessage broadcasts Claude message to subscribers
 // Requirements: 3.4, 6.4
 func (b *Broadcaster) BroadcastClaudeMessage(project *models.Project, claudeMsg models.ClaudeMessage) {
-	msg := &models.ServerMessage{
-		Type:      models.MessageTypeAgentMessage,
-		ProjectID: project.ID,
-		Data:      claudeMsg,
+	// Flatten the Claude message structure to avoid double nesting
+	// Parse the content to extract fields
+	var contentData map[string]interface{}
+	if err := json.Unmarshal(claudeMsg.Content, &contentData); err == nil {
+		// Add the Claude message type to the data
+		contentData["type"] = claudeMsg.Type
+		
+		msg := &models.ServerMessage{
+			Type:      models.MessageTypeAgentMessage,
+			ProjectID: project.ID,
+			Data:      contentData,
+		}
+		b.BroadcastToProject(project, msg)
+	} else {
+		// Fallback to original structure if parsing fails
+		b.log.Warn("Failed to parse Claude message content, using nested structure",
+			"error", err,
+			"type", claudeMsg.Type)
+		
+		msg := &models.ServerMessage{
+			Type:      models.MessageTypeAgentMessage,
+			ProjectID: project.ID,
+			Data:      claudeMsg,
+		}
+		b.BroadcastToProject(project, msg)
 	}
-	b.BroadcastToProject(project, msg)
 }
 
 // BroadcastError broadcasts error to project subscribers

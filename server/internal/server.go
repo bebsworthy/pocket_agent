@@ -152,7 +152,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		ProjectManager:  projectManager,
 		Executor:        claudeExecutor,
 		Logger:          log,
-		BroadcastConfig: handlers.BroadcasterConfig{},
+		BroadcastConfig: handlers.DefaultBroadcasterConfig(),
 		ClaudePath:      cfg.Config.Execution.ClaudeBinaryPath,
 		DataDir:         cfg.Config.DataDir,
 	}

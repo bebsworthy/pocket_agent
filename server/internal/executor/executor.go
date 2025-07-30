@@ -86,6 +86,11 @@ func (ce *ClaudeExecutor) GetActiveProcessCount() int {
 	return len(ce.activeProcesses)
 }
 
+// DefaultTimeout returns the default timeout for executions
+func (ce *ClaudeExecutor) DefaultTimeout() time.Duration {
+	return ce.config.DefaultTimeout
+}
+
 // IsProjectExecuting checks if a project has an active execution
 func (ce *ClaudeExecutor) IsProjectExecuting(projectID string) bool {
 	ce.mu.Lock()

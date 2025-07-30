@@ -80,12 +80,60 @@ func (h *ExecutionHandlers) HandleExecute(ctx context.Context, session *models.S
 	})
 }
 
-// executeClaudeCommand runs Claude execution and handles results
+// executeClaudeCommand runs Claude execution and handles results with streaming
 func (h *ExecutionHandlers) executeClaudeCommand(ctx context.Context, session *models.Session, project *models.Project, req executor.ExecuteCommand) {
 	startTime := time.Now()
 
-	// Execute Claude
-	response, err := h.executor.Execute(project, req)
+	// Build execution options
+	options := executor.ExecuteOptions{
+		Prompt:  req.Prompt,
+		Timeout: h.executor.DefaultTimeout(),
+	}
+
+	if req.Options != nil {
+		options.DangerouslySkipPermissions = req.Options.DangerouslySkipPermissions
+		options.AllowedTools = req.Options.AllowedTools
+		options.DisallowedTools = req.Options.DisallowedTools
+		options.MCPConfig = req.Options.MCPConfig
+		options.AppendSystemPrompt = req.Options.AppendSystemPrompt
+		options.PermissionMode = req.Options.PermissionMode
+		options.Model = req.Options.Model
+		options.FallbackModel = req.Options.FallbackModel
+		options.AddDirs = req.Options.AddDirs
+		options.StrictMCPConfig = req.Options.StrictMCPConfig
+	}
+
+	// Flag to track if session ID was updated
+	var sessionUpdated bool
+
+	// Execute Claude with streaming callback
+	response, err := h.executor.ExecuteWithCallback(project, options, func(msg models.ClaudeMessage) {
+		// Stream each message as it arrives
+		h.broadcast.BroadcastClaudeMessage(project, msg)
+
+		// Check for session ID updates in system messages
+		if msg.Type == "system" || msg.Type == "result" {
+			var obj map[string]interface{}
+			if err := json.Unmarshal(msg.Content, &obj); err == nil {
+				if sid, ok := obj["session_id"].(string); ok && sid != "" && sid != project.SessionID {
+					// Update session ID immediately when detected
+					if !sessionUpdated {
+						sessionUpdated = true
+						if err := h.projectMgr.UpdateProjectSession(project.ID, sid); err != nil {
+							h.log.Error("Failed to update project session during streaming", "error", err)
+						} else {
+							// Update the project object
+							project.SessionID = sid
+							// Broadcast updated project state
+							if updatedProject, err := h.projectMgr.GetProjectByID(project.ID); err == nil {
+								h.broadcast.BroadcastProjectUpdate(updatedProject)
+							}
+						}
+					}
+				}
+			}
+		}
+	})
 
 	// Update project state based on result
 	newState := models.StateIdle
@@ -106,16 +154,11 @@ func (h *ExecutionHandlers) executeClaudeCommand(ctx context.Context, session *m
 			"duration", time.Since(startTime),
 		)
 
-		// Update project session ID if changed
-		if response.SessionID != "" && response.SessionID != project.SessionID {
+		// Final session ID check (in case it wasn't updated during streaming)
+		if response.SessionID != "" && response.SessionID != project.SessionID && !sessionUpdated {
 			if err := h.projectMgr.UpdateProjectSession(project.ID, response.SessionID); err != nil {
 				h.log.Error("Failed to update project session", "error", err)
 			}
-		}
-
-		// Broadcast Claude messages to all subscribers
-		for _, msg := range response.Messages {
-			h.broadcast.BroadcastClaudeMessage(project, msg)
 		}
 	}
 

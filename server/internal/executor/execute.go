@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/boyd/pocket_agent/server/internal/errors"
@@ -42,8 +44,12 @@ type ExecuteResult struct {
 	ExecutionTime time.Duration
 }
 
-// executeInternal runs Claude with the specified options for a project
-func (ce *ClaudeExecutor) executeInternal(project *models.Project, options ExecuteOptions) (*ExecuteResult, error) {
+// executeInternalWithStreaming runs Claude with streaming output support
+func (ce *ClaudeExecutor) executeInternalWithStreaming(
+	project *models.Project,
+	options ExecuteOptions,
+	callback func(models.ClaudeMessage),
+) (*ExecuteResult, error) {
 	if project == nil {
 		return nil, errors.NewValidationError("project cannot be nil")
 	}
@@ -67,7 +73,6 @@ func (ce *ClaudeExecutor) executeInternal(project *models.Project, options Execu
 
 	// Set environment
 	cmd.Env = append(os.Environ(),
-		"CLAUDE_OUTPUT_FORMAT=json",
 		"NO_COLOR=1", // Disable color output for cleaner parsing
 	)
 
@@ -84,10 +89,21 @@ func (ce *ClaudeExecutor) executeInternal(project *models.Project, options Execu
 		platform.SetupLinuxProcess(cmd)
 	}
 
-	// Create buffers for output capture
-	var stdoutBuf, stderrBuf bytes.Buffer
-	cmd.Stdout = &stdoutBuf
+	// Get stdout pipe for streaming
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stdout pipe: %w", err)
+	}
+
+	// Create buffer for stderr capture
+	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf
+
+	// Get stdin pipe for sending prompt
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stdin pipe: %w", err)
+	}
 
 	// Create process info
 	processInfo := &ProcessInfo{
@@ -113,18 +129,147 @@ func (ce *ClaudeExecutor) executeInternal(project *models.Project, options Execu
 
 	// Start the process
 	startTime := time.Now()
-	err := cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start Claude: %w", err)
+	}
+
+	// Send prompt via stdin
+	go func() {
+		defer stdin.Close()
+		if _, err := stdin.Write([]byte(options.Prompt)); err != nil {
+			ce.logger.Error("Failed to write prompt to stdin", "error", err)
+		}
+	}()
+
+	// Channels for streaming results
+	messagesChan := make(chan models.ClaudeMessage, 100)
+	errorChan := make(chan error, 1)
+	var sessionID string
+	var sessionIDMutex sync.Mutex
+
+	// Start goroutine to read and parse streaming output
+	go func() {
+		scanner := bufio.NewScanner(stdoutPipe)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if line == "" {
+				continue
+			}
+
+			// Parse each line as a JSON object
+			var obj map[string]interface{}
+			if err := json.Unmarshal([]byte(line), &obj); err != nil {
+				ce.logger.Debug("Failed to parse line as JSON", 
+					"line", line,
+					"error", err)
+				continue
+			}
+
+			// Extract message type
+			msgType, ok := obj["type"].(string)
+			if !ok {
+				continue
+			}
+
+			// Handle different message types
+			switch msgType {
+			case "system":
+				// Extract session ID from system messages
+				if sid, ok := obj["session_id"].(string); ok && sid != "" {
+					sessionIDMutex.Lock()
+					sessionID = sid
+					sessionIDMutex.Unlock()
+				}
+				// Store and stream system messages
+				content, _ := json.Marshal(obj)
+				msg := models.ClaudeMessage{
+					Type:    msgType,
+					Content: json.RawMessage(content),
+				}
+				messagesChan <- msg
+				if callback != nil {
+					callback(msg)
+				}
+
+			case "assistant", "user", "result":
+				// Store and stream these message types
+				content, _ := json.Marshal(obj)
+				msg := models.ClaudeMessage{
+					Type:    msgType,
+					Content: json.RawMessage(content),
+				}
+				messagesChan <- msg
+				if callback != nil {
+					callback(msg)
+				}
+				// Also check for session_id in any message
+				if sid, ok := obj["session_id"].(string); ok && sid != "" {
+					sessionIDMutex.Lock()
+					sessionID = sid
+					sessionIDMutex.Unlock()
+				}
+
+			case "message_start", "content_block_start", "content_block_delta", 
+			     "content_block_stop", "message_delta", "message_stop":
+				// These are streaming message events - store and stream the raw JSON
+				content, _ := json.Marshal(obj)
+				msg := models.ClaudeMessage{
+					Type:    msgType,
+					Content: json.RawMessage(content),
+				}
+				messagesChan <- msg
+				if callback != nil {
+					callback(msg)
+				}
+
+			case "error":
+				// Handle error messages
+				if errMsg, ok := obj["message"].(string); ok {
+					errorChan <- fmt.Errorf("Claude error: %s", errMsg)
+				} else {
+					errorChan <- fmt.Errorf("Claude error: %v", obj)
+				}
+				return
+
+			default:
+				// Log unknown message types for debugging
+				ce.logger.Debug("Unknown message type", "type", msgType, "object", obj)
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			errorChan <- fmt.Errorf("error reading stdout: %w", err)
+		}
+		close(messagesChan)
+	}()
+
+	// Wait for completion
+	err = cmd.Wait()
 	executionTime := time.Since(startTime)
 
-	// Capture outputs (Requirement 3.4)
-	stdout := stdoutBuf.String()
+	// Capture stderr
 	stderr := stderrBuf.String()
 
 	// Build result
 	result := &ExecuteResult{
-		Stdout:        stdout,
 		Stderr:        stderr,
 		ExecutionTime: executionTime,
+	}
+
+	// Collect all messages
+	var messages []models.ClaudeMessage
+	for msg := range messagesChan {
+		messages = append(messages, msg)
+	}
+
+	// Check for streaming errors
+	select {
+	case streamErr := <-errorChan:
+		if streamErr != nil {
+			return result, errors.Wrap(streamErr, errors.CodeJSONParsing,
+				"error during streaming")
+		}
+	default:
 	}
 
 	// Handle execution errors
@@ -150,25 +295,17 @@ func (ce *ClaudeExecutor) executeInternal(project *models.Project, options Execu
 			"Claude execution failed: %v", err)
 	}
 
-	// Parse Claude JSON output (Requirement 3.4)
-	messages, sessionID, err := ce.parseClaudeOutput(stdout)
-	if err != nil {
-		ce.logger.Error("Failed to parse Claude output",
-			"project_id", project.ID,
-			"error", err,
-			"stdout", stdout)
-
-		return result, errors.Wrap(err, errors.CodeJSONParsing,
-			"failed to parse Claude output")
-	}
+	// Get final session ID
+	sessionIDMutex.Lock()
+	result.SessionID = sessionID
+	sessionIDMutex.Unlock()
 
 	result.Messages = messages
-	result.SessionID = sessionID
 	result.ExitCode = 0
 
 	ce.logger.Info("Claude execution completed successfully",
 		"project_id", project.ID,
-		"session_id", sessionID,
+		"session_id", result.SessionID,
 		"message_count", len(messages),
 		"execution_time", executionTime)
 
@@ -184,8 +321,8 @@ func (ce *ClaudeExecutor) buildCommandArgs(project *models.Project, options Exec
 		args = append(args, "-c", project.SessionID)
 	}
 
-	// Add project path
-	args = append(args, "-p", project.Path)
+	// Add -p flag to print response and exit (non-interactive mode)
+	args = append(args, "-p")
 
 	// Add options
 	if options.DangerouslySkipPermissions {
@@ -228,8 +365,10 @@ func (ce *ClaudeExecutor) buildCommandArgs(project *models.Project, options Exec
 		args = append(args, "--strict-mcp-config")
 	}
 
-	// Add the prompt as the last argument
-	args = append(args, options.Prompt)
+	// Add required flags for JSON output
+	args = append(args, "--verbose", "--output-format", "stream-json")
+
+	// Prompt will be sent via stdin, not as argument
 
 	return args
 }
@@ -241,7 +380,7 @@ type ClaudeOutput struct {
 	Error     string                 `json:"error,omitempty"`
 }
 
-// parseClaudeOutput parses the JSON output from Claude CLI
+// parseClaudeOutput parses the JSONL (streaming JSON) output from Claude CLI
 func (ce *ClaudeExecutor) parseClaudeOutput(output string) ([]models.ClaudeMessage, string, error) {
 	// Trim any whitespace
 	output = strings.TrimSpace(output)
@@ -250,29 +389,82 @@ func (ce *ClaudeExecutor) parseClaudeOutput(output string) ([]models.ClaudeMessa
 		return nil, "", fmt.Errorf("empty Claude output")
 	}
 
-	// Try to parse as structured JSON output
-	var claudeOutput ClaudeOutput
-	if err := json.Unmarshal([]byte(output), &claudeOutput); err != nil {
-		// Try to extract JSON from mixed output
-		jsonStart := strings.Index(output, "{")
-		jsonEnd := strings.LastIndex(output, "}")
+	var messages []models.ClaudeMessage
+	var sessionID string
 
-		if jsonStart >= 0 && jsonEnd > jsonStart {
-			jsonStr := output[jsonStart : jsonEnd+1]
-			if err := json.Unmarshal([]byte(jsonStr), &claudeOutput); err != nil {
-				return nil, "", fmt.Errorf("failed to parse JSON: %w", err)
+	// Parse JSONL format - each line is a separate JSON object
+	lines := strings.Split(output, "\n")
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		// Parse each line as a JSON object
+		var obj map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			ce.logger.Debug("Failed to parse line as JSON", 
+				"line_number", i+1, 
+				"line", line,
+				"error", err)
+			continue
+		}
+
+		// Extract message type
+		msgType, ok := obj["type"].(string)
+		if !ok {
+			continue
+		}
+
+		// Handle different message types
+		switch msgType {
+		case "system":
+			// Extract session ID from system messages
+			if sid, ok := obj["session_id"].(string); ok && sid != "" {
+				sessionID = sid
 			}
-		} else {
-			return nil, "", fmt.Errorf("no valid JSON found in output")
+			// Also store system messages
+			content, _ := json.Marshal(obj)
+			messages = append(messages, models.ClaudeMessage{
+				Type:    msgType,
+				Content: json.RawMessage(content),
+			})
+		case "assistant", "user", "result":
+			// Store these message types
+			content, _ := json.Marshal(obj)
+			messages = append(messages, models.ClaudeMessage{
+				Type:    msgType,
+				Content: json.RawMessage(content),
+			})
+			// Also check for session_id in any message
+			if sid, ok := obj["session_id"].(string); ok && sid != "" {
+				sessionID = sid
+			}
+		case "message_start", "content_block_start", "content_block_delta", 
+		     "content_block_stop", "message_delta", "message_stop":
+			// These are streaming message events - store the raw JSON
+			content, _ := json.Marshal(obj)
+			messages = append(messages, models.ClaudeMessage{
+				Type:    msgType,
+				Content: json.RawMessage(content),
+			})
+		case "error":
+			// Handle error messages
+			if errMsg, ok := obj["message"].(string); ok {
+				return nil, "", fmt.Errorf("Claude error: %s", errMsg)
+			}
+			return nil, "", fmt.Errorf("Claude error: %v", obj)
+		default:
+			// Log unknown message types for debugging
+			ce.logger.Debug("Unknown message type", "type", msgType, "object", obj)
 		}
 	}
 
-	// Check for error in output
-	if claudeOutput.Error != "" {
-		return nil, "", fmt.Errorf("Claude reported error: %s", claudeOutput.Error)
+	if len(messages) == 0 && sessionID == "" {
+		return nil, "", fmt.Errorf("no valid messages or session ID found in output")
 	}
 
-	return claudeOutput.Messages, claudeOutput.SessionID, nil
+	return messages, sessionID, nil
 }
 
 // ExecuteWithCallback executes Claude with a callback for streaming updates
@@ -281,19 +473,7 @@ func (ce *ClaudeExecutor) ExecuteWithCallback(
 	options ExecuteOptions,
 	callback func(msg models.ClaudeMessage),
 ) (*ExecuteResult, error) {
-	// For now, this executes normally and calls callback with all messages
-	// In future, this could stream output in real-time
-	result, err := ce.executeInternal(project, options)
-	if err != nil {
-		return result, err
-	}
-
-	// Call callback for each message
-	if callback != nil {
-		for _, msg := range result.Messages {
-			callback(msg)
-		}
-	}
-
-	return result, nil
+	// Use the streaming implementation
+	return ce.executeInternalWithStreaming(project, options, callback)
 }
+
