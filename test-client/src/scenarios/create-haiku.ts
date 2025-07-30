@@ -77,7 +77,7 @@ async function createHaikuScenario() {
     const prompt = "Create a HAIKU.md file with a haiku of your own choosing and tell it back to me";
     console.log(chalk.yellow(`6. Sending prompt: "${prompt}"`));
     
-    await client.execute(projectId, prompt);
+    await client.execute(projectId, prompt, { permission_mode: 'acceptEdits' });
 
     // Wait for execution to complete
     await client.waitForProjectState(projectId, 'IDLE', 60000);
@@ -93,14 +93,17 @@ async function createHaikuScenario() {
 
     // Step 7: Close connection
     console.log(chalk.yellow('\n7. Closing connection...'));
-    client.close();
+    await client.close();
     console.log(chalk.green('✓ Connection closed\n'));
 
     console.log(chalk.green.bold('✅ Test completed successfully!\n'));
+    
+    // Ensure clean exit
+    process.exit(0);
 
   } catch (error) {
     console.error(chalk.red.bold('\n❌ Test failed:'), error);
-    client.close();
+    await client.close();
     process.exit(1);
   }
 }

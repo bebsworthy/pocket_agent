@@ -36,8 +36,17 @@ export class PocketAgentClient extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(this.url);
 
+      // Timeout for connection
+      const connectionTimeout = setTimeout(() => {
+        if (this.ws?.readyState === WebSocket.CONNECTING) {
+          this.ws.close();
+          reject(new Error('Connection timeout'));
+        }
+      }, this.timeout);
+
       this.ws.on('open', () => {
         if (this.debug) console.log('WebSocket connected');
+        clearTimeout(connectionTimeout);
         this.emit('connected');
         resolve();
       });
@@ -63,22 +72,16 @@ export class PocketAgentClient extends EventEmitter {
 
       this.ws.on('error', (error) => {
         if (this.debug) console.error('WebSocket error:', error);
+        clearTimeout(connectionTimeout);
         this.emit('error', error);
         reject(error);
       });
 
       this.ws.on('close', () => {
         if (this.debug) console.log('WebSocket disconnected');
+        clearTimeout(connectionTimeout);
         this.emit('disconnected');
       });
-
-      // Timeout for connection
-      setTimeout(() => {
-        if (this.ws?.readyState === WebSocket.CONNECTING) {
-          this.ws.close();
-          reject(new Error('Connection timeout'));
-        }
-      }, this.timeout);
     });
   }
 
@@ -210,11 +213,30 @@ export class PocketAgentClient extends EventEmitter {
     });
   }
 
-  close(): void {
-    if (this.ws) {
+  close(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.ws) {
+        resolve();
+        return;
+      }
+
+      // Set up close handler
+      this.ws.once('close', () => {
+        this.ws = null;
+        resolve();
+      });
+
+      // Initiate close
       this.ws.close();
-      this.ws = null;
-    }
+
+      // Fallback timeout in case close doesn't complete
+      setTimeout(() => {
+        if (this.ws) {
+          this.ws = null;
+          resolve();
+        }
+      }, 5000);
+    });
   }
 
   get projectId(): string | null {
