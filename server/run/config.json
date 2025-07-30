@@ -1,0 +1,26 @@
+{
+  "port": 8443,
+  "host": "0.0.0.0",
+  "tls_enabled": false,
+  "tls_cert_file": "run/certs/server.crt",
+  "tls_key_file": "run/certs/server.key",
+  "data_dir": "./run",
+  "websocket": {
+    "read_timeout": "10m0s",
+    "write_timeout": "10s",
+    "ping_interval": "5m0s",
+    "pong_timeout": "30s",
+    "max_message_size": 1048576,
+    "write_buffer_size": 1024,
+    "read_buffer_size": 1024
+  },
+  "execution": {
+    "command_timeout": "5m0s",
+    "max_projects": 100,
+    "max_log_size": 104857600,
+    "max_messages_per_log": 10000,
+    "claude_binary_path": "claude"
+  },
+  "log_level": "info",
+  "log_file": "run/logs/pocket-agent.log"
+}

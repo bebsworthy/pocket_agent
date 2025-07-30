@@ -87,7 +87,7 @@ func DefaultConfig() *Config {
 		},
 
 		Execution: ExecutionConfig{
-			CommandTimeout:    Duration{5 * time.Minute},
+			CommandTimeout:    Duration{0}, // No timeout by default
 			MaxProjects:       100,
 			MaxLogSize:        100 * 1024 * 1024, // 100MB
 			MaxMessagesPerLog: 10000,
@@ -278,8 +278,8 @@ func (c *Config) Validate() error {
 	if c.Execution.MaxProjects > 1000 {
 		return fmt.Errorf("max_projects cannot exceed 1000")
 	}
-	if c.Execution.CommandTimeout.Get() < time.Second {
-		return fmt.Errorf("command_timeout must be at least 1 second")
+	if c.Execution.CommandTimeout.Get() < 0 {
+		return fmt.Errorf("command_timeout cannot be negative")
 	}
 	if c.Execution.MaxLogSize < 1024*1024 {
 		return fmt.Errorf("max_log_size must be at least 1MB")

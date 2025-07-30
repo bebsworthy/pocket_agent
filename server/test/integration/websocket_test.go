@@ -288,7 +288,7 @@ func TestClaudeExecution(t *testing.T) {
 				Port:     0,
 				Execution: config.ExecutionConfig{
 					ClaudeBinaryPath: claudePath,
-					CommandTimeout:   timeout,
+					CommandTimeout:   config.Duration{timeout},
 					MaxProjects:      100,
 				},
 			}
@@ -804,7 +804,7 @@ func createTestServer(t *testing.T, dataDir, claudePath string) http.Handler {
 		Port:    0,
 		Execution: config.ExecutionConfig{
 			ClaudeBinaryPath: claudePath,
-			CommandTimeout:   5 * time.Second,
+			CommandTimeout:   config.Duration{5 * time.Second},
 			MaxProjects:      100,
 		},
 	}

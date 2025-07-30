@@ -49,7 +49,7 @@ func TestConcurrentConnections(t *testing.T) {
 		Port:    0,
 		Execution: config.ExecutionConfig{
 			ClaudeBinaryPath: claudePath,
-			CommandTimeout:   30 * time.Second,
+			CommandTimeout:   config.Duration{30 * time.Second},
 			MaxProjects:      200,
 		},
 	}
@@ -172,7 +172,7 @@ func TestMessageThroughput(t *testing.T) {
 		Port:    0,
 		Execution: config.ExecutionConfig{
 			ClaudeBinaryPath: claudePath,
-			CommandTimeout:   30 * time.Second,
+			CommandTimeout:   config.Duration{30 * time.Second},
 			MaxProjects:      100,
 		},
 	}
@@ -308,7 +308,7 @@ func TestResourceLimits(t *testing.T) {
 		Port:    0,
 		Execution: config.ExecutionConfig{
 			ClaudeBinaryPath: claudePath,
-			CommandTimeout:   30 * time.Second,
+			CommandTimeout:   config.Duration{30 * time.Second},
 			MaxProjects:      5, // Low limit
 		},
 	}
@@ -402,7 +402,7 @@ func TestMemoryUsage(t *testing.T) {
 		Port:    0,
 		Execution: config.ExecutionConfig{
 			ClaudeBinaryPath: claudePath,
-			CommandTimeout:   30 * time.Second,
+			CommandTimeout:   config.Duration{30 * time.Second},
 			MaxProjects:      50,
 		},
 	}
@@ -722,7 +722,7 @@ func createBenchServer(dataDir, claudePath string) http.Handler {
 		Port:    0,
 		Execution: config.ExecutionConfig{
 			ClaudeBinaryPath: claudePath,
-			CommandTimeout:   30 * time.Second,
+			CommandTimeout:   config.Duration{30 * time.Second},
 			MaxProjects:      1000,
 		},
 	}

@@ -43,8 +43,8 @@ func TestDefaultConfig(t *testing.T) {
 	}
 
 	// Execution defaults
-	if cfg.Execution.CommandTimeout.Get() != 5*time.Minute {
-		t.Errorf("expected command timeout 5m, got %v", cfg.Execution.CommandTimeout.Get())
+	if cfg.Execution.CommandTimeout.Get() != 0 {
+		t.Errorf("expected command timeout 0 (no timeout), got %v", cfg.Execution.CommandTimeout.Get())
 	}
 	if cfg.Execution.MaxProjects != 100 {
 		t.Errorf("expected max projects 100, got %d", cfg.Execution.MaxProjects)
