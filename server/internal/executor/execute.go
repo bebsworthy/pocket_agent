@@ -16,7 +16,6 @@ import (
 	"github.com/boyd/pocket_agent/server/internal/errors"
 	"github.com/boyd/pocket_agent/server/internal/models"
 	"github.com/boyd/pocket_agent/server/internal/platform"
-	"github.com/boyd/pocket_agent/server/internal/storage"
 )
 
 // ExecuteOptions contains options for Claude execution
@@ -59,18 +58,8 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 		return nil, errors.NewValidationError("prompt cannot be empty")
 	}
 
-	// Create message log for this project if storage factory is available
-	var messageLog *storage.MessageLog
-	if ce.storageFactory != nil {
-		ml, err := ce.storageFactory.CreateMessageLog(project.ID)
-		if err != nil {
-			ce.logger.Error("Failed to create message log", "project_id", project.ID, "error", err)
-			// Continue without logging - don't fail the execution
-		} else {
-			messageLog = ml
-			defer messageLog.Close()
-		}
-	}
+	// Use the project's existing message log
+	messageLog := project.MessageLog
 
 	// Create timeout context (Requirement 3.5)
 	ctx, cancel := ce.createTimeoutContext(options.Timeout)
