@@ -77,10 +77,21 @@ export class PocketAgentClient extends EventEmitter {
         reject(error);
       });
 
-      this.ws.on('close', () => {
-        if (this.debug) console.log('WebSocket disconnected');
+      this.ws.on('close', (code, reason) => {
+        if (this.debug) console.log('WebSocket disconnected', { code, reason: reason?.toString() });
         clearTimeout(connectionTimeout);
         this.emit('disconnected');
+        this.ws = null; // Clear the connection
+      });
+      
+      // Handle ping/pong to keep connection alive
+      this.ws.on('ping', (data) => {
+        if (this.debug) console.log('Received ping, sending pong');
+        // The ws library automatically sends pong, but let's log it
+      });
+      
+      this.ws.on('pong', (data) => {
+        if (this.debug) console.log('Received pong');
       });
     });
   }
@@ -91,6 +102,16 @@ export class PocketAgentClient extends EventEmitter {
     }
     if (this.debug) console.log('Sending:', JSON.stringify(message, null, 2));
     this.ws.send(JSON.stringify(message));
+  }
+  
+  // Add public method to enable/disable debug
+  setDebug(enabled: boolean): void {
+    this.debug = enabled;
+  }
+  
+  // Check if connected
+  isConnected(): boolean {
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
 
@@ -170,7 +191,7 @@ export class PocketAgentClient extends EventEmitter {
   }
 
   async execute(projectId: string, prompt: string, options?: ExecuteMessage['data']['options']): Promise<void> {
-    const message: ExecuteMessage = {
+    const message = {
       type: 'execute',
       project_id: projectId,
       data: {

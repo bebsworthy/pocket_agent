@@ -72,6 +72,7 @@ type Server struct {
 	// Metrics
 	activeConnections int64
 	totalConnections  int64
+	metricsProvider   MetricsProvider
 
 	// Rate limiting
 	connRateLimiter *RateLimiter
@@ -116,6 +117,11 @@ func NewServer(config Config, handler MessageHandler, log *logger.Logger) *Serve
 	}
 
 	return s
+}
+
+// SetMetricsProvider sets an external metrics provider
+func (s *Server) SetMetricsProvider(provider MetricsProvider) {
+	s.metricsProvider = provider
 }
 
 // Start starts the WebSocket server
@@ -230,9 +236,11 @@ func (s *Server) HandleUpgrade(w http.ResponseWriter, r *http.Request) (*models.
 
 	// Configure connection
 	conn.SetReadLimit(s.config.MaxMessageSize)
-	conn.SetReadDeadline(time.Now().Add(s.config.PongTimeout))
+	// Set initial deadline to PingInterval + PongTimeout to allow for the first ping/pong cycle
+	conn.SetReadDeadline(time.Now().Add(s.config.PingInterval + s.config.PongTimeout))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(s.config.PongTimeout))
+		// Reset deadline after receiving pong
+		conn.SetReadDeadline(time.Now().Add(s.config.PingInterval + s.config.PongTimeout))
 		return nil
 	})
 
@@ -247,6 +255,11 @@ func (s *Server) HandleUpgrade(w http.ResponseWriter, r *http.Request) (*models.
 	atomic.AddInt64(&s.activeConnections, 1)
 	atomic.AddInt64(&s.totalConnections, 1)
 	s.incrementIPConnections(clientIP)
+
+	// Notify external metrics provider
+	if s.metricsProvider != nil {
+		s.metricsProvider.IncrementConnections()
+	}
 
 	s.log.Info("WebSocket connection established",
 		"session_id", sessionID,
@@ -413,6 +426,11 @@ func (s *Server) cleanupSession(session *models.Session) {
 	}
 
 	atomic.AddInt64(&s.activeConnections, -1)
+
+	// Notify external metrics provider
+	if s.metricsProvider != nil {
+		s.metricsProvider.DecrementConnections()
+	}
 
 	// Clean up IP connection count
 	if conn := session.Conn; conn != nil {

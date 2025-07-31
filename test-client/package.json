@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "scenario:create-haiku": "ts-node src/scenarios/create-haiku.ts",
+    "interactive": "ts-node src/scenarios/interactive.ts",
     "test": "npm run scenario:create-haiku"
   },
   "keywords": ["websocket", "test", "client"],
