@@ -123,7 +123,10 @@ func TestStorageIntegration(t *testing.T) {
 			},
 			Direction: "claude",
 		}
-		ml.Append(msg)
+		if err := ml.Append(msg); err != nil {
+			t.Fatalf("Failed to append message: %v", err)
+		}
+		
 		ml.Close()
 
 		// Update project
@@ -176,9 +179,12 @@ func TestStorageIntegration(t *testing.T) {
 		defer ml2.Close()
 
 		// Verify messages persisted
-		msgs, _ := ml2.GetMessagesSince(time.Now().Add(-1 * time.Hour))
+		msgs, err := ml2.GetMessagesSince(time.Now().Add(-1 * time.Hour))
+		if err != nil {
+			t.Errorf("Failed to get messages: %v", err)
+		}
 		if len(msgs) != 1 {
-			t.Error("Messages not persisted")
+			t.Errorf("Messages not persisted: expected 1, got %d", len(msgs))
 		}
 
 		// Delete project

@@ -19,21 +19,65 @@ func TestMessageLog(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	t.Run("NewMessageLog", func(t *testing.T) {
-		ml, err := NewMessageLog("test-project", tempDir)
+		projectDir := filepath.Join(tempDir, "test-project")
+		ml, err := NewMessageLog("test-project", projectDir)
 		if err != nil {
 			t.Fatalf("Failed to create message log: %v", err)
 		}
 		defer ml.Close()
 
-		// Check that log directory was created
-		logDir := filepath.Join(tempDir, "test-project")
+		// Check that log directory was NOT created (lazy initialization)
+		logDir := filepath.Join(projectDir, "logs")
+		if _, err := os.Stat(logDir); !os.IsNotExist(err) {
+			t.Error("Log directory was created before first append")
+		}
+	})
+
+	t.Run("LazyInitialization", func(t *testing.T) {
+		projectDir := filepath.Join(tempDir, "lazy-project")
+		ml, err := NewMessageLog("lazy-project", projectDir)
+		if err != nil {
+			t.Fatalf("Failed to create message log: %v", err)
+		}
+		defer ml.Close()
+
+		// Directory should not exist yet
+		logDir := filepath.Join(projectDir, "logs")
+		if _, err := os.Stat(logDir); !os.IsNotExist(err) {
+			t.Error("Log directory exists before first message")
+		}
+
+		// Append first message
+		msg := models.TimestampedMessage{
+			Timestamp: time.Now(),
+			Message: models.ClaudeMessage{
+				Type:    "text",
+				Content: json.RawMessage(`{"text":"First message"}`),
+			},
+			Direction: "client",
+		}
+		if err := ml.Append(msg); err != nil {
+			t.Fatalf("Failed to append message: %v", err)
+		}
+
+		// Now directory should exist
 		if _, err := os.Stat(logDir); os.IsNotExist(err) {
-			t.Error("Log directory was not created")
+			t.Error("Log directory was not created after first append")
+		}
+		
+		// Check that a file was created
+		files, err := os.ReadDir(logDir)
+		if err != nil {
+			t.Fatalf("Failed to read log directory: %v", err)
+		}
+		if len(files) == 0 {
+			t.Error("No log files created after first append")
 		}
 	})
 
 	t.Run("Append and GetMessagesSince", func(t *testing.T) {
-		ml, err := NewMessageLog("test-project", tempDir)
+		projectDir := filepath.Join(tempDir, "append-test-project")
+		ml, err := NewMessageLog("append-test-project", projectDir)
 		if err != nil {
 			t.Fatalf("Failed to create message log: %v", err)
 		}
@@ -117,7 +161,8 @@ func TestMessageLog(t *testing.T) {
 	})
 
 	t.Run("Message ordering", func(t *testing.T) {
-		ml, err := NewMessageLog("test-project-order", tempDir)
+		projectDir := filepath.Join(tempDir, "test-project-order")
+		ml, err := NewMessageLog("test-project-order", projectDir)
 		if err != nil {
 			t.Fatalf("Failed to create message log: %v", err)
 		}
@@ -154,7 +199,8 @@ func TestMessageLog(t *testing.T) {
 	})
 
 	t.Run("Stats", func(t *testing.T) {
-		ml, err := NewMessageLog("test-project-stats", tempDir)
+		projectDir := filepath.Join(tempDir, "test-project-stats")
+		ml, err := NewMessageLog("test-project-stats", projectDir)
 		if err != nil {
 			t.Fatalf("Failed to create message log: %v", err)
 		}
@@ -200,14 +246,27 @@ func TestMessageLogRotation(t *testing.T) {
 		}
 		defer os.RemoveAll(tempDir)
 
-		ml, err := NewMessageLog("test-rotation", tempDir)
+		projectDir := filepath.Join(tempDir, "test-rotation")
+		ml, err := NewMessageLog("test-rotation", projectDir)
 		if err != nil {
 			t.Fatalf("Failed to create message log: %v", err)
 		}
 		defer ml.Close()
 
+		// First append to trigger directory creation
+		if err := ml.Append(models.TimestampedMessage{
+			Timestamp: time.Now(),
+			Message: models.ClaudeMessage{
+				Type:    "text",
+				Content: json.RawMessage(`{"text":"Init"}`),
+			},
+			Direction: "client",
+		}); err != nil {
+			t.Fatalf("Failed to init: %v", err)
+		}
+
 		// Manually create additional log files to simulate rotation
-		logDir := filepath.Join(tempDir, "test-rotation")
+		logDir := filepath.Join(projectDir, "logs")
 		oldFile := filepath.Join(logDir, "messages_2024-01-01_12-00-00.jsonl")
 
 		// Write a test message to old file
@@ -243,9 +302,32 @@ func TestMessageLogRotation(t *testing.T) {
 			t.Fatalf("Failed to get messages: %v", err)
 		}
 
-		// Should have both messages
-		if len(msgs) != 2 {
-			t.Errorf("Expected 2 messages, got %d", len(msgs))
+		// Should have all messages (init + old + new)
+		if len(msgs) != 3 {
+			t.Errorf("Expected 3 messages, got %d", len(msgs))
+		}
+	})
+
+	t.Run("NoEmptyFiles", func(t *testing.T) {
+		tempDir2, err := os.MkdirTemp("", "msglog_empty_*")
+		if err != nil {
+			t.Fatalf("Failed to create temp dir: %v", err)
+		}
+		defer os.RemoveAll(tempDir2)
+
+		projectDir := filepath.Join(tempDir2, "no-empty-project")
+		ml, err := NewMessageLog("no-empty-project", projectDir)
+		if err != nil {
+			t.Fatalf("Failed to create message log: %v", err)
+		}
+
+		// Close without appending - should not create any files
+		ml.Close()
+
+		// Check that no log directory was created
+		logDir := filepath.Join(projectDir, "logs")
+		if _, err := os.Stat(logDir); !os.IsNotExist(err) {
+			t.Error("Log directory was created without any messages")
 		}
 	})
 }

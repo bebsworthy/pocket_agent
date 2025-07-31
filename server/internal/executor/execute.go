@@ -16,6 +16,7 @@ import (
 	"github.com/boyd/pocket_agent/server/internal/errors"
 	"github.com/boyd/pocket_agent/server/internal/models"
 	"github.com/boyd/pocket_agent/server/internal/platform"
+	"github.com/boyd/pocket_agent/server/internal/storage"
 )
 
 // ExecuteOptions contains options for Claude execution
@@ -56,6 +57,19 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 
 	if options.Prompt == "" {
 		return nil, errors.NewValidationError("prompt cannot be empty")
+	}
+
+	// Create message log for this project if storage factory is available
+	var messageLog *storage.MessageLog
+	if ce.storageFactory != nil {
+		ml, err := ce.storageFactory.CreateMessageLog(project.ID)
+		if err != nil {
+			ce.logger.Error("Failed to create message log", "project_id", project.ID, "error", err)
+			// Continue without logging - don't fail the execution
+		} else {
+			messageLog = ml
+			defer messageLog.Close()
+		}
 	}
 
 	// Create timeout context (Requirement 3.5)
@@ -133,6 +147,21 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 		return nil, fmt.Errorf("failed to start Claude: %w", err)
 	}
 
+	// Log the user prompt first
+	if messageLog != nil {
+		userMsg := models.TimestampedMessage{
+			Timestamp: time.Now(),
+			Message: models.ClaudeMessage{
+				Type:    "user",
+				Content: json.RawMessage(fmt.Sprintf(`{"text":%q}`, options.Prompt)),
+			},
+			Direction: "client",
+		}
+		if err := messageLog.Append(userMsg); err != nil {
+			ce.logger.Error("Failed to log user prompt", "error", err)
+		}
+	}
+
 	// Send prompt via stdin
 	go func() {
 		defer stdin.Close()
@@ -190,6 +219,17 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 				if callback != nil {
 					callback(msg)
 				}
+				// Log the message
+				if messageLog != nil {
+					timestampedMsg := models.TimestampedMessage{
+						Timestamp: time.Now(),
+						Message:   msg,
+						Direction: "claude",
+					}
+					if err := messageLog.Append(timestampedMsg); err != nil {
+						ce.logger.Error("Failed to log Claude message", "error", err, "type", msgType)
+					}
+				}
 
 			case "assistant", "user", "result":
 				// Store and stream these message types
@@ -201,6 +241,17 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 				messagesChan <- msg
 				if callback != nil {
 					callback(msg)
+				}
+				// Log the message
+				if messageLog != nil {
+					timestampedMsg := models.TimestampedMessage{
+						Timestamp: time.Now(),
+						Message:   msg,
+						Direction: "claude",
+					}
+					if err := messageLog.Append(timestampedMsg); err != nil {
+						ce.logger.Error("Failed to log Claude message", "error", err, "type", msgType)
+					}
 				}
 				// Also check for session_id in any message
 				if sid, ok := obj["session_id"].(string); ok && sid != "" {
@@ -220,6 +271,17 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 				messagesChan <- msg
 				if callback != nil {
 					callback(msg)
+				}
+				// Log the message
+				if messageLog != nil {
+					timestampedMsg := models.TimestampedMessage{
+						Timestamp: time.Now(),
+						Message:   msg,
+						Direction: "claude",
+					}
+					if err := messageLog.Append(timestampedMsg); err != nil {
+						ce.logger.Error("Failed to log Claude message", "error", err, "type", msgType)
+					}
 				}
 
 			case "error":

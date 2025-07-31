@@ -20,8 +20,8 @@ func NewFactory(dataDir string) *Factory {
 
 // CreateMessageLog creates a new message log for a project
 func (f *Factory) CreateMessageLog(projectID string) (*MessageLog, error) {
-	logsDir := filepath.Join(f.dataDir, "logs")
-	return NewMessageLog(projectID, logsDir)
+	projectDir := filepath.Join(f.dataDir, "projects", projectID)
+	return NewMessageLog(projectID, projectDir)
 }
 
 // CreateProjectPersistence creates a new project persistence handler
@@ -31,14 +31,13 @@ func (f *Factory) CreateProjectPersistence() (*ProjectPersistence, error) {
 
 // GetProjectLogDir returns the log directory for a project
 func (f *Factory) GetProjectLogDir(projectID string) string {
-	return filepath.Join(f.dataDir, "logs", projectID)
+	return filepath.Join(f.dataDir, "projects", projectID, "logs")
 }
 
 // EnsureDirectories creates all required storage directories
 func (f *Factory) EnsureDirectories() error {
 	dirs := []string{
 		f.dataDir,
-		filepath.Join(f.dataDir, "logs"),
 		filepath.Join(f.dataDir, ProjectsDirName),
 	}
 

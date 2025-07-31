@@ -98,6 +98,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		ClaudePath:              cfg.Config.Execution.ClaudeBinaryPath,
 		DefaultTimeout:          cfg.Config.Execution.CommandTimeout.Get(),
 		MaxConcurrentExecutions: 10,
+		StorageFactory:          projectManager.GetStorageFactory(),
 	}
 	claudeExecutor, err := executor.NewClaudeExecutor(executorCfg)
 	if err != nil {

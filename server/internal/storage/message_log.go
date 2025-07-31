@@ -36,35 +36,47 @@ type MessageLog struct {
 	fileSize     int64
 	mu           sync.Mutex
 	rotationTime time.Time
+	initialized  bool
 }
 
 // NewMessageLog creates a new message log for a project
-func NewMessageLog(projectID, baseLogDir string) (*MessageLog, error) {
-	logDir := filepath.Join(baseLogDir, projectID)
-
-	// Create log directory if it doesn't exist
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
-		return nil, fmt.Errorf("failed to create log directory: %w", err)
-	}
-
+func NewMessageLog(projectID, projectDir string) (*MessageLog, error) {
 	ml := &MessageLog{
 		projectID:    projectID,
-		logDir:       logDir,
+		logDir:       filepath.Join(projectDir, "logs"),
 		rotationTime: time.Now().Truncate(24 * time.Hour).Add(24 * time.Hour), // Next midnight
+		initialized:  false,
 	}
 
-	// Initialize the current log file
-	if err := ml.initializeCurrentFile(); err != nil {
-		return nil, fmt.Errorf("failed to initialize log file: %w", err)
-	}
-
+	// Don't create directories or files here - wait for first append
 	return ml, nil
+}
+
+// ensureInitialized creates the log directory and initial file if not already done
+func (ml *MessageLog) ensureInitialized() error {
+	if err := os.MkdirAll(ml.logDir, 0o755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	if err := ml.initializeCurrentFile(); err != nil {
+		return fmt.Errorf("failed to initialize log file: %w", err)
+	}
+
+	ml.initialized = true
+	return nil
 }
 
 // Append adds a timestamped message to the log
 func (ml *MessageLog) Append(msg models.TimestampedMessage) error {
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
+
+	// Initialize on first use
+	if !ml.initialized {
+		if err := ml.ensureInitialized(); err != nil {
+			return err
+		}
+	}
 
 	// Check if rotation is needed
 	if err := ml.rotateIfNeeded(); err != nil {
@@ -100,6 +112,15 @@ func (ml *MessageLog) GetMessagesSince(since time.Time) ([]models.TimestampedMes
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
 
+	// Check if log directory exists even if not initialized
+	if !ml.initialized {
+		if _, err := os.Stat(ml.logDir); os.IsNotExist(err) {
+			// Directory doesn't exist, return empty
+			return []models.TimestampedMessage{}, nil
+		}
+		// Directory exists, we can read from it
+	}
+
 	// Get all log files
 	files, err := ml.getLogFiles()
 	if err != nil {
@@ -131,13 +152,27 @@ func (ml *MessageLog) Close() error {
 	defer ml.mu.Unlock()
 
 	if ml.currentFile != nil {
-		return ml.currentFile.Close()
+		// Check if empty before closing
+		stat, _ := ml.currentFile.Stat()
+		err := ml.currentFile.Close()
+		
+		// Delete if empty
+		if stat != nil && stat.Size() == 0 {
+			os.Remove(ml.currentPath)
+		}
+		
+		return err
 	}
 	return nil
 }
 
 // rotateIfNeeded checks if rotation is required and performs it
 func (ml *MessageLog) rotateIfNeeded() error {
+	// Don't rotate if no messages written
+	if ml.messageCount == 0 {
+		return nil
+	}
+
 	// Check size and message count
 	needRotation := ml.fileSize >= MaxLogFileSize ||
 		ml.messageCount >= MaxLogMessages ||
@@ -155,9 +190,17 @@ func (ml *MessageLog) rotateIfNeeded() error {
 func (ml *MessageLog) rotateLog() error {
 	// Close current file first to ensure no file descriptor leak
 	if ml.currentFile != nil {
+		// Check if empty before closing
+		stat, _ := ml.currentFile.Stat()
 		if err := ml.currentFile.Close(); err != nil {
 			return fmt.Errorf("failed to close current file: %w", err)
 		}
+		
+		// Delete if empty
+		if stat != nil && stat.Size() == 0 {
+			os.Remove(ml.currentPath)
+		}
+		
 		ml.currentFile = nil // Clear reference immediately after closing
 	}
 

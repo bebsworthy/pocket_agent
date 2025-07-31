@@ -9,7 +9,13 @@ import (
 
 	"github.com/boyd/pocket_agent/server/internal/errors"
 	"github.com/boyd/pocket_agent/server/internal/logger"
+	"github.com/boyd/pocket_agent/server/internal/storage"
 )
+
+// StorageFactory interface for creating storage components
+type StorageFactory interface {
+	CreateMessageLog(projectID string) (*storage.MessageLog, error)
+}
 
 // ClaudeExecutor manages Claude CLI process execution
 type ClaudeExecutor struct {
@@ -21,6 +27,8 @@ type ClaudeExecutor struct {
 	logger *logger.Logger
 	// config contains executor configuration
 	config Config
+	// storageFactory creates storage components for message logging
+	storageFactory StorageFactory
 }
 
 // ProcessInfo tracks information about a running process
@@ -40,6 +48,8 @@ type Config struct {
 	DefaultTimeout time.Duration
 	// MaxConcurrentExecutions limits concurrent executions
 	MaxConcurrentExecutions int
+	// StorageFactory for creating message logs
+	StorageFactory StorageFactory
 }
 
 // DefaultConfig returns default executor configuration
@@ -76,6 +86,7 @@ func NewClaudeExecutor(config Config) (*ClaudeExecutor, error) {
 		activeProcesses: make(map[string]*ProcessInfo),
 		logger:          logger.New("info"),
 		config:          config,
+		storageFactory:  config.StorageFactory,
 	}, nil
 }
 

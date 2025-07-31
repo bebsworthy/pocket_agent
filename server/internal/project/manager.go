@@ -79,6 +79,11 @@ func NewManager(config Config) (*Manager, error) {
 	return manager, nil
 }
 
+// GetStorageFactory returns the storage factory instance
+func (m *Manager) GetStorageFactory() *storage.Factory {
+	return m.storageFactory
+}
+
 // loadProjects loads all projects from persistence layer
 func (m *Manager) loadProjects() error {
 	projects, err := m.persistence.LoadProjects()
