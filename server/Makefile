@@ -57,7 +57,7 @@ build-all: ## Build for all platforms
 test: test-build-claude-mock ## Run tests with coverage
 	@echo "$(COLOR_BLUE)Running tests...$(COLOR_RESET)"
 	@mkdir -p $(COVERAGE_DIR)
-	$(GOTEST) -v -timeout 300s -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
+	$(GOTEST) -v -count=1 -timeout 300s -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
 	@echo "$(COLOR_GREEN)Tests complete$(COLOR_RESET)"
 
 .PHONY: test-build-claude-mock
@@ -70,7 +70,7 @@ test-build-claude-mock: ## Build claude-mock binary before running tests
 test-race: ## Run tests with race detection and coverage
 	@echo "$(COLOR_BLUE)Running tests with race detection...$(COLOR_RESET)"
 	@mkdir -p $(COVERAGE_DIR)
-	$(GOTEST) -v -race -timeout 300s -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
+	$(GOTEST) -v -count=1 -race -timeout 300s -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
 	@echo "$(COLOR_GREEN)Tests with race detection complete$(COLOR_RESET)"
 
 .PHONY: test-integration
@@ -195,6 +195,12 @@ clean: ## Clean build artifacts
 	@rm -rf vendor/
 	@rm -rf dist/
 	@echo "$(COLOR_GREEN)Clean complete$(COLOR_RESET)"
+
+.PHONY: clean-cache
+clean-cache: ## Clean Go test cache
+	@echo "$(COLOR_BLUE)Cleaning Go test cache...$(COLOR_RESET)"
+	@go clean -testcache
+	@echo "$(COLOR_GREEN)Test cache cleaned$(COLOR_RESET)"
 
 .PHONY: docker-build
 docker-build: ## Build Docker image
