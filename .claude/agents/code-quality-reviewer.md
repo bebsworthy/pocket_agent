@@ -1,7 +1,6 @@
 ---
 name: code-quality-reviewer
 description: Use this agent when you need to review recently written or modified code for quality, security, and best practices. This agent should be invoked after completing a logical chunk of code implementation, before committing changes, or when you want a comprehensive review of recent modifications. 
-tools: Bash, Glob, Grep, LS, ExitPlanMode, Read, NotebookRead, WebFetch, TodoWrite, WebSearch, Task
 color: green
 ---
 

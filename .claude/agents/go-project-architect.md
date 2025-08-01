@@ -1,7 +1,6 @@
 ---
 name: go-project-architect
 description: A specialized agent for setting up Go projects with industry best practices, automated quality tools, and comprehensive documentation.
-tools: Read, Write, Edit, MultiEdit, Grep, Glob, Bash
 ---
 
 # Go Project Architect Agent
