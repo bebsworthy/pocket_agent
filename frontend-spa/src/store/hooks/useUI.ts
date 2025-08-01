@@ -28,8 +28,7 @@ import {
   updateFormStateAtom,
   updateMobileUIStateAtom,
   updateAppStateAtom,
-  updateStorageStatusAtom,
-  refreshStorageStatusAtom
+  refreshStorageStatusAtom,
 } from '../atoms/ui';
 
 // Primary hook for UI state management
@@ -60,45 +59,56 @@ export function useUI() {
   const updateFormState = useSetAtom(updateFormStateAtom);
   const updateMobileUIState = useSetAtom(updateMobileUIStateAtom);
   const updateAppState = useSetAtom(updateAppStateAtom);
-  // const updateStorageStatus = useSetAtom(updateStorageStatusAtom);
   const refreshStorageStatus = useSetAtom(refreshStorageStatusAtom);
 
   // Helper functions
   const toggleTheme = useCallback(() => {
-    setTheme(current => current === 'light' ? 'dark' : 'light');
+    setTheme(current => (current === 'light' ? 'dark' : 'light'));
   }, [setTheme]);
 
-  const showSuccessToast = useCallback((message: string, description?: string) => {
-    showToast({
-      type: 'success',
-      message,
-      description
-    });
-  }, [showToast]);
+  const showSuccessToast = useCallback(
+    (message: string, description?: string) => {
+      showToast({
+        type: 'success',
+        message,
+        description,
+      });
+    },
+    [showToast]
+  );
 
-  const showErrorToast = useCallback((message: string, description?: string) => {
-    showToast({
-      type: 'error',
-      message,
-      description
-    });
-  }, [showToast]);
+  const showErrorToast = useCallback(
+    (message: string, description?: string) => {
+      showToast({
+        type: 'error',
+        message,
+        description,
+      });
+    },
+    [showToast]
+  );
 
-  const showWarningToast = useCallback((message: string, description?: string) => {
-    showToast({
-      type: 'warning',
-      message,
-      description
-    });
-  }, [showToast]);
+  const showWarningToast = useCallback(
+    (message: string, description?: string) => {
+      showToast({
+        type: 'warning',
+        message,
+        description,
+      });
+    },
+    [showToast]
+  );
 
-  const showInfoToast = useCallback((message: string, description?: string) => {
-    showToast({
-      type: 'info',
-      message,
-      description
-    });
-  }, [showToast]);
+  const showInfoToast = useCallback(
+    (message: string, description?: string) => {
+      showToast({
+        type: 'info',
+        message,
+        description,
+      });
+    },
+    [showToast]
+  );
 
   const clearError = useCallback(() => {
     setError(null);
@@ -112,35 +122,50 @@ export function useUI() {
     setLoading(false);
   }, [setLoading]);
 
-  const updateNavigation = useCallback((updates: Partial<typeof navigationState>) => {
-    setNavigationState(current => ({ ...current, ...updates }));
-  }, [setNavigationState]);
+  const updateNavigation = useCallback(
+    (updates: Partial<typeof navigationState>) => {
+      setNavigationState(current => ({ ...current, ...updates }));
+    },
+    [setNavigationState]
+  );
 
-  const startNavigation = useCallback((fromRoute?: string, toRoute?: string) => {
-    setNavigationState({
-      isNavigating: true,
-      fromRoute,
-      toRoute
-    });
-  }, [setNavigationState]);
+  const startNavigation = useCallback(
+    (fromRoute?: string, toRoute?: string) => {
+      setNavigationState({
+        isNavigating: true,
+        fromRoute,
+        toRoute,
+      });
+    },
+    [setNavigationState]
+  );
 
   const endNavigation = useCallback(() => {
     setNavigationState({
-      isNavigating: false
+      isNavigating: false,
     });
   }, [setNavigationState]);
 
-  const updateKeyboardVisibility = useCallback((visible: boolean) => {
-    updateMobileUIState({ keyboardVisible: visible });
-  }, [updateMobileUIState]);
+  const updateKeyboardVisibility = useCallback(
+    (visible: boolean) => {
+      updateMobileUIState({ keyboardVisible: visible });
+    },
+    [updateMobileUIState]
+  );
 
-  const updateOrientation = useCallback((orientation: 'portrait' | 'landscape') => {
-    updateMobileUIState({ orientation });
-  }, [updateMobileUIState]);
+  const updateOrientation = useCallback(
+    (orientation: 'portrait' | 'landscape') => {
+      updateMobileUIState({ orientation });
+    },
+    [updateMobileUIState]
+  );
 
-  const updateSafeAreaInsets = useCallback((insets: typeof mobileUIState.safeAreaInsets) => {
-    updateMobileUIState({ safeAreaInsets: insets });
-  }, [updateMobileUIState]);
+  const updateSafeAreaInsets = useCallback(
+    (insets: typeof mobileUIState.safeAreaInsets) => {
+      updateMobileUIState({ safeAreaInsets: insets });
+    },
+    [updateMobileUIState, mobileUIState]
+  );
 
   const markAppInitialized = useCallback(() => {
     updateAppState({ isInitialized: true });
@@ -150,25 +175,37 @@ export function useUI() {
     updateAppState({ hasHydrated: true });
   }, [updateAppState]);
 
-  const updateOnlineStatus = useCallback((isOnline: boolean) => {
-    updateAppState({ isOnline });
-  }, [updateAppState]);
+  const updateOnlineStatus = useCallback(
+    (isOnline: boolean) => {
+      updateAppState({ isOnline });
+    },
+    [updateAppState]
+  );
 
-  const getFormState = useCallback((formId: string) => {
-    return formStates.get(formId) || { isSubmitting: false, hasErrors: false };
-  }, [formStates]);
+  const getFormState = useCallback(
+    (formId: string) => {
+      return formStates.get(formId) || { isSubmitting: false, hasErrors: false };
+    },
+    [formStates]
+  );
 
-  const startFormSubmission = useCallback((formId: string) => {
-    updateFormState(formId, { isSubmitting: true, hasErrors: false });
-  }, [updateFormState]);
+  const startFormSubmission = useCallback(
+    (formId: string) => {
+      updateFormState(formId, { isSubmitting: true, hasErrors: false });
+    },
+    [updateFormState]
+  );
 
-  const endFormSubmission = useCallback((formId: string, hasErrors: boolean = false) => {
-    updateFormState(formId, { 
-      isSubmitting: false, 
-      hasErrors,
-      lastSubmitted: new Date().toISOString()
-    });
-  }, [updateFormState]);
+  const endFormSubmission = useCallback(
+    (formId: string, hasErrors: boolean = false) => {
+      updateFormState(formId, {
+        isSubmitting: false,
+        hasErrors,
+        lastSubmitted: new Date().toISOString(),
+      });
+    },
+    [updateFormState]
+  );
 
   const checkStorageStatus = useCallback(async () => {
     await refreshStorageStatus();
@@ -182,9 +219,10 @@ export function useUI() {
     return {
       used: storageStatus.used,
       available: storageStatus.available,
-      usagePercentage: storageStatus.available > 0 
-        ? (storageStatus.used / (storageStatus.used + storageStatus.available)) * 100
-        : 100
+      usagePercentage:
+        storageStatus.available > 0
+          ? (storageStatus.used / (storageStatus.used + storageStatus.available)) * 100
+          : 100,
     };
   }, [storageStatus]);
 
@@ -251,7 +289,7 @@ export function useUI() {
     // Storage monitoring actions
     checkStorageStatus,
     isStorageQuotaExceeded,
-    getStorageUsage
+    getStorageUsage,
   };
 }
 
@@ -261,14 +299,14 @@ export function useTheme() {
   const isDarkMode = useAtomValue(isDarkModeAtom);
 
   const toggleTheme = useCallback(() => {
-    setTheme(current => current === 'light' ? 'dark' : 'light');
+    setTheme(current => (current === 'light' ? 'dark' : 'light'));
   }, [setTheme]);
 
   return {
     theme,
     isDarkMode,
     setTheme,
-    toggleTheme
+    toggleTheme,
   };
 }
 
@@ -278,21 +316,33 @@ export function useToast() {
   const showToast = useSetAtom(showToastAtom);
   const dismissToast = useSetAtom(dismissToastAtom);
 
-  const showSuccessToast = useCallback((message: string, description?: string) => {
-    showToast({ type: 'success', message, description });
-  }, [showToast]);
+  const showSuccessToast = useCallback(
+    (message: string, description?: string) => {
+      showToast({ type: 'success', message, description });
+    },
+    [showToast]
+  );
 
-  const showErrorToast = useCallback((message: string, description?: string) => {
-    showToast({ type: 'error', message, description });
-  }, [showToast]);
+  const showErrorToast = useCallback(
+    (message: string, description?: string) => {
+      showToast({ type: 'error', message, description });
+    },
+    [showToast]
+  );
 
-  const showWarningToast = useCallback((message: string, description?: string) => {
-    showToast({ type: 'warning', message, description });
-  }, [showToast]);
+  const showWarningToast = useCallback(
+    (message: string, description?: string) => {
+      showToast({ type: 'warning', message, description });
+    },
+    [showToast]
+  );
 
-  const showInfoToast = useCallback((message: string, description?: string) => {
-    showToast({ type: 'info', message, description });
-  }, [showToast]);
+  const showInfoToast = useCallback(
+    (message: string, description?: string) => {
+      showToast({ type: 'info', message, description });
+    },
+    [showToast]
+  );
 
   return {
     toast,
@@ -301,7 +351,7 @@ export function useToast() {
     showErrorToast,
     showWarningToast,
     showInfoToast,
-    dismissToast
+    dismissToast,
   };
 }
 
@@ -316,7 +366,7 @@ export function useLoading() {
   return {
     loading,
     startLoading,
-    stopLoading
+    stopLoading,
   };
 }
 
@@ -327,15 +377,18 @@ export function useModal() {
   const showModal = useSetAtom(showModalAtom);
   const hideModal = useSetAtom(hideModalAtom);
 
-  const isModalActive = useCallback((modalId: string) => {
-    return activeModal === modalId;
-  }, [activeModal]);
+  const isModalActive = useCallback(
+    (modalId: string) => {
+      return activeModal === modalId;
+    },
+    [activeModal]
+  );
 
   return {
     activeModal,
     hasActiveModal,
     showModal,
     hideModal,
-    isModalActive
+    isModalActive,
   };
 }

@@ -42,12 +42,12 @@ localStorageService.removeProject('project-1');
 import { useProjectStorage } from '@/services/storage/hooks';
 
 function ProjectManager() {
-  const { 
-    projects, 
-    isLoading, 
-    addProject, 
-    removeProject, 
-    updateProject 
+  const {
+    projects,
+    isLoading,
+    addProject,
+    removeProject,
+    updateProject
   } = useProjectStorage();
 
   const handleAddProject = () => {
@@ -103,12 +103,12 @@ function ProjectManager() {
 import { useServerStorage } from '@/services/storage/hooks';
 
 function ServerManager() {
-  const { 
-    servers, 
-    isLoading, 
-    addServer, 
-    removeServer, 
-    updateServer 
+  const {
+    servers,
+    isLoading,
+    addServer,
+    removeServer,
+    updateServer
   } = useServerStorage();
 
   const handleAddServer = () => {
@@ -138,7 +138,7 @@ function ServerManager() {
           <h3>{server.name}</h3>
           <p>{server.websocketUrl}</p>
           <span>Status: {server.isConnected ? 'Connected' : 'Disconnected'}</span>
-          <button 
+          <button
             onClick={() => handleToggleConnection(server.id, !server.isConnected)}
           >
             {server.isConnected ? 'Disconnect' : 'Connect'}
@@ -220,8 +220,8 @@ function StorageStatus() {
         <p>Used: {Math.round(usage.used / 1024)} KB</p>
         <p>Available: {Math.round(usage.available / 1024)} KB</p>
         <div className="progress-bar">
-          <div 
-            className="progress-fill" 
+          <div
+            className="progress-fill"
             style={{ width: `${usagePercentage}%` }}
           />
         </div>
@@ -243,12 +243,12 @@ function StorageStatus() {
 import { useStorageBackup } from '@/services/storage/hooks';
 
 function DataManager() {
-  const { 
-    isExporting, 
-    isImporting, 
-    exportData, 
-    importData, 
-    clearAllData 
+  const {
+    isExporting,
+    isImporting,
+    exportData,
+    importData,
+    clearAllData
   } = useStorageBackup();
 
   const handleExport = async () => {
@@ -271,7 +271,7 @@ function DataManager() {
 
     const text = await file.text();
     const result = await importData(text);
-    
+
     if (result.success) {
       alert('Data imported successfully!');
       window.location.reload(); // Refresh to load new data
@@ -290,21 +290,21 @@ function DataManager() {
   return (
     <div>
       <h3>Data Management</h3>
-      
+
       <button onClick={handleExport} disabled={isExporting}>
         {isExporting ? 'Exporting...' : 'Export Data'}
       </button>
-      
+
       <label>
         Import Data:
-        <input 
-          type="file" 
-          accept=".json" 
+        <input
+          type="file"
+          accept=".json"
           onChange={handleImport}
           disabled={isImporting}
         />
       </label>
-      
+
       <button onClick={handleClearAll} className="danger">
         Clear All Data
       </button>
@@ -353,11 +353,11 @@ function App() {
 
       {/* Settings */}
       <aside>
-        <ThemeSelector 
+        <ThemeSelector
           currentTheme={theme.theme}
           onThemeChange={theme.updateTheme}
         />
-        <DataManager 
+        <DataManager
           onExport={backup.exportData}
           onImport={backup.importData}
           onClear={backup.clearAllData}

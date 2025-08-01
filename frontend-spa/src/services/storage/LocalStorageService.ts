@@ -1,6 +1,6 @@
 /**
  * LocalStorageService - Robust localStorage implementation with error handling
- * 
+ *
  * Provides type-safe storage operations with:
  * - Storage quota management
  * - Data validation and corruption recovery
@@ -32,7 +32,12 @@ interface StoredData<T> {
 export class StorageError extends Error {
   constructor(
     message: string,
-    public readonly code: 'QUOTA_EXCEEDED' | 'ACCESS_DENIED' | 'CORRUPTED_DATA' | 'PARSE_ERROR' | 'UNKNOWN',
+    public readonly code:
+      | 'QUOTA_EXCEEDED'
+      | 'ACCESS_DENIED'
+      | 'CORRUPTED_DATA'
+      | 'PARSE_ERROR'
+      | 'UNKNOWN',
     public readonly originalError?: Error
   ) {
     super(message);
@@ -107,7 +112,7 @@ export class LocalStorageService {
         timestamp: Date.now(),
         data,
       };
-      
+
       const serialized = JSON.stringify(storedData);
       localStorage.setItem(key, serialized);
     } catch (error) {
@@ -120,18 +125,10 @@ export class LocalStorageService {
           );
         }
         if (error.name === 'TypeError' || error.message.includes('circular')) {
-          throw new StorageError(
-            'Failed to serialize data',
-            'PARSE_ERROR',
-            error
-          );
+          throw new StorageError('Failed to serialize data', 'PARSE_ERROR', error);
         }
       }
-      throw new StorageError(
-        'Failed to store data',
-        'UNKNOWN',
-        error as Error
-      );
+      throw new StorageError('Failed to store data', 'UNKNOWN', error as Error);
     }
   }
 
@@ -146,7 +143,7 @@ export class LocalStorageService {
       }
 
       const parsed = JSON.parse(item) as StoredData<T>;
-      
+
       // Validate structure
       if (!parsed || typeof parsed !== 'object' || !('data' in parsed)) {
         console.warn(`Invalid storage format for key ${key}, using default`);
@@ -161,11 +158,7 @@ export class LocalStorageService {
       return parsed.data;
     } catch (error) {
       console.warn(`Failed to parse data for key ${key}:`, error);
-      throw new StorageError(
-        `Corrupted data found for ${key}`,
-        'CORRUPTED_DATA',
-        error as Error
-      );
+      throw new StorageError(`Corrupted data found for ${key}`, 'CORRUPTED_DATA', error as Error);
     }
   }
 
@@ -190,13 +183,13 @@ export class LocalStorageService {
   addProject(project: Project): void {
     const projects = this.getProjects();
     const existingIndex = projects.findIndex(p => p.id === project.id);
-    
+
     if (existingIndex >= 0) {
       projects[existingIndex] = project;
     } else {
       projects.push(project);
     }
-    
+
     this.setProjects(projects);
   }
 
@@ -204,7 +197,7 @@ export class LocalStorageService {
     const projects = this.getProjects();
     const initialLength = projects.length;
     const filteredProjects = projects.filter(p => p.id !== projectId);
-    
+
     if (filteredProjects.length < initialLength) {
       this.setProjects(filteredProjects);
       return true;
@@ -215,7 +208,7 @@ export class LocalStorageService {
   updateProject(projectId: string, updates: Partial<Omit<Project, 'id'>>): boolean {
     const projects = this.getProjects();
     const projectIndex = projects.findIndex(p => p.id === projectId);
-    
+
     if (projectIndex >= 0) {
       projects[projectIndex] = { ...projects[projectIndex], ...updates };
       this.setProjects(projects);
@@ -245,13 +238,13 @@ export class LocalStorageService {
   addServer(server: Server): void {
     const servers = this.getServers();
     const existingIndex = servers.findIndex(s => s.id === server.id);
-    
+
     if (existingIndex >= 0) {
       servers[existingIndex] = server;
     } else {
       servers.push(server);
     }
-    
+
     this.setServers(servers);
   }
 
@@ -259,7 +252,7 @@ export class LocalStorageService {
     const servers = this.getServers();
     const initialLength = servers.length;
     const filteredServers = servers.filter(s => s.id !== serverId);
-    
+
     if (filteredServers.length < initialLength) {
       this.setServers(filteredServers);
       return true;
@@ -270,7 +263,7 @@ export class LocalStorageService {
   updateServer(serverId: string, updates: Partial<Omit<Server, 'id'>>): boolean {
     const servers = this.getServers();
     const serverIndex = servers.findIndex(s => s.id === serverId);
-    
+
     if (serverIndex >= 0) {
       servers[serverIndex] = { ...servers[serverIndex], ...updates };
       this.setServers(servers);
@@ -325,26 +318,27 @@ export class LocalStorageService {
 
   private isValidProject(project: unknown): project is Project {
     if (!project || typeof project !== 'object') return false;
-    
+
     const p = project as Partial<Project>;
-    
+
     // Validate required string fields with comprehensive checks
     if (!p.id || typeof p.id !== 'string' || p.id.trim().length === 0) return false;
     if (!p.name || typeof p.name !== 'string' || p.name.trim().length === 0) return false;
     if (!p.path || typeof p.path !== 'string' || p.path.trim().length === 0) return false;
-    if (!p.serverId || typeof p.serverId !== 'string' || p.serverId.trim().length === 0) return false;
-    
+    if (!p.serverId || typeof p.serverId !== 'string' || p.serverId.trim().length === 0)
+      return false;
+
     // Validate ID format (should be UUID-like or valid identifier)
     if (!/^[a-zA-Z0-9_-]{1,50}$/.test(p.id.trim())) return false;
     if (!/^[a-zA-Z0-9_-]{1,50}$/.test(p.serverId.trim())) return false;
-    
+
     // Validate name contains only safe characters and reasonable length
     if (!/^[a-zA-Z0-9\s\-_()[\]{}]{1,100}$/.test(p.name.trim())) return false;
-    
+
     // Validate path format (basic path validation, no dangerous characters)
     if (!/^[a-zA-Z0-9\s\-_./\\:(){}[\]]{1,500}$/.test(p.path.trim())) return false;
     if (p.path.includes('..') || p.path.includes('<') || p.path.includes('>')) return false;
-    
+
     // Validate date fields (can be missing, but if present must be valid ISO strings)
     if (p.createdAt !== undefined) {
       if (typeof p.createdAt !== 'string' || isNaN(Date.parse(p.createdAt))) return false;
@@ -358,11 +352,11 @@ export class LocalStorageService {
       const lastActiveDate = new Date(p.lastActive);
       if (lastActiveDate.getTime() > Date.now() + 5 * 60 * 1000) return false;
     }
-    
+
     // Validate field lengths against constants with more strict validation
     if (p.name.trim().length > 100 || p.path.trim().length > 500) return false;
     if (p.id.trim().length > 50 || p.serverId.trim().length > 50) return false;
-    
+
     // Ensure no unexpected properties that could indicate corruption
     const allowedKeys = ['id', 'name', 'path', 'serverId', 'createdAt', 'lastActive'];
     const projectKeys = Object.keys(p);
@@ -372,34 +366,35 @@ export class LocalStorageService {
         return false;
       }
     }
-    
+
     return true;
   }
 
   private isValidServer(server: unknown): server is Server {
     if (!server || typeof server !== 'object') return false;
-    
+
     const s = server as Partial<Server>;
-    
+
     // Validate required string fields with comprehensive checks
     if (!s.id || typeof s.id !== 'string' || s.id.trim().length === 0) return false;
     if (!s.name || typeof s.name !== 'string' || s.name.trim().length === 0) return false;
-    if (!s.websocketUrl || typeof s.websocketUrl !== 'string' || s.websocketUrl.trim().length === 0) return false;
-    
+    if (!s.websocketUrl || typeof s.websocketUrl !== 'string' || s.websocketUrl.trim().length === 0)
+      return false;
+
     // Validate ID format (should be UUID-like or valid identifier)
     if (!/^[a-zA-Z0-9_-]{1,50}$/.test(s.id.trim())) return false;
-    
+
     // Validate server name contains only safe characters
     if (!/^[a-zA-Z0-9\s\-_.]{1,50}$/.test(s.name.trim())) return false;
-    
+
     // Validate field lengths against constants with strict validation
     if (s.name.trim().length > 50) return false;
     if (s.websocketUrl.trim().length < 5 || s.websocketUrl.trim().length > 200) return false;
     if (s.id.trim().length > 50) return false;
-    
+
     // Enhanced WebSocket URL validation
     const wsUrl = s.websocketUrl.trim();
-    
+
     // Allow relative URLs starting with /
     if (wsUrl.startsWith('/')) {
       // Validate relative URL format
@@ -407,25 +402,32 @@ export class LocalStorageService {
     } else {
       // Validate full WebSocket URLs
       if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) return false;
-      
+
       try {
         const url = new URL(wsUrl);
         // Ensure protocol is WebSocket
         if (url.protocol !== 'ws:' && url.protocol !== 'wss:') return false;
-        
+
         // Validate hostname format (basic check)
         if (!url.hostname || url.hostname.length === 0) return false;
         if (!/^[a-zA-Z0-9.-]+$/.test(url.hostname)) return false;
-        
+
         // Validate port if present
-        if (url.port && (isNaN(parseInt(url.port)) || parseInt(url.port) < 1 || parseInt(url.port) > 65535)) {
+        if (
+          url.port &&
+          (isNaN(parseInt(url.port)) || parseInt(url.port) < 1 || parseInt(url.port) > 65535)
+        ) {
           return false;
         }
-        
+
         // Block localhost in production (this is a basic security check)
-        if (typeof window !== 'undefined' && 
-            window.location.protocol === 'https:' && 
-            (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname.startsWith('192.168.'))) {
+        if (
+          typeof window !== 'undefined' &&
+          window.location.protocol === 'https:' &&
+          (url.hostname === 'localhost' ||
+            url.hostname === '127.0.0.1' ||
+            url.hostname.startsWith('192.168.'))
+        ) {
           console.warn('Localhost WebSocket URLs not allowed in HTTPS context');
           return false;
         }
@@ -433,10 +435,10 @@ export class LocalStorageService {
         return false;
       }
     }
-    
+
     // Validate isConnected field if present (must be boolean)
     if (s.isConnected !== undefined && typeof s.isConnected !== 'boolean') return false;
-    
+
     // Ensure no unexpected properties that could indicate corruption
     const allowedKeys = ['id', 'name', 'websocketUrl', 'isConnected'];
     const serverKeys = Object.keys(s);
@@ -446,7 +448,7 @@ export class LocalStorageService {
         return false;
       }
     }
-    
+
     return true;
   }
 
@@ -494,18 +496,14 @@ export class LocalStorageService {
       };
       return JSON.stringify(data, null, 2);
     } catch (error) {
-      throw new StorageError(
-        'Failed to export data',
-        'PARSE_ERROR',
-        error as Error
-      );
+      throw new StorageError('Failed to export data', 'PARSE_ERROR', error as Error);
     }
   }
 
   importData(jsonString: string): { success: boolean; message: string } {
     try {
       const data = JSON.parse(jsonString);
-      
+
       if (!data || typeof data !== 'object') {
         return { success: false, message: 'Invalid data format' };
       }
@@ -527,9 +525,9 @@ export class LocalStorageService {
 
       return { success: true, message: 'Data imported successfully' };
     } catch (error) {
-      return { 
-        success: false, 
-        message: `Failed to import data: ${error instanceof Error ? error.message : 'Unknown error'}` 
+      return {
+        success: false,
+        message: `Failed to import data: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
   }

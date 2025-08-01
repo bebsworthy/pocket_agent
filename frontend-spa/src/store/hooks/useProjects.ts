@@ -12,7 +12,7 @@ import {
   addProjectAtom,
   removeProjectAtom,
   updateProjectAtom,
-  updateProjectLastActiveAtom
+  updateProjectLastActiveAtom,
 } from '../atoms/projects';
 
 // Custom hook for project management
@@ -40,7 +40,7 @@ export function useProjects() {
       const updatedProject: Project = {
         ...currentProject,
         ...updates,
-        lastActive: new Date().toISOString()
+        lastActive: new Date().toISOString(),
       };
       updateProjectAction(updatedProject);
     }
@@ -53,7 +53,7 @@ export function useProjects() {
   const selectProject = (id: string | null) => {
     if (id === null || projects.some(p => p.id === id)) {
       setSelectedProjectId(id);
-      
+
       // Update last active time for the selected project
       if (id) {
         updateLastActiveAction(id);
@@ -81,7 +81,7 @@ export function useProjects() {
     projectCount,
     hasProjects,
     isLoading,
-    
+
     // Actions
     addProject,
     updateProject,
@@ -89,7 +89,7 @@ export function useProjects() {
     selectProject,
     getProject,
     getProjectsByServer,
-    setLoading
+    setLoading,
   };
 }
 
@@ -115,7 +115,7 @@ export function useProjectActions() {
 
   const selectProject = (id: string | null) => {
     setSelectedProjectId(id);
-    
+
     // Update last active time for the selected project
     if (id) {
       updateLastActiveAction(id);
@@ -126,6 +126,6 @@ export function useProjectActions() {
     addProject,
     updateProject,
     removeProject,
-    selectProject
+    selectProject,
   };
 }

@@ -1,6 +1,6 @@
 /**
  * Error Boundary for WebSocket-related errors
- * 
+ *
  * Catches and handles unhandled errors from WebSocket operations,
  * preventing them from crashing the entire component tree.
  */
@@ -32,7 +32,7 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log the error for debugging
     console.error('WebSocket Error Boundary caught an error:', error, errorInfo);
-    
+
     // Call custom error handler if provided
     if (this.props.onError) {
       this.props.onError(error, errorInfo);
@@ -49,23 +49,21 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
       return (
         <div className="websocket-error-boundary">
           <h2>WebSocket Connection Error</h2>
-          <p>
-            There was an error with the WebSocket connection. Please try refreshing the page.
-          </p>
+          <p>There was an error with the WebSocket connection. Please try refreshing the page.</p>
           <details style={{ whiteSpace: 'pre-wrap' }}>
             <summary>Error Details</summary>
             {this.state.error?.message}
           </details>
-          <button 
+          <button
             onClick={() => this.setState({ hasError: false, error: undefined })}
-            style={{ 
+            style={{
               marginTop: '1rem',
               padding: '0.5rem 1rem',
               backgroundColor: '#007bff',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             Try Again
@@ -84,10 +82,10 @@ export class WebSocketErrorBoundary extends Component<Props, State> {
 export function useWebSocketErrorHandler() {
   const handleError = (error: Error, context?: string) => {
     console.error(`WebSocket Error${context ? ` (${context})` : ''}:`, error);
-    
+
     // You could integrate with error reporting services here
     // Example: Sentry.captureException(error, { tags: { context: 'websocket' } });
-    
+
     // For development, throw the error to trigger error boundary
     if (process.env.NODE_ENV === 'development') {
       throw error;
@@ -111,6 +109,6 @@ export function withWebSocketErrorBoundary<P extends object>(
   );
 
   WrappedComponent.displayName = `withWebSocketErrorBoundary(${Component.displayName || Component.name})`;
-  
+
   return WrappedComponent;
 }

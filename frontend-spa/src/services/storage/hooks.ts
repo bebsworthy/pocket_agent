@@ -17,13 +17,7 @@ import { useErrorBoundary } from '@/components/ErrorBoundary';
 import { createRateLimit } from '@/utils/sanitize';
 
 // Import atoms from proper state management structure
-import {
-  projectsAtom,
-  serversAtom,
-  themeAtom,
-  storageStatusAtom,
-  errorAtom,
-} from '@/store/atoms';
+import { projectsAtom, serversAtom, themeAtom, storageStatusAtom, errorAtom } from '@/store/atoms';
 
 // Rate limiting for storage operations
 const storageRateLimit = createRateLimit(20, 60000); // 20 operations per minute
@@ -51,7 +45,7 @@ export function useProjectStorage() {
   const setStorageError = useSetAtom(errorAtom);
   const [isLoading, setIsLoading] = useState(false);
   const triggerErrorBoundary = useErrorBoundary();
-  
+
   // Memoize projects array to prevent unnecessary re-renders
   const memoizedProjects = useMemo(() => projects, [projects]);
 
@@ -70,13 +64,13 @@ export function useProjectStorage() {
             triggerErrorBoundary(new Error(`Storage Error: ${error.message}`));
             return;
           }
-          
+
           setStorageError({
             message: error.message,
             level: 'error' as const,
             announceToScreenReader: true,
             context: 'project-storage',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         }
       } finally {
@@ -85,19 +79,19 @@ export function useProjectStorage() {
     };
 
     loadProjects();
-  }, [setProjects, setStorageError]);
+  }, [setProjects, setStorageError, triggerErrorBoundary]);
 
   // Debounced save projects to storage whenever they change
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   useEffect(() => {
     if (memoizedProjects.length === 0 && isLoading) return; // Skip save during initial load
-    
+
     // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    
+
     // Debounce the save operation to prevent excessive I/O
     saveTimeoutRef.current = setTimeout(() => {
       try {
@@ -110,12 +104,12 @@ export function useProjectStorage() {
             level: 'error' as const,
             announceToScreenReader: true,
             context: 'project-storage',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         }
       }
     }, 100); // 100ms debounce
-    
+
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
@@ -123,79 +117,88 @@ export function useProjectStorage() {
     };
   }, [memoizedProjects, isLoading, setStorageError]);
 
-  const addProject = useCallback((project: Project) => {
-    try {
-      checkStorageRateLimit('addProject');
-      localStorageService.addProject(project);
-      setProjects((prev: Project[]) => {
-        const existing = prev.find((p: Project) => p.id === project.id);
-        if (existing) {
-          return prev.map((p: Project) => p.id === project.id ? project : p);
+  const addProject = useCallback(
+    (project: Project) => {
+      try {
+        checkStorageRateLimit('addProject');
+        localStorageService.addProject(project);
+        setProjects((prev: Project[]) => {
+          const existing = prev.find((p: Project) => p.id === project.id);
+          if (existing) {
+            return prev.map((p: Project) => (p.id === project.id ? project : p));
+          }
+          return [...prev, project];
+        });
+      } catch (error) {
+        console.error('Failed to add project:', error);
+        if (error instanceof StorageError) {
+          setStorageError({
+            message: error.message,
+            level: 'error' as const,
+            announceToScreenReader: true,
+            context: 'storage-operation',
+            timestamp: new Date().toISOString(),
+          });
         }
-        return [...prev, project];
-      });
-    } catch (error) {
-      console.error('Failed to add project:', error);
-      if (error instanceof StorageError) {
-        setStorageError({
-          message: error.message,
-          level: 'error' as const,
-          announceToScreenReader: true,
-          context: 'storage-operation',
-          timestamp: new Date().toISOString()
-        });
+        throw error;
       }
-      throw error;
-    }
-  }, [setProjects, setStorageError]);
+    },
+    [setProjects, setStorageError]
+  );
 
-  const removeProject = useCallback((projectId: string) => {
-    try {
-      checkStorageRateLimit('removeProject');
-      const success = localStorageService.removeProject(projectId);
-      if (success) {
-        setProjects((prev: Project[]) => prev.filter((p: Project) => p.id !== projectId));
+  const removeProject = useCallback(
+    (projectId: string) => {
+      try {
+        checkStorageRateLimit('removeProject');
+        const success = localStorageService.removeProject(projectId);
+        if (success) {
+          setProjects((prev: Project[]) => prev.filter((p: Project) => p.id !== projectId));
+        }
+        return success;
+      } catch (error) {
+        console.error('Failed to remove project:', error);
+        if (error instanceof StorageError) {
+          setStorageError({
+            message: error.message,
+            level: 'error' as const,
+            announceToScreenReader: true,
+            context: 'storage-operation',
+            timestamp: new Date().toISOString(),
+          });
+        }
+        throw error;
       }
-      return success;
-    } catch (error) {
-      console.error('Failed to remove project:', error);
-      if (error instanceof StorageError) {
-        setStorageError({
-          message: error.message,
-          level: 'error' as const,
-          announceToScreenReader: true,
-          context: 'storage-operation',
-          timestamp: new Date().toISOString()
-        });
-      }
-      throw error;
-    }
-  }, [setProjects, setStorageError]);
+    },
+    [setProjects, setStorageError]
+  );
 
-  const updateProject = useCallback((projectId: string, updates: Partial<Omit<Project, 'id'>>) => {
-    try {
-      checkStorageRateLimit('updateProject');
-      const success = localStorageService.updateProject(projectId, updates);
-      if (success) {
-        setProjects((prev: Project[]) => prev.map((p: Project) => 
-          p.id === projectId ? { ...p, ...updates } : p
-        ));
+  const updateProject = useCallback(
+    (projectId: string, updates: Partial<Omit<Project, 'id'>>) => {
+      try {
+        checkStorageRateLimit('updateProject');
+        const success = localStorageService.updateProject(projectId, updates);
+        if (success) {
+          setProjects((prev: Project[]) =>
+            prev.map((p: Project) => (p.id === projectId ? { ...p, ...updates } : p))
+          );
+        }
+        return success;
+      } catch (error) {
+        console.error('Failed to update project:', error);
+        if (error instanceof StorageError) {
+          setStorageError({
+            message: error.message,
+            level: 'error' as const,
+            announceToScreenReader: true,
+            context: 'storage-operation',
+            timestamp: new Date().toISOString(),
+          });
+        }
+        throw error;
       }
-      return success;
-    } catch (error) {
-      console.error('Failed to update project:', error);
-      if (error instanceof StorageError) {
-        setStorageError({
-          message: error.message,
-          level: 'error' as const,
-          announceToScreenReader: true,
-          context: 'storage-operation',
-          timestamp: new Date().toISOString()
-        });
-      }
-      throw error;
-    }
-  }, [setProjects, setStorageError]);
+    },
+    [setProjects, setStorageError]
+  );
 
   const refreshProjects = useCallback(() => {
     try {
@@ -209,7 +212,7 @@ export function useProjectStorage() {
           level: 'error' as const,
           announceToScreenReader: true,
           context: 'storage-operation',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
     }
@@ -233,7 +236,7 @@ export function useServerStorage() {
   const setStorageError = useSetAtom(errorAtom);
   const [isLoading, setIsLoading] = useState(false);
   const triggerErrorBoundary = useErrorBoundary();
-  
+
   // Memoized servers array to prevent unnecessary re-renders
   const memoizedServers = useMemo(() => servers, [servers]);
 
@@ -252,13 +255,13 @@ export function useServerStorage() {
             triggerErrorBoundary(new Error(`Storage Error: ${error.message}`));
             return;
           }
-          
+
           setStorageError({
             message: error.message,
             level: 'error' as const,
             announceToScreenReader: true,
             context: 'server-storage',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         }
       } finally {
@@ -267,23 +270,23 @@ export function useServerStorage() {
     };
 
     loadServers();
-  }, [setServers, setStorageError]);
+  }, [setServers, setStorageError, triggerErrorBoundary]);
 
   // Debounced save servers to storage whenever they change
   const serverSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   useEffect(() => {
-    if (servers.length === 0 && isLoading) return; // Skip save during initial load
-    
+    if (memoizedServers.length === 0 && isLoading) return; // Skip save during initial load
+
     // Clear existing timeout
     if (serverSaveTimeoutRef.current) {
       clearTimeout(serverSaveTimeoutRef.current);
     }
-    
+
     // Debounce the save operation to prevent excessive I/O
     serverSaveTimeoutRef.current = setTimeout(() => {
       try {
-        localStorageService.setServers(servers);
+        localStorageService.setServers(memoizedServers);
       } catch (error) {
         console.error('Failed to save servers:', error);
         if (error instanceof StorageError) {
@@ -292,92 +295,101 @@ export function useServerStorage() {
             level: 'error' as const,
             announceToScreenReader: true,
             context: 'server-storage',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
           });
         }
       }
     }, 100); // 100ms debounce
-    
+
     return () => {
       if (serverSaveTimeoutRef.current) {
         clearTimeout(serverSaveTimeoutRef.current);
       }
     };
-  }, [servers, isLoading, setStorageError]);
+  }, [memoizedServers, isLoading, setStorageError]);
 
-  const addServer = useCallback((server: Server) => {
-    try {
-      checkStorageRateLimit('addServer');
-      localStorageService.addServer(server);
-      setServers((prev: Server[]) => {
-        const existing = prev.find((s: Server) => s.id === server.id);
-        if (existing) {
-          return prev.map((s: Server) => s.id === server.id ? server : s);
+  const addServer = useCallback(
+    (server: Server) => {
+      try {
+        checkStorageRateLimit('addServer');
+        localStorageService.addServer(server);
+        setServers((prev: Server[]) => {
+          const existing = prev.find((s: Server) => s.id === server.id);
+          if (existing) {
+            return prev.map((s: Server) => (s.id === server.id ? server : s));
+          }
+          return [...prev, server];
+        });
+      } catch (error) {
+        console.error('Failed to add server:', error);
+        if (error instanceof StorageError) {
+          setStorageError({
+            message: error.message,
+            level: 'error' as const,
+            announceToScreenReader: true,
+            context: 'storage-operation',
+            timestamp: new Date().toISOString(),
+          });
         }
-        return [...prev, server];
-      });
-    } catch (error) {
-      console.error('Failed to add server:', error);
-      if (error instanceof StorageError) {
-        setStorageError({
-          message: error.message,
-          level: 'error' as const,
-          announceToScreenReader: true,
-          context: 'storage-operation',
-          timestamp: new Date().toISOString()
-        });
+        throw error;
       }
-      throw error;
-    }
-  }, [setServers, setStorageError]);
+    },
+    [setServers, setStorageError]
+  );
 
-  const removeServer = useCallback((serverId: string) => {
-    try {
-      checkStorageRateLimit('removeServer');
-      const success = localStorageService.removeServer(serverId);
-      if (success) {
-        setServers((prev: Server[]) => prev.filter((s: Server) => s.id !== serverId));
+  const removeServer = useCallback(
+    (serverId: string) => {
+      try {
+        checkStorageRateLimit('removeServer');
+        const success = localStorageService.removeServer(serverId);
+        if (success) {
+          setServers((prev: Server[]) => prev.filter((s: Server) => s.id !== serverId));
+        }
+        return success;
+      } catch (error) {
+        console.error('Failed to remove server:', error);
+        if (error instanceof StorageError) {
+          setStorageError({
+            message: error.message,
+            level: 'error' as const,
+            announceToScreenReader: true,
+            context: 'storage-operation',
+            timestamp: new Date().toISOString(),
+          });
+        }
+        throw error;
       }
-      return success;
-    } catch (error) {
-      console.error('Failed to remove server:', error);
-      if (error instanceof StorageError) {
-        setStorageError({
-          message: error.message,
-          level: 'error' as const,
-          announceToScreenReader: true,
-          context: 'storage-operation',
-          timestamp: new Date().toISOString()
-        });
-      }
-      throw error;
-    }
-  }, [setServers, setStorageError]);
+    },
+    [setServers, setStorageError]
+  );
 
-  const updateServer = useCallback((serverId: string, updates: Partial<Omit<Server, 'id'>>) => {
-    try {
-      checkStorageRateLimit('updateServer');
-      const success = localStorageService.updateServer(serverId, updates);
-      if (success) {
-        setServers((prev: Server[]) => prev.map((s: Server) => 
-          s.id === serverId ? { ...s, ...updates } : s
-        ));
+  const updateServer = useCallback(
+    (serverId: string, updates: Partial<Omit<Server, 'id'>>) => {
+      try {
+        checkStorageRateLimit('updateServer');
+        const success = localStorageService.updateServer(serverId, updates);
+        if (success) {
+          setServers((prev: Server[]) =>
+            prev.map((s: Server) => (s.id === serverId ? { ...s, ...updates } : s))
+          );
+        }
+        return success;
+      } catch (error) {
+        console.error('Failed to update server:', error);
+        if (error instanceof StorageError) {
+          setStorageError({
+            message: error.message,
+            level: 'error' as const,
+            announceToScreenReader: true,
+            context: 'storage-operation',
+            timestamp: new Date().toISOString(),
+          });
+        }
+        throw error;
       }
-      return success;
-    } catch (error) {
-      console.error('Failed to update server:', error);
-      if (error instanceof StorageError) {
-        setStorageError({
-          message: error.message,
-          level: 'error' as const,
-          announceToScreenReader: true,
-          context: 'storage-operation',
-          timestamp: new Date().toISOString()
-        });
-      }
-      throw error;
-    }
-  }, [setServers, setStorageError]);
+    },
+    [setServers, setStorageError]
+  );
 
   const refreshServers = useCallback(() => {
     try {
@@ -391,14 +403,14 @@ export function useServerStorage() {
           level: 'error' as const,
           announceToScreenReader: true,
           context: 'storage-operation',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
     }
   }, [setServers, setStorageError]);
 
   return {
-    servers,
+    servers: memoizedServers,
     isLoading,
     addServer,
     removeServer,
@@ -427,30 +439,33 @@ export function useThemeStorage() {
           level: 'error' as const,
           announceToScreenReader: true,
           context: 'storage-operation',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
     }
   }, [setTheme, setStorageError]);
 
-  const updateTheme = useCallback((newTheme: 'light' | 'dark' | 'system') => {
-    try {
-      localStorageService.setTheme(newTheme);
-      setTheme(newTheme);
-    } catch (error) {
-      console.error('Failed to save theme:', error);
-      if (error instanceof StorageError) {
-        setStorageError({
-          message: error.message,
-          level: 'error' as const,
-          announceToScreenReader: true,
-          context: 'storage-operation',
-          timestamp: new Date().toISOString()
-        });
+  const updateTheme = useCallback(
+    (newTheme: 'light' | 'dark' | 'system') => {
+      try {
+        localStorageService.setTheme(newTheme);
+        setTheme(newTheme);
+      } catch (error) {
+        console.error('Failed to save theme:', error);
+        if (error instanceof StorageError) {
+          setStorageError({
+            message: error.message,
+            level: 'error' as const,
+            announceToScreenReader: true,
+            context: 'storage-operation',
+            timestamp: new Date().toISOString(),
+          });
+        }
+        throw error;
       }
-      throw error;
-    }
-  }, [setTheme, setStorageError]);
+    },
+    [setTheme, setStorageError]
+  );
 
   return {
     theme,
@@ -468,22 +483,25 @@ export function useStorageError() {
     setStorageError(null);
   }, [setStorageError]);
 
-  const handleStorageError = useCallback((error: StorageError) => {
-    setStorageError({
-      message: error.message,
-      level: 'error' as const,
-      announceToScreenReader: true,
-      context: 'storage-service',
-      timestamp: new Date().toISOString()
-    });
-    
-    // Auto-clear error after 10 seconds unless it's a quota error
-    if (error.code !== 'QUOTA_EXCEEDED') {
-      setTimeout(() => {
-        setStorageError(null);
-      }, 10000);
-    }
-  }, [setStorageError]);
+  const handleStorageError = useCallback(
+    (error: StorageError) => {
+      setStorageError({
+        message: error.message,
+        level: 'error' as const,
+        announceToScreenReader: true,
+        context: 'storage-service',
+        timestamp: new Date().toISOString(),
+      });
+
+      // Auto-clear error after 10 seconds unless it's a quota error
+      if (error.code !== 'QUOTA_EXCEEDED') {
+        setTimeout(() => {
+          setStorageError(null);
+        }, 10000);
+      }
+    },
+    [setStorageError]
+  );
 
   return {
     storageError,
@@ -501,13 +519,20 @@ export function useStorageStatus() {
   const updateStorageUsage = useCallback(() => {
     try {
       const storageUsage = localStorageService.getStorageUsage();
-      setStatus((prev: { available: number; used: number; quotaExceeded: boolean; lastUpdated: string }) => ({
-        ...prev,
-        available: storageUsage.available,
-        used: storageUsage.used,
-        quotaExceeded: storageUsage.available < 0,
-        lastUpdated: new Date().toISOString(),
-      }));
+      setStatus(
+        (prev: {
+          available: number;
+          used: number;
+          quotaExceeded: boolean;
+          lastUpdated: string;
+        }) => ({
+          ...prev,
+          available: storageUsage.available,
+          used: storageUsage.used,
+          quotaExceeded: storageUsage.available < 0,
+          lastUpdated: new Date().toISOString(),
+        })
+      );
     } catch (error) {
       console.error('Failed to get storage usage:', error);
     }
@@ -516,7 +541,7 @@ export function useStorageStatus() {
   // Update usage on mount and periodically
   useEffect(() => {
     updateStorageUsage();
-    
+
     const interval = setInterval(updateStorageUsage, 30000); // Every 30 seconds
     return () => clearInterval(interval);
   }, [updateStorageUsage]);
@@ -551,7 +576,7 @@ export function useStorageBackup() {
           level: 'error' as const,
           announceToScreenReader: true,
           context: 'storage-operation',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
       return null;
@@ -560,21 +585,24 @@ export function useStorageBackup() {
     }
   }, [setStorageError]);
 
-  const importData = useCallback(async (jsonString: string): Promise<{ success: boolean; message: string }> => {
-    setIsImporting(true);
-    try {
-      const result = localStorageService.importData(jsonString);
-      return result;
-    } catch (error) {
-      console.error('Failed to import data:', error);
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Unknown error occurred',
-      };
-    } finally {
-      setIsImporting(false);
-    }
-  }, []);
+  const importData = useCallback(
+    async (jsonString: string): Promise<{ success: boolean; message: string }> => {
+      setIsImporting(true);
+      try {
+        const result = localStorageService.importData(jsonString);
+        return result;
+      } catch (error) {
+        console.error('Failed to import data:', error);
+        return {
+          success: false,
+          message: error instanceof Error ? error.message : 'Unknown error occurred',
+        };
+      } finally {
+        setIsImporting(false);
+      }
+    },
+    []
+  );
 
   const clearAllData = useCallback(() => {
     try {
@@ -587,7 +615,7 @@ export function useStorageBackup() {
           level: 'error' as const,
           announceToScreenReader: true,
           context: 'storage-operation',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
     }

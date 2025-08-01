@@ -6,7 +6,7 @@
 // Project atoms
 export * from './projects';
 
-// Server atoms  
+// Server atoms
 export * from './servers';
 
 // UI atoms

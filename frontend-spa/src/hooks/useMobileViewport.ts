@@ -26,7 +26,7 @@ export const useMobileViewport = () => {
 
     // Initial setup
     handleResize();
-    
+
     // Add event listeners
     window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', handleResize);

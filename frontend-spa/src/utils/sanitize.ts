@@ -1,6 +1,6 @@
 /**
  * Input Sanitization Utilities
- * 
+ *
  * Provides security-focused utilities for:
  * - XSS prevention
  * - Input validation and sanitization
@@ -73,7 +73,7 @@ const DANGEROUS_ATTRIBUTES = [
  * Escape HTML entities to prevent XSS attacks
  */
 export function escapeHtml(unsafe: string): string {
-  return unsafe.replace(/[&<>"'`=/]/g, (match) => HTML_ENTITIES[match] || match);
+  return unsafe.replace(/[&<>"'`=/]/g, match => HTML_ENTITIES[match] || match);
 }
 
 /**
@@ -90,8 +90,8 @@ export function unescapeHtml(safe: string): string {
     '&#x60;': '`',
     '&#x3D;': '=',
   };
-  
-  return safe.replace(/&[#\w]+;/g, (entity) => entityMap[entity] || entity);
+
+  return safe.replace(/&[#\w]+;/g, entity => entityMap[entity] || entity);
 }
 
 /**
@@ -106,22 +106,22 @@ export function stripHtml(html: string): string {
  */
 export function sanitizeHtml(html: string): string {
   let sanitized = html;
-  
+
   // Remove dangerous tags
   DANGEROUS_TAGS.forEach(tag => {
     const regex = new RegExp(`<\\/?${tag}[^>]*>`, 'gi');
     sanitized = sanitized.replace(regex, '');
   });
-  
+
   // Remove dangerous attributes
   DANGEROUS_ATTRIBUTES.forEach(attr => {
     const regex = new RegExp(`\\s${attr}\\s*=\\s*["'][^"']*["']`, 'gi');
     sanitized = sanitized.replace(regex, '');
   });
-  
+
   // Remove javascript: and data: protocols
   sanitized = sanitized.replace(/(?:javascript|data|vbscript):/gi, '');
-  
+
   return sanitized;
 }
 
@@ -130,7 +130,7 @@ export function sanitizeHtml(html: string): string {
  */
 export function sanitizeUserInput(input: string): string {
   if (typeof input !== 'string') return '';
-  
+
   return escapeHtml(input.trim());
 }
 
@@ -139,21 +139,21 @@ export function sanitizeUserInput(input: string): string {
  */
 export function sanitizeProjectName(name: string): string {
   if (typeof name !== 'string') return '';
-  
+
   // Remove HTML and trim
   let sanitized = stripHtml(name).trim();
-  
+
   // Remove dangerous characters but keep alphanumeric, spaces, hyphens, underscores
   sanitized = sanitized.replace(/[^a-zA-Z0-9\s\-_()[\]{}]/g, '');
-  
+
   // Collapse multiple spaces into one
   sanitized = sanitized.replace(/\s+/g, ' ');
-  
+
   // Limit length
   if (sanitized.length > 100) {
     sanitized = sanitized.substring(0, 100).trim();
   }
-  
+
   return sanitized;
 }
 
@@ -162,21 +162,21 @@ export function sanitizeProjectName(name: string): string {
  */
 export function sanitizeServerName(name: string): string {
   if (typeof name !== 'string') return '';
-  
+
   // Remove HTML and trim
   let sanitized = stripHtml(name).trim();
-  
+
   // Remove dangerous characters but keep alphanumeric, spaces, hyphens, underscores, dots
   sanitized = sanitized.replace(/[^a-zA-Z0-9\s\-_.]/g, '');
-  
+
   // Collapse multiple spaces into one
   sanitized = sanitized.replace(/\s+/g, ' ');
-  
+
   // Limit length
   if (sanitized.length > 50) {
     sanitized = sanitized.substring(0, 50).trim();
   }
-  
+
   return sanitized;
 }
 
@@ -185,33 +185,33 @@ export function sanitizeServerName(name: string): string {
  */
 export function sanitizeFilePath(path: string): string {
   if (typeof path !== 'string') return '';
-  
+
   let sanitized = path.trim();
-  
+
   // Remove null bytes
   sanitized = sanitized.replace(/\0/g, '');
-  
+
   // Remove or replace directory traversal attempts
   sanitized = sanitized.replace(/\.\./g, '');
-  
+
   // Remove leading slashes (to prevent absolute path access)
   sanitized = sanitized.replace(/^\/+/, '');
-  
+
   // Remove dangerous characters
   sanitized = sanitized.replace(/[<>:"|?*]/g, '');
-  
+
   // Normalize path separators
   sanitized = sanitized.replace(/\\+/g, '/');
   sanitized = sanitized.replace(/\/+/g, '/');
-  
+
   // Remove trailing slashes
   sanitized = sanitized.replace(/\/+$/, '');
-  
+
   // Limit length
   if (sanitized.length > 500) {
     sanitized = sanitized.substring(0, 500);
   }
-  
+
   return sanitized;
 }
 
@@ -220,16 +220,16 @@ export function sanitizeFilePath(path: string): string {
  */
 export function sanitizeUrl(url: string): string {
   if (typeof url !== 'string') return '';
-  
+
   let sanitized = url.trim();
-  
+
   // Remove null bytes and control characters
   // eslint-disable-next-line no-control-regex
   sanitized = sanitized.replace(/[\0-\x1f\x7f]/g, '');
-  
+
   // Remove HTML entities
   sanitized = stripHtml(sanitized);
-  
+
   // Check for valid URL format
   try {
     // If it doesn't contain ://, assume it's a relative URL
@@ -240,14 +240,14 @@ export function sanitizeUrl(url: string): string {
       }
       return '';
     }
-    
+
     const parsedUrl = new URL(sanitized);
-    
+
     // Only allow http, https, ws, wss protocols
     if (!['http:', 'https:', 'ws:', 'wss:'].includes(parsedUrl.protocol)) {
       return '';
     }
-    
+
     return parsedUrl.toString();
   } catch {
     return '';
@@ -259,24 +259,24 @@ export function sanitizeUrl(url: string): string {
  */
 export function sanitizeWebSocketUrl(url: string): string {
   if (typeof url !== 'string') return '';
-  
+
   const sanitized = sanitizeUrl(url);
-  
+
   if (!sanitized) return '';
-  
+
   // If it's a relative URL, it's valid for WebSocket
   if (!sanitized.includes('://')) {
     return sanitized;
   }
-  
+
   try {
     const parsedUrl = new URL(sanitized);
-    
+
     // Only allow ws and wss protocols for WebSocket
     if (!['ws:', 'wss:'].includes(parsedUrl.protocol)) {
       return '';
     }
-    
+
     return parsedUrl.toString();
   } catch {
     return '';
@@ -288,7 +288,7 @@ export function sanitizeWebSocketUrl(url: string): string {
  */
 export function sanitizeJsonInput(input: string): string | null {
   if (typeof input !== 'string') return null;
-  
+
   try {
     // Parse and re-stringify to ensure valid JSON
     const parsed = JSON.parse(input);
@@ -303,7 +303,7 @@ export function sanitizeJsonInput(input: string): string | null {
  */
 export function sanitizeSqlInput(input: string): string {
   if (typeof input !== 'string') return '';
-  
+
   // Remove common SQL injection patterns
   const sqlPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|SCRIPT)\b)/gi,
@@ -311,12 +311,12 @@ export function sanitizeSqlInput(input: string): string {
     /(\bOR\s+\d+\s*=\s*\d+)/gi,
     /(\bAND\s+\d+\s*=\s*\d+)/gi,
   ];
-  
+
   let sanitized = input;
   sqlPatterns.forEach(pattern => {
     sanitized = sanitized.replace(pattern, '');
   });
-  
+
   return sanitized.trim();
 }
 
@@ -325,20 +325,20 @@ export function sanitizeSqlInput(input: string): string {
  */
 export function sanitizeSearchQuery(query: string): string {
   if (typeof query !== 'string') return '';
-  
+
   let sanitized = query.trim();
-  
+
   // Remove HTML
   sanitized = stripHtml(sanitized);
-  
+
   // Remove special regex characters that could cause errors
   sanitized = sanitized.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  
+
   // Limit length
   if (sanitized.length > 200) {
     sanitized = sanitized.substring(0, 200);
   }
-  
+
   return sanitized;
 }
 
@@ -353,17 +353,17 @@ export function validateLength(
   if (typeof input !== 'string') {
     return { valid: false, error: 'Input must be a string' };
   }
-  
+
   const length = input.trim().length;
-  
+
   if (length < minLength) {
     return { valid: false, error: `Must be at least ${minLength} characters` };
   }
-  
+
   if (length > maxLength) {
     return { valid: false, error: `Must be no more than ${maxLength} characters` };
   }
-  
+
   return { valid: true };
 }
 
@@ -374,14 +374,14 @@ export function validateEmail(email: string): { valid: boolean; error?: string }
   if (typeof email !== 'string') {
     return { valid: false, error: 'Email must be a string' };
   }
-  
+
   const sanitized = sanitizeUserInput(email);
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  
+
   if (!emailRegex.test(sanitized)) {
     return { valid: false, error: 'Invalid email format' };
   }
-  
+
   return { valid: true };
 }
 
@@ -399,7 +399,7 @@ export function generateCSPNonce(): string {
  */
 export function sanitizeClassName(className: string): string {
   if (typeof className !== 'string') return '';
-  
+
   // Remove dangerous characters and keep only valid CSS class characters
   return className.replace(/[^a-zA-Z0-9\-_\s]/g, '').trim();
 }
@@ -409,27 +409,27 @@ export function sanitizeClassName(className: string): string {
  */
 export function createRateLimit(maxRequests: number, windowMs: number) {
   const requests = new Map<string, number[]>();
-  
+
   return (identifier: string): boolean => {
     const now = Date.now();
     const windowStart = now - windowMs;
-    
+
     if (!requests.has(identifier)) {
       requests.set(identifier, []);
     }
-    
+
     const userRequests = requests.get(identifier)!;
-    
+
     // Remove old requests outside the window
     const validRequests = userRequests.filter(time => time > windowStart);
-    
+
     if (validRequests.length >= maxRequests) {
       return false; // Rate limit exceeded
     }
-    
+
     validRequests.push(now);
     requests.set(identifier, validRequests);
-    
+
     return true; // Request allowed
   };
 }

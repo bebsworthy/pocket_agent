@@ -1,6 +1,6 @@
 /**
  * Application Constants
- * 
+ *
  * Contains all application-wide constants including:
  * - Theme values
  * - Viewport and layout constants
@@ -15,7 +15,7 @@ export const THEMES = {
   DARK: 'dark',
 } as const;
 
-export type Theme = typeof THEMES[keyof typeof THEMES];
+export type Theme = (typeof THEMES)[keyof typeof THEMES];
 
 // Mobile Viewport Constants
 export const VIEWPORT = {

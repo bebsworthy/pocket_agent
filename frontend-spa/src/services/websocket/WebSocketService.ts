@@ -1,22 +1,22 @@
 /**
  * WebSocket Service Implementation with EventEmitter pattern
- * 
+ *
  * This service provides robust WebSocket communication with:
  * - Native WebSocket API with EventEmitter pattern
  * - Automatic reconnection with exponential backoff
  * - Project join/leave tracking with session persistence
  * - Support for both WS and WSS protocols
  * - Comprehensive error handling and logging
- * 
+ *
  * Requirements: 5.1, 5.2, 5.4, 5.5, 5.7
  */
 
 import { EventEmitter } from 'events';
-import type { 
-  ClientMessage, 
-  ServerMessage, 
+import type {
+  ClientMessage,
+  ServerMessage,
   ProjectJoinMessage,
-  ProjectLeaveMessage 
+  ProjectLeaveMessage,
 } from '../../types/messages';
 import type { ConnectionStatus } from '../../types/models';
 import { createRateLimit } from '../../utils/sanitize';
@@ -29,6 +29,13 @@ export interface WebSocketServiceConfig {
   maxReconnectDelay?: number;
   pingInterval?: number;
   connectionTimeout?: number;
+}
+
+// Enhanced WebSocket error interface with proper typing
+export interface WebSocketError extends Error {
+  serverId: string;
+  isWebSocketError: true;
+  connectionStatus: ConnectionStatus;
 }
 
 export interface WebSocketServiceEvents {
@@ -56,7 +63,10 @@ export interface WebSocketServiceEvents {
 interface TypedEventEmitter {
   on<K extends keyof WebSocketServiceEvents>(event: K, listener: WebSocketServiceEvents[K]): this;
   off<K extends keyof WebSocketServiceEvents>(event: K, listener: WebSocketServiceEvents[K]): this;
-  emit<K extends keyof WebSocketServiceEvents>(event: K, ...args: Parameters<WebSocketServiceEvents[K]>): boolean;
+  emit<K extends keyof WebSocketServiceEvents>(
+    event: K,
+    ...args: Parameters<WebSocketServiceEvents[K]>
+  ): boolean;
   once<K extends keyof WebSocketServiceEvents>(event: K, listener: WebSocketServiceEvents[K]): this;
   removeAllListeners(event?: keyof WebSocketServiceEvents): this;
 }
@@ -87,7 +97,7 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
       maxReconnectDelay: 30000,
       pingInterval: 30000,
       connectionTimeout: 10000,
-      ...config
+      ...config,
     };
 
     // Load persisted joined projects from localStorage
@@ -109,8 +119,10 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
 
     if (timeSinceLastAttempt < debounceDelay) {
       const remainingDelay = debounceDelay - timeSinceLastAttempt;
-      console.debug(`Debouncing connection attempt for server ${this.serverId}, waiting ${remainingDelay}ms`);
-      
+      console.debug(
+        `Debouncing connection attempt for server ${this.serverId}, waiting ${remainingDelay}ms`
+      );
+
       return new Promise((resolve, reject) => {
         this.connectionDebounceTimeout = setTimeout(() => {
           this.connectionDebounceTimeout = null;
@@ -125,14 +137,16 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
       try {
         // Determine protocol based on URL and current page protocol
         const wsUrl = this.determineWebSocketUrl(this.config.url);
-        
+
         this.setConnectionStatus('connecting');
         this.ws = new WebSocket(wsUrl);
 
         // Set connection timeout
         this.connectionTimeout = setTimeout(() => {
           if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
-            console.warn(`Connection timeout after ${this.config.connectionTimeout}ms, closing connection`);
+            console.warn(
+              `Connection timeout after ${this.config.connectionTimeout}ms, closing connection`
+            );
             this.ws.close();
             const error = new Error(`Connection timeout after ${this.config.connectionTimeout}ms`);
             this.handleError(error);
@@ -147,21 +161,20 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
           resolve();
         };
 
-        this.ws.onmessage = (event) => {
+        this.ws.onmessage = event => {
           this.onMessage(event);
         };
 
-        this.ws.onclose = (event) => {
+        this.ws.onclose = event => {
           this.onConnectionClose(event);
         };
 
-        this.ws.onerror = (event) => {
+        this.ws.onerror = event => {
           this.clearConnectionTimeout();
           const error = new Error(`WebSocket connection error: ${event}`);
           this.handleError(error);
           reject(error);
         };
-
       } catch (error) {
         const wsError = error instanceof Error ? error : new Error(String(error));
         this.handleError(wsError);
@@ -200,7 +213,9 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
     // Apply rate limiting to messages
     if (!this.messageRateLimit(this.serverId)) {
       console.warn(`Message rate limit exceeded for server ${this.serverId}`);
-      this.handleError(new Error('Message rate limit exceeded. Please wait before sending more messages.'));
+      this.handleError(
+        new Error('Message rate limit exceeded. Please wait before sending more messages.')
+      );
       return false;
     }
 
@@ -223,7 +238,11 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
     // Apply rate limiting to project actions
     if (!this.projectActionRateLimit(`${this.serverId}_project_actions`)) {
       console.warn(`Project action rate limit exceeded for server ${this.serverId}`);
-      this.handleError(new Error('Project action rate limit exceeded. Please wait before joining/leaving projects.'));
+      this.handleError(
+        new Error(
+          'Project action rate limit exceeded. Please wait before joining/leaving projects.'
+        )
+      );
       return;
     }
 
@@ -234,8 +253,8 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
       const message: ProjectJoinMessage = {
         type: 'project_join',
         data: {
-          project_id: projectId
-        }
+          project_id: projectId,
+        },
       };
       this.send(message);
     }
@@ -248,7 +267,11 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
     // Apply rate limiting to project actions
     if (!this.projectActionRateLimit(`${this.serverId}_project_actions`)) {
       console.warn(`Project action rate limit exceeded for server ${this.serverId}`);
-      this.handleError(new Error('Project action rate limit exceeded. Please wait before joining/leaving projects.'));
+      this.handleError(
+        new Error(
+          'Project action rate limit exceeded. Please wait before joining/leaving projects.'
+        )
+      );
       return;
     }
 
@@ -258,7 +281,7 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
     if (this.isConnected()) {
       const message: ProjectLeaveMessage = {
         type: 'project_leave',
-        project_id: projectId
+        project_id: projectId,
       };
       this.send(message);
     }
@@ -310,18 +333,17 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
   private onMessage(event: MessageEvent): void {
     try {
       const message: ServerMessage = JSON.parse(event.data);
-      
+
       // Update activity timestamp for connection health monitoring
       this.lastPingTime = Date.now();
 
       console.debug(`Received message from server ${this.serverId}:`, message.type);
-      
+
       // Emit generic message event
       this.emit('message', message);
-      
+
       // Emit specific message type event
       this.emit(message.type as keyof WebSocketServiceEvents, message);
-
     } catch (error) {
       console.error(`Failed to parse message from server ${this.serverId}:`, error);
       const parseError = new Error(`Message parse error: ${error}`);
@@ -351,17 +373,19 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
   private handleError(error: Error): void {
     console.error(`WebSocket error for server ${this.serverId}:`, error.message);
     this.setConnectionStatus('error');
-    
+
     // Enhance error with context for better debugging
-    const enhancedError = new Error(`WebSocket error on server ${this.serverId}: ${error.message}`);
+    const enhancedError = new Error(
+      `WebSocket error on server ${this.serverId}: ${error.message}`
+    ) as WebSocketError;
     enhancedError.stack = error.stack;
     enhancedError.name = `WebSocketError_${this.serverId}`;
-    
-    // Add custom properties for error boundary handling
-    (enhancedError as any).serverId = this.serverId;
-    (enhancedError as any).isWebSocketError = true;
-    (enhancedError as any).connectionStatus = this.connectionStatus;
-    
+
+    // Add custom properties for error boundary handling with proper typing
+    enhancedError.serverId = this.serverId;
+    enhancedError.isWebSocketError = true;
+    enhancedError.connectionStatus = this.connectionStatus;
+
     this.emit('error', enhancedError);
   }
 
@@ -370,48 +394,57 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
    */
   private attemptReconnect(): void {
     if (this.reconnectAttempts >= this.config.maxReconnectAttempts) {
-      console.error(`Max reconnection attempts (${this.config.maxReconnectAttempts}) reached for server ${this.serverId}`);
+      console.error(
+        `Max reconnection attempts (${this.config.maxReconnectAttempts}) reached for server ${this.serverId}`
+      );
       this.emit('reconnectFailed');
       return;
     }
 
     this.reconnectAttempts++;
-    
+
     // Calculate delay with exponential backoff
     const baseDelay = this.config.initialReconnectDelay;
     const maxDelay = this.config.maxReconnectDelay;
     const exponentialDelay = baseDelay * Math.pow(2, this.reconnectAttempts - 1);
     const delay = Math.min(exponentialDelay, maxDelay);
 
-    console.info(`Attempting reconnection ${this.reconnectAttempts}/${this.config.maxReconnectAttempts} to server ${this.serverId} in ${delay}ms`);
-    
+    console.info(
+      `Attempting reconnection ${this.reconnectAttempts}/${this.config.maxReconnectAttempts} to server ${this.serverId} in ${delay}ms`
+    );
+
     this.emit('reconnecting', this.reconnectAttempts);
 
     this.reconnectTimeout = setTimeout(() => {
-      this.connect().catch((error) => {
-        console.error(`Reconnection attempt ${this.reconnectAttempts} failed for server ${this.serverId}:`, error);
+      this.connect().catch(error => {
+        console.error(
+          `Reconnection attempt ${this.reconnectAttempts} failed for server ${this.serverId}:`,
+          error
+        );
       });
     }, delay);
   }
 
   /**
    * Start connection health monitoring using message activity
-   * 
+   *
    * Uses a heartbeat approach based on message activity rather than custom ping/pong.
    * This avoids protocol issues and aligns with standard WebSocket best practices.
    */
   private startPing(): void {
     this.clearPingInterval();
-    
+
     this.pingInterval = setInterval(() => {
       if (this.isConnected()) {
         const now = Date.now();
         const timeSinceLastActivity = now - this.lastPingTime;
-        
+
         // Check if connection has been idle for too long
         if (timeSinceLastActivity > this.config.pingInterval * 2) {
-          console.warn(`No activity detected on server ${this.serverId} for ${timeSinceLastActivity}ms - connection may be stale`);
-          
+          console.warn(
+            `No activity detected on server ${this.serverId} for ${timeSinceLastActivity}ms - connection may be stale`
+          );
+
           // Instead of sending custom ping, close connection to trigger reconnection
           // This approach is more reliable than custom ping/pong messages
           if (this.ws) {
@@ -435,13 +468,13 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
     }
 
     console.info(`Rejoining ${this.joinedProjects.size} projects for server ${this.serverId}`);
-    
+
     this.joinedProjects.forEach(projectId => {
       const message: ProjectJoinMessage = {
         type: 'project_join',
         data: {
-          project_id: projectId
-        }
+          project_id: projectId,
+        },
       };
       this.send(message);
     });
@@ -458,7 +491,7 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
 
     // Determine protocol based on current page protocol
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    
+
     // Handle different URL formats
     if (url.startsWith('//')) {
       return `${protocol}${url}`;
@@ -476,7 +509,9 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
     if (this.connectionStatus !== status) {
       const previousStatus = this.connectionStatus;
       this.connectionStatus = status;
-      console.debug(`Connection status changed for server ${this.serverId}: ${previousStatus} -> ${status}`);
+      console.debug(
+        `Connection status changed for server ${this.serverId}: ${previousStatus} -> ${status}`
+      );
     }
   }
 
@@ -505,17 +540,22 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
 
     const key = `websocket_joined_projects_${this.serverId}`;
     const projectsArray = Array.from(this.joinedProjects);
-    
+
     try {
       const data = JSON.stringify(projectsArray);
-      
+
       // Check data size to prevent quota exceeded errors
-      if (data.length > 1024 * 1024) { // 1MB limit
-        console.warn(`Project data too large for localStorage on server ${this.serverId}, truncating`);
+      if (data.length > 1024 * 1024) {
+        // 1MB limit
+        console.warn(
+          `Project data too large for localStorage on server ${this.serverId}, truncating`
+        );
         // Keep only the most recently joined projects
         const truncatedArray = projectsArray.slice(-50); // Keep last 50 projects
         localStorage.setItem(key, JSON.stringify(truncatedArray));
-        console.info(`Truncated and saved ${truncatedArray.length} projects for server ${this.serverId}`);
+        console.info(
+          `Truncated and saved ${truncatedArray.length} projects for server ${this.serverId}`
+        );
       } else {
         localStorage.setItem(key, data);
       }
@@ -523,22 +563,35 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
       if (error instanceof Error) {
         if (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
           // localStorage quota exceeded - try to free up space
-          console.warn(`localStorage quota exceeded for server ${this.serverId}, attempting cleanup`);
+          console.warn(
+            `localStorage quota exceeded for server ${this.serverId}, attempting cleanup`
+          );
           this.cleanupOldLocalStorage();
-          
+
           // Retry with minimal data
           try {
             const minimalArray = projectsArray.slice(-10); // Keep only last 10
             localStorage.setItem(key, JSON.stringify(minimalArray));
-            console.info(`Saved minimal project list (${minimalArray.length} projects) for server ${this.serverId}`);
+            console.info(
+              `Saved minimal project list (${minimalArray.length} projects) for server ${this.serverId}`
+            );
           } catch (retryError) {
-            console.error(`Failed to save even minimal project data for server ${this.serverId}:`, retryError);
+            console.error(
+              `Failed to save even minimal project data for server ${this.serverId}:`,
+              retryError
+            );
           }
         } else {
-          console.warn(`Failed to persist joined projects for server ${this.serverId}:`, error.message);
+          console.warn(
+            `Failed to persist joined projects for server ${this.serverId}:`,
+            error.message
+          );
         }
       } else {
-        console.warn(`Unknown error persisting joined projects for server ${this.serverId}:`, error);
+        console.warn(
+          `Unknown error persisting joined projects for server ${this.serverId}:`,
+          error
+        );
       }
     }
   }
@@ -548,16 +601,18 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
    */
   private loadPersistedJoinedProjects(): void {
     this.joinedProjects = new Set(); // Initialize with empty set
-    
+
     if (!this.isLocalStorageAvailable()) {
-      console.warn(`localStorage not available for server ${this.serverId}, starting with empty project list`);
+      console.warn(
+        `localStorage not available for server ${this.serverId}, starting with empty project list`
+      );
       return;
     }
 
     try {
       const key = `websocket_joined_projects_${this.serverId}`;
       const storedProjects = localStorage.getItem(key);
-      
+
       if (!storedProjects) {
         console.debug(`No persisted projects found for server ${this.serverId}`);
         return;
@@ -566,8 +621,11 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
       let projectsArray: string[];
       try {
         projectsArray = JSON.parse(storedProjects);
-      } catch (parseError) {
-        console.warn(`Invalid JSON in persisted projects for server ${this.serverId}, resetting`);
+      } catch (error) {
+        console.warn(
+          `Invalid JSON in persisted projects for server ${this.serverId}, resetting:`,
+          error
+        );
         localStorage.removeItem(key);
         return;
       }
@@ -589,18 +647,21 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
       });
 
       this.joinedProjects = new Set(validProjects);
-      console.debug(`Loaded ${validProjects.length} persisted projects for server ${this.serverId}`);
-      
+      console.debug(
+        `Loaded ${validProjects.length} persisted projects for server ${this.serverId}`
+      );
+
       // If we filtered out invalid projects, update localStorage
       if (validProjects.length !== projectsArray.length) {
-        console.info(`Cleaned up ${projectsArray.length - validProjects.length} invalid project IDs for server ${this.serverId}`);
+        console.info(
+          `Cleaned up ${projectsArray.length - validProjects.length} invalid project IDs for server ${this.serverId}`
+        );
         this.persistJoinedProjects();
       }
-      
     } catch (error) {
       console.warn(`Failed to load persisted joined projects for server ${this.serverId}:`, error);
       this.joinedProjects = new Set();
-      
+
       // Clean up corrupted data
       try {
         const key = `websocket_joined_projects_${this.serverId}`;
@@ -618,15 +679,19 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
   private cleanupOldLocalStorage(): void {
     try {
       const keysToRemove: string[] = [];
-      
+
       // Find old WebSocket-related keys
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('websocket_') && key !== `websocket_joined_projects_${this.serverId}`) {
+        if (
+          key &&
+          key.startsWith('websocket_') &&
+          key !== `websocket_joined_projects_${this.serverId}`
+        ) {
           keysToRemove.push(key);
         }
       }
-      
+
       // Remove old entries
       keysToRemove.forEach(key => {
         try {
@@ -635,7 +700,7 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
           console.warn(`Failed to remove old localStorage key ${key}:`, error);
         }
       });
-      
+
       if (keysToRemove.length > 0) {
         console.info(`Cleaned up ${keysToRemove.length} old WebSocket localStorage entries`);
       }
@@ -690,7 +755,7 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
   public destroy(): void {
     this.disconnect();
     this.removeAllListeners();
-    
+
     // Clear persisted data with enhanced error handling
     if (this.isLocalStorageAvailable()) {
       try {

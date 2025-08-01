@@ -28,7 +28,6 @@ const SegmentedControl = <T extends string = string>({
   'aria-label': ariaLabel,
   ...props
 }: SegmentedControlProps<T>) => {
-
   // Memoize the transform calculation for performance
   const transformStyle = useMemo(() => {
     const activeIndex = options.findIndex(opt => opt.value === value);
@@ -38,11 +37,11 @@ const SegmentedControl = <T extends string = string>({
       transform: `translateX(${safeIndex * 100}%)`,
     };
   }, [options, value]);
-  
+
   const handleKeyDown = (event: React.KeyboardEvent) => {
     const currentIndex = options.findIndex(opt => opt.value === value);
     let newIndex = currentIndex;
-    
+
     switch (event.key) {
       case 'ArrowLeft':
       case 'ArrowUp':
@@ -65,7 +64,7 @@ const SegmentedControl = <T extends string = string>({
       default:
         return; // Don't prevent default for other keys
     }
-    
+
     // Find the next non-disabled option
     const newOption = options[newIndex];
     if (newOption && !newOption.disabled) {
@@ -94,7 +93,7 @@ const SegmentedControl = <T extends string = string>({
   };
 
   const buttonSizes = {
-    sm: 'px-2 py-1 text-xs min-h-8', 
+    sm: 'px-2 py-1 text-xs min-h-8',
     md: 'px-3 py-1.5 text-sm min-h-9', // ~36px button inside container
     lg: 'px-4 py-2 text-base min-h-10', // ~40px button inside container
   };
@@ -102,7 +101,7 @@ const SegmentedControl = <T extends string = string>({
   return (
     <div
       className={cn(
-        'inline-flex items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 relative overflow-x-auto scrollbar-hide overflow-scroll-touch',
+        'scrollbar-hide overflow-scroll-touch relative inline-flex items-center justify-center overflow-x-auto rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
         sizes[size],
         fullWidth && 'w-full',
         className
@@ -114,15 +113,15 @@ const SegmentedControl = <T extends string = string>({
     >
       {/* Background indicator for active tab */}
       <div
-        className="absolute inset-1 bg-white dark:bg-gray-700 rounded-md shadow-sm transition-all duration-200 ease-out"
+        className="absolute inset-1 rounded-md bg-white shadow-sm transition-all duration-200 ease-out dark:bg-gray-700"
         style={transformStyle}
       />
-      
+
       {options.map((option, _index) => (
         <button
           key={option.value}
           className={cn(
-            'relative z-10 inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium ring-offset-background transition-all duration-200 ease-out',
+            'ring-offset-background relative z-10 inline-flex items-center justify-center whitespace-nowrap rounded-md font-medium transition-all duration-200 ease-out',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2',
             'disabled:pointer-events-none disabled:opacity-50',
             'active:scale-95', // Mobile touch feedback
@@ -132,7 +131,7 @@ const SegmentedControl = <T extends string = string>({
             value === option.value
               ? 'text-gray-900 dark:text-gray-100'
               : 'hover:text-gray-800 dark:hover:text-gray-200',
-            option.disabled && 'opacity-50 cursor-not-allowed'
+            option.disabled && 'cursor-not-allowed opacity-50'
           )}
           onClick={() => !option.disabled && onChange(option.value)}
           role="tab"
@@ -143,7 +142,7 @@ const SegmentedControl = <T extends string = string>({
           type="button"
         >
           {option.icon && (
-            <span 
+            <span
               className={cn(
                 'shrink-0 transition-transform duration-200',
                 option.label && 'mr-2',

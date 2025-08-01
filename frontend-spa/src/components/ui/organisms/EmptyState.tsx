@@ -36,7 +36,7 @@ export function EmptyState({
   action,
   secondaryAction,
   size = 'md',
-  type = 'generic'
+  type = 'generic',
 }: EmptyStateProps) {
   const primaryActionRef = useRef<HTMLButtonElement>(null);
 
@@ -71,22 +71,22 @@ export function EmptyState({
       icon: 'h-12 w-12',
       title: 'text-lg',
       description: 'text-sm',
-      spacing: 'space-y-3'
+      spacing: 'space-y-3',
     },
     md: {
       container: 'py-12 px-6',
       icon: 'h-16 w-16',
       title: 'text-xl',
       description: 'text-base',
-      spacing: 'space-y-4'
+      spacing: 'space-y-4',
     },
     lg: {
       container: 'py-16 px-8',
       icon: 'h-20 w-20',
       title: 'text-2xl',
       description: 'text-lg',
-      spacing: 'space-y-6'
-    }
+      spacing: 'space-y-6',
+    },
   };
 
   const config = sizeConfig[size];
@@ -112,11 +112,8 @@ export function EmptyState({
       <div className={`${config.spacing}`}>
         {/* Icon */}
         <div className="flex justify-center">
-          <div className="rounded-full bg-gray-100 dark:bg-gray-800 p-4">
-            <Icon 
-              className={`${config.icon} ${getIconColors()}`}
-              strokeWidth={1.5}
-            />
+          <div className="rounded-full bg-gray-100 p-4 dark:bg-gray-800">
+            <Icon className={`${config.icon} ${getIconColors()}`} strokeWidth={1.5} />
           </div>
         </div>
 
@@ -125,14 +122,16 @@ export function EmptyState({
           <h3 className={`font-semibold text-gray-900 dark:text-gray-100 ${config.title}`}>
             {title}
           </h3>
-          <p className={`text-gray-500 dark:text-gray-400 max-w-sm mx-auto leading-relaxed ${config.description}`}>
+          <p
+            className={`mx-auto max-w-sm leading-relaxed text-gray-500 dark:text-gray-400 ${config.description}`}
+          >
             {description}
           </p>
         </div>
 
         {/* Action Buttons */}
         {(action || secondaryAction) && (
-          <div className="space-y-3 w-full max-w-xs mx-auto">
+          <div className="mx-auto w-full max-w-xs space-y-3">
             {action && (
               <Button
                 ref={primaryActionRef}
@@ -162,6 +161,7 @@ export function EmptyState({
 }
 
 // Predefined empty state configurations for common use cases
+// eslint-disable-next-line react-refresh/only-export-components
 export const EmptyStatePresets = {
   noProjects: (onAddProject: () => void): EmptyStateProps => ({
     type: 'projects',
@@ -169,8 +169,8 @@ export const EmptyStatePresets = {
     description: 'Create your first project to start building and managing your code.',
     action: {
       label: 'Add Project',
-      onPress: onAddProject
-    }
+      onPress: onAddProject,
+    },
   }),
 
   noServers: (onAddServer: () => void): EmptyStateProps => ({
@@ -179,8 +179,8 @@ export const EmptyStatePresets = {
     description: 'Add a server connection to start managing your projects remotely.',
     action: {
       label: 'Add Server',
-      onPress: onAddServer
-    }
+      onPress: onAddServer,
+    },
   }),
 
   connectionLost: (onRetry: () => void): EmptyStateProps => ({
@@ -189,8 +189,8 @@ export const EmptyStatePresets = {
     description: 'Unable to connect to the server. Check your network and try again.',
     action: {
       label: 'Retry Connection',
-      onPress: onRetry
-    }
+      onPress: onRetry,
+    },
   }),
 
   noSearchResults: (query: string, onClear: () => void): EmptyStateProps => ({
@@ -200,31 +200,35 @@ export const EmptyStatePresets = {
     action: {
       label: 'Clear Search',
       onPress: onClear,
-      variant: 'secondary'
-    }
+      variant: 'secondary',
+    },
   }),
 
   projectsLoading: (): EmptyStateProps => ({
     type: 'projects',
     title: 'Loading projects...',
     description: 'Please wait while we fetch your projects.',
-    size: 'sm'
+    size: 'sm',
   }),
 
   offlineMode: (onRefresh: () => void): EmptyStateProps => ({
     type: 'connection',
-    title: 'You\'re offline',
+    title: "You're offline",
     description: 'Some features may be limited. Connect to the internet to sync your projects.',
     action: {
       label: 'Refresh',
       onPress: onRefresh,
-      variant: 'secondary'
-    }
-  })
+      variant: 'secondary',
+    },
+  }),
 };
 
 // Helper function to create empty states with presets
-export function createEmptyState(preset: keyof typeof EmptyStatePresets, ...args: unknown[]): EmptyStateProps {
+// eslint-disable-next-line react-refresh/only-export-components
+export function createEmptyState(
+  preset: keyof typeof EmptyStatePresets,
+  ...args: unknown[]
+): EmptyStateProps {
   const presetFn = EmptyStatePresets[preset] as (...args: unknown[]) => EmptyStateProps;
   return presetFn(...args);
 }

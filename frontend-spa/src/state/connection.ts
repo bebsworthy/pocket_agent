@@ -5,10 +5,6 @@ import type { ConnectionState } from '../types/messages';
 export const connectionStateAtom = atom<ConnectionState>('disconnected');
 
 // WebSocket connection status
-export const isConnectedAtom = atom(
-  (get) => get(connectionStateAtom) === 'connected'
-);
+export const isConnectedAtom = atom(get => get(connectionStateAtom) === 'connected');
 
-export const isConnectingAtom = atom(
-  (get) => get(connectionStateAtom) === 'connecting'
-);
+export const isConnectingAtom = atom(get => get(connectionStateAtom) === 'connecting');

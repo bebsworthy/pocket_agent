@@ -9,34 +9,18 @@ import { useProjects, useServers, useUI, useWebSocketManager } from '../hooks';
 
 export function StateUsageExample() {
   // Example: Using project state
-  const { 
-    projects, 
-    addProject, 
-    selectProject, 
-    selectedProject,
-    hasProjects 
-  } = useProjects();
+  const { projects, addProject, selectProject, selectedProject, hasProjects } = useProjects();
 
   // Example: Using server state
-  const { 
-    servers, 
-    addServer, 
-    updateConnectionStatus,
-    connectedCount 
-  } = useServers();
+  const { servers, addServer, updateConnectionStatus, connectedCount } = useServers();
 
   // Example: Using UI state
-  const { 
-    theme, 
-    toggleTheme, 
-    showSuccessToast,
-    isDarkMode 
-  } = useUI();
+  const { theme, toggleTheme, showSuccessToast, isDarkMode } = useUI();
 
   // Example: Using WebSocket state
-  const { 
-    totalConnections, 
-    isAnyConnected
+  const {
+    totalConnections,
+    isAnyConnected,
     // Additional methods: getConnectionState, getConnectedServers, disconnectAll
   } = useWebSocketManager();
 
@@ -44,9 +28,9 @@ export function StateUsageExample() {
     const newProject = addProject({
       name: 'Example Project',
       path: '/path/to/project',
-      serverId: 'server-1'
+      serverId: 'server-1',
     });
-    
+
     showSuccessToast('Project added successfully!');
     selectProject(newProject.id);
   };
@@ -54,9 +38,9 @@ export function StateUsageExample() {
   const handleAddServer = () => {
     const newServer = addServer({
       name: 'Local Server',
-      websocketUrl: 'ws://localhost:8080'
+      websocketUrl: 'ws://localhost:8080',
     });
-    
+
     // Simulate connection
     updateConnectionStatus(newServer.id, 'connecting');
     setTimeout(() => {
@@ -66,15 +50,12 @@ export function StateUsageExample() {
 
   return (
     <div className={`p-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-      <h2 className="text-xl font-bold mb-4">Jotai State Management Example</h2>
-      
+      <h2 className="mb-4 text-xl font-bold">Jotai State Management Example</h2>
+
       <div className="space-y-4">
         <div>
           <h3 className="font-semibold">Theme: {theme}</h3>
-          <button 
-            onClick={toggleTheme}
-            className="px-3 py-1 bg-blue-500 text-white rounded"
-          >
+          <button onClick={toggleTheme} className="rounded bg-blue-500 px-3 py-1 text-white">
             Toggle Theme
           </button>
         </div>
@@ -83,10 +64,7 @@ export function StateUsageExample() {
           <h3 className="font-semibold">Projects ({projects.length})</h3>
           <p>Has projects: {hasProjects ? 'Yes' : 'No'}</p>
           <p>Selected: {selectedProject?.name || 'None'}</p>
-          <button 
-            onClick={handleAddProject}
-            className="px-3 py-1 bg-green-500 text-white rounded"
-          >
+          <button onClick={handleAddProject} className="rounded bg-green-500 px-3 py-1 text-white">
             Add Project
           </button>
         </div>
@@ -94,10 +72,7 @@ export function StateUsageExample() {
         <div>
           <h3 className="font-semibold">Servers ({servers.length})</h3>
           <p>Connected: {connectedCount}</p>
-          <button 
-            onClick={handleAddServer}
-            className="px-3 py-1 bg-purple-500 text-white rounded"
-          >
+          <button onClick={handleAddServer} className="rounded bg-purple-500 px-3 py-1 text-white">
             Add Server
           </button>
         </div>
@@ -110,7 +85,7 @@ export function StateUsageExample() {
 
         <div className="mt-4">
           <h4 className="font-medium">Project List:</h4>
-          <ul className="list-disc list-inside">
+          <ul className="list-inside list-disc">
             {projects.map(project => (
               <li key={project.id} className="text-sm">
                 {project.name} (Server: {project.serverId})
@@ -121,7 +96,7 @@ export function StateUsageExample() {
 
         <div>
           <h4 className="font-medium">Server List:</h4>
-          <ul className="list-disc list-inside">
+          <ul className="list-inside list-disc">
             {servers.map(server => (
               <li key={server.id} className="text-sm">
                 {server.name} - {server.isConnected ? 'Connected' : 'Disconnected'}

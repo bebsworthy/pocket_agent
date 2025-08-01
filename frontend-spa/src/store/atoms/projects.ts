@@ -61,7 +61,7 @@ const projectsStorage = {
     };
     window.addEventListener('storage', handler);
     return () => window.removeEventListener('storage', handler);
-  }
+  },
 };
 
 // Projects list with localStorage persistence and error handling
@@ -71,26 +71,20 @@ export const projectsAtom = atomWithStorage<Project[]>('projects', [], projectsS
 export const selectedProjectIdAtom = atom(null as string | null);
 
 // Derived atom for selected project
-export const selectedProjectAtom = atom(
-  (get) => {
-    const projects = get(projectsAtom);
-    const selectedId = get(selectedProjectIdAtom);
-    return projects.find((p: Project) => p.id === selectedId) || null;
-  }
-);
+export const selectedProjectAtom = atom(get => {
+  const projects = get(projectsAtom);
+  const selectedId = get(selectedProjectIdAtom);
+  return projects.find((p: Project) => p.id === selectedId) || null;
+});
 
 // Project loading state
 export const projectsLoadingAtom = atom(false);
 
 // Derived atom for project count
-export const projectCountAtom = atom(
-  (get) => get(projectsAtom).length
-);
+export const projectCountAtom = atom(get => get(projectsAtom).length);
 
 // Derived atom to check if projects exist
-export const hasProjectsAtom = atom(
-  (get) => get(projectsAtom).length > 0
-);
+export const hasProjectsAtom = atom(get => get(projectsAtom).length > 0);
 
 // Atom for tracking project operations (add, remove, update)
 export const projectOperationAtom = atom<{
@@ -107,7 +101,7 @@ export const addProjectAtom = atom(
       ...newProject,
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
-      lastActive: new Date().toISOString()
+      lastActive: new Date().toISOString(),
     };
     set(projectsAtom, [...projects, projectWithId]);
     set(projectOperationAtom, { type: 'add', projectId: projectWithId.id });
@@ -116,47 +110,34 @@ export const addProjectAtom = atom(
 );
 
 // Write-only atom for removing a project
-export const removeProjectAtom = atom(
-  null,
-  (get, set, projectId: string) => {
-    const projects = get(projectsAtom);
-    const filteredProjects = projects.filter((p: Project) => p.id !== projectId);
-    set(projectsAtom, filteredProjects);
-    set(projectOperationAtom, { type: 'remove', projectId });
-    
-    // Clear selection if the removed project was selected
-    const selectedId = get(selectedProjectIdAtom);
-    if (selectedId === projectId) {
-      set(selectedProjectIdAtom, null);
-    }
+export const removeProjectAtom = atom(null, (get, set, projectId: string) => {
+  const projects = get(projectsAtom);
+  const filteredProjects = projects.filter((p: Project) => p.id !== projectId);
+  set(projectsAtom, filteredProjects);
+  set(projectOperationAtom, { type: 'remove', projectId });
+
+  // Clear selection if the removed project was selected
+  const selectedId = get(selectedProjectIdAtom);
+  if (selectedId === projectId) {
+    set(selectedProjectIdAtom, null);
   }
-);
+});
 
 // Write-only atom for updating a project
-export const updateProjectAtom = atom(
-  null,
-  (get, set, updatedProject: Project) => {
-    const projects = get(projectsAtom);
-    const updatedProjects = projects.map((p: Project) => 
-      p.id === updatedProject.id 
-        ? { ...updatedProject, lastActive: new Date().toISOString() }
-        : p
-    );
-    set(projectsAtom, updatedProjects);
-    set(projectOperationAtom, { type: 'update', projectId: updatedProject.id });
-  }
-);
+export const updateProjectAtom = atom(null, (get, set, updatedProject: Project) => {
+  const projects = get(projectsAtom);
+  const updatedProjects = projects.map((p: Project) =>
+    p.id === updatedProject.id ? { ...updatedProject, lastActive: new Date().toISOString() } : p
+  );
+  set(projectsAtom, updatedProjects);
+  set(projectOperationAtom, { type: 'update', projectId: updatedProject.id });
+});
 
 // Write-only atom for updating project last active time
-export const updateProjectLastActiveAtom = atom(
-  null,
-  (get, set, projectId: string) => {
-    const projects = get(projectsAtom);
-    const updatedProjects = projects.map((p: Project) => 
-      p.id === projectId 
-        ? { ...p, lastActive: new Date().toISOString() }
-        : p
-    );
-    set(projectsAtom, updatedProjects);
-  }
-);
+export const updateProjectLastActiveAtom = atom(null, (get, set, projectId: string) => {
+  const projects = get(projectsAtom);
+  const updatedProjects = projects.map((p: Project) =>
+    p.id === projectId ? { ...p, lastActive: new Date().toISOString() } : p
+  );
+  set(projectsAtom, updatedProjects);
+});

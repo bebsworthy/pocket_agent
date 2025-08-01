@@ -1,6 +1,6 @@
 /**
  * WebSocket-related React hooks
- * 
+ *
  * These hooks provide convenient interfaces for components to interact
  * with WebSocket services and listen to specific message types.
  */
@@ -8,20 +8,20 @@
 import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { useAtomValue } from 'jotai';
 import { useWebSocketContext } from './WebSocketContext';
-import { 
+import {
   websocketConnectionStatesAtom,
   websocketErrorsAtom,
   websocketReconnectionAttemptsAtom,
   joinedProjectsAtom,
   projectStatesAtom,
-  serverStatsAtom
+  serverStatsAtom,
 } from '../../store/atoms/websocket';
-import type { 
-  ServerMessage, 
-  ClientMessage, 
+import type {
+  ServerMessage,
+  ClientMessage,
   ProjectStateMessage,
   AgentMessage,
-  ErrorMessage
+  ErrorMessage,
 } from '../../types/messages';
 import type { ConnectionStatus, ProjectState } from '../../types/models';
 
@@ -35,15 +35,15 @@ export function useWebSocketMessage<T extends ServerMessage>(
   deps: React.DependencyList = []
 ): void {
   const context = useWebSocketContext();
-  
-  // Use useCallback to stabilize the handler
-  const stableHandler = useCallback(handler, deps);
-  const handlerRef = useRef(stableHandler);
-  
-  // Update handler ref when stable handler changes
+
+  // Store the handler in a ref to avoid stale closures
+  const handlerRef = useRef(handler);
+
+  // Update handler ref when handler or any dependencies change
   useEffect(() => {
-    handlerRef.current = stableHandler;
-  }, [stableHandler]);
+    handlerRef.current = handler;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handler, ...deps]);
 
   // Memoize the message types array to avoid JSON.stringify
   const typesArray = useMemo(() => {
@@ -60,7 +60,7 @@ export function useWebSocketMessage<T extends ServerMessage>(
       const listener = (message: ServerMessage) => {
         handlerRef.current(message as T);
       };
-      
+
       service.on(messageType as string, listener);
       listeners.push(() => service.off(messageType as string, listener));
     });
@@ -82,7 +82,9 @@ export function useWebSocketConnectionStatus(serverId: string): ConnectionStatus
 /**
  * Hook to get WebSocket errors for a server
  */
-export function useWebSocketError(serverId: string): { error: string; timestamp: string; critical: boolean } | null {
+export function useWebSocketError(
+  serverId: string
+): { error: string; timestamp: string; critical: boolean } | null {
   const errors = useAtomValue(websocketErrorsAtom);
   return errors.get(serverId) || null;
 }
@@ -101,14 +103,17 @@ export function useWebSocketReconnectionAttempts(serverId: string): number {
 export function useWebSocketSend(serverId: string) {
   const context = useWebSocketContext();
 
-  return useCallback((message: ClientMessage): boolean => {
-    const service = context.getService(serverId);
-    if (!service) {
-      console.warn(`Cannot send message: No WebSocket service found for server ${serverId}`);
-      return false;
-    }
-    return service.send(message);
-  }, [serverId, context]);
+  return useCallback(
+    (message: ClientMessage): boolean => {
+      const service = context.getService(serverId);
+      if (!service) {
+        console.warn(`Cannot send message: No WebSocket service found for server ${serverId}`);
+        return false;
+      }
+      return service.send(message);
+    },
+    [serverId, context]
+  );
 }
 
 /**
@@ -117,7 +122,7 @@ export function useWebSocketSend(serverId: string) {
 export function useWebSocketProject(serverId: string, projectId: string) {
   const context = useWebSocketContext();
   const joinedProjects = useAtomValue(joinedProjectsAtom);
-  
+
   const isJoined = joinedProjects.get(serverId)?.has(projectId) || false;
 
   const join = useCallback(() => {
@@ -137,7 +142,7 @@ export function useWebSocketProject(serverId: string, projectId: string) {
   return {
     isJoined,
     join,
-    leave
+    leave,
   };
 }
 
@@ -179,7 +184,7 @@ export function useAgentMessages(
   useWebSocketMessage<AgentMessage>(
     serverId,
     'agent_message',
-    (message) => {
+    message => {
       if (message.project_id === projectId) {
         handler(message);
       }
@@ -199,7 +204,7 @@ export function useProjectStateChanges(
   useWebSocketMessage<ProjectStateMessage>(
     serverId,
     'project_state',
-    (message) => {
+    message => {
       if (message.project_id === projectId) {
         handler(message);
       }
@@ -239,14 +244,17 @@ export function useConnectionHealth(serverId: string): {
     hasError: connectionStatus === 'error' || !!error,
     errorMessage: error?.error,
     reconnectAttempts,
-    lastActivity: error?.timestamp
+    lastActivity: error?.timestamp,
   };
 }
 
 /**
  * Hook to automatically retry failed connections
  */
-export function useConnectionRetry(serverId: string, maxRetries = 3): {
+export function useConnectionRetry(
+  serverId: string,
+  maxRetries = 3
+): {
   retry: () => Promise<void>;
   isRetrying: boolean;
   canRetry: boolean;
@@ -280,7 +288,7 @@ export function useConnectionRetry(serverId: string, maxRetries = 3): {
   return {
     retry,
     isRetrying,
-    canRetry
+    canRetry,
   };
 }
 
@@ -321,7 +329,7 @@ export function useConnectionWatchdog(
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
-      
+
       timeoutRef.current = setTimeout(() => {
         const service = context.getService(serverId);
         if (service && service.isConnected()) {

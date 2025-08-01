@@ -1,14 +1,10 @@
 // Connection state
-export {
-  connectionStateAtom,
-  isConnectedAtom,
-  isConnectingAtom
-} from './connection';
+export { connectionStateAtom, isConnectedAtom, isConnectingAtom } from './connection';
 
 // Projects state
 export {
   projectsAtom,
   currentProjectAtom,
   projectsLoadingAtom,
-  projectCountAtom
+  projectCountAtom,
 } from './projects';

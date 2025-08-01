@@ -12,9 +12,18 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
 
     // Determine appropriate inputMode based on type if not explicitly provided
-    const getInputMode = (): 'text' | 'url' | 'email' | 'tel' | 'numeric' | 'decimal' | 'search' | 'none' | undefined => {
+    const getInputMode = ():
+      | 'text'
+      | 'url'
+      | 'email'
+      | 'tel'
+      | 'numeric'
+      | 'decimal'
+      | 'search'
+      | 'none'
+      | undefined => {
       if (inputMode) return inputMode;
-      
+
       switch (type) {
         case 'url':
           return 'url';
@@ -36,11 +45,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && (
           <label
             htmlFor={inputId}
-            className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2"
+            className="mb-2 block text-sm font-medium text-gray-900 dark:text-gray-100"
           >
             {label}
             {required && (
-              <span className="text-red-500 ml-1" aria-label="required">
+              <span className="ml-1 text-red-500" aria-label="required">
                 *
               </span>
             )}
@@ -52,7 +61,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           inputMode={getInputMode()}
           className={cn(
             // Base styles with mobile-first approach
-            'flex w-full rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-base text-gray-900 dark:text-gray-100 ring-offset-white dark:ring-offset-gray-900',
+            'flex w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-base text-gray-900 ring-offset-white dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:ring-offset-gray-900',
             // Mobile optimizations - larger touch targets and text
             'h-11 min-h-[44px] text-base', // 44px minimum touch target
             // Focus and interaction states
@@ -60,11 +69,11 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2',
             'focus:border-blue-500 dark:focus:border-blue-400',
             // Disabled and error states
-            'disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-gray-50 dark:disabled:bg-gray-700',
+            'disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-50 dark:disabled:bg-gray-700',
             // Mobile keyboard optimizations
             'transition-colors duration-200',
             // Error styling
-            error && 'border-red-500 focus-visible:ring-red-500 focus:border-red-500',
+            error && 'border-red-500 focus:border-red-500 focus-visible:ring-red-500',
             className
           )}
           ref={ref}

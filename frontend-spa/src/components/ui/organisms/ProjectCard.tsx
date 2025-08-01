@@ -17,17 +17,15 @@ export interface ProjectCardProps {
  * ProjectCard - An organism component for displaying project information
  * with server connection status and action buttons. Optimized for mobile touch.
  */
-export function ProjectCard({ 
-  project, 
-  server, 
-  onPress, 
-  onDisconnect, 
-  onSettings 
+export function ProjectCard({
+  project,
+  server,
+  onPress,
+  onDisconnect,
+  onSettings,
 }: ProjectCardProps) {
   // Determine connection status
-  const connectionStatus: ConnectionStatus = server.isConnected 
-    ? 'connected' 
-    : 'disconnected';
+  const connectionStatus: ConnectionStatus = server.isConnected ? 'connected' : 'disconnected';
 
   // Format last active time for display (memoized for performance)
   const formatLastActive = useMemo(() => {
@@ -72,27 +70,21 @@ export function ProjectCard({
     >
       <CardContent className="p-4">
         {/* Header with project name and status */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="flex-shrink-0 w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+        <div className="mb-3 flex items-center justify-between">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
               <Folder className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-semibold text-gray-900 dark:text-gray-100">
                 {project.name}
               </h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
-                {project.path}
-              </p>
+              <p className="truncate text-sm text-gray-500 dark:text-gray-400">{project.path}</p>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <StatusIndicator 
-              status={connectionStatus}
-              size="sm"
-              label={server.name}
-            />
+
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <StatusIndicator status={connectionStatus} size="sm" label={server.name} />
             {onSettings && (
               <IconButton
                 icon={MoreVertical}
@@ -110,33 +102,29 @@ export function ProjectCard({
         {/* Server and connection info */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-            <span className="truncate">
-              {server.name}
-            </span>
+            <span className="truncate">{server.name}</span>
             <span className="text-gray-400 dark:text-gray-500">•</span>
-            <span className="flex-shrink-0">
-              {formatLastActive(project.lastActive)}
-            </span>
+            <span className="flex-shrink-0">{formatLastActive(project.lastActive)}</span>
           </div>
-          
+
           <div className="flex items-center gap-1">
             {server.isConnected && onDisconnect && (
               <button
                 onClick={handleDisconnect}
                 data-action-button
-                className="text-xs px-2 py-1 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20 rounded transition-colors"
+                className="rounded px-2 py-1 text-xs text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                 aria-label="Disconnect from server"
               >
                 Disconnect
               </button>
             )}
-            <ArrowRight className="h-4 w-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+            <ArrowRight className="h-4 w-4 flex-shrink-0 text-gray-400 dark:text-gray-500" />
           </div>
         </div>
 
         {/* Connection status banner for disconnected state */}
         {connectionStatus === 'disconnected' && (
-          <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 dark:border-red-800 dark:bg-red-900/20">
             <p className="text-sm text-red-700 dark:text-red-300">
               Connection failed. Tap to retry.
             </p>

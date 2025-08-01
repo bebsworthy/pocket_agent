@@ -10,7 +10,12 @@ export type { IconButtonProps } from './atoms/IconButton';
 
 // Molecules
 export { Card, CardHeader, CardContent, CardFooter } from './molecules/Card';
-export type { CardProps, CardHeaderProps, CardContentProps, CardFooterProps } from './molecules/Card';
+export type {
+  CardProps,
+  CardHeaderProps,
+  CardContentProps,
+  CardFooterProps,
+} from './molecules/Card';
 
 export { StatusIndicator } from './molecules/StatusIndicator';
 export type { StatusIndicatorProps } from './molecules/StatusIndicator';

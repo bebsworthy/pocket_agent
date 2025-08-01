@@ -1,8 +1,4 @@
-import type { 
-  ClientMessage, 
-  ServerMessage, 
-  ConnectionState 
-} from '../types/messages';
+import type { ClientMessage, ServerMessage, ConnectionState } from '../types/messages';
 
 export type WebSocketEventHandler = (message: ServerMessage) => void;
 export type ConnectionStateHandler = (state: ConnectionState) => void;
@@ -28,7 +24,7 @@ export class WebSocketService {
       reconnectInterval: 5000,
       maxReconnectAttempts: 5,
       heartbeatInterval: 30000,
-      ...config
+      ...config,
     };
   }
 
@@ -43,7 +39,7 @@ export class WebSocketService {
 
       try {
         this.ws = new WebSocket(this.config.url);
-        
+
         this.ws.onopen = () => {
           this.setConnectionState('connected');
           this.reconnectAttempts = 0;
@@ -51,7 +47,7 @@ export class WebSocketService {
           resolve();
         };
 
-        this.ws.onmessage = (event) => {
+        this.ws.onmessage = event => {
           try {
             const message: ServerMessage = JSON.parse(event.data);
             this.handleMessage(message);
@@ -66,12 +62,11 @@ export class WebSocketService {
           this.attemptReconnect();
         };
 
-        this.ws.onerror = (error) => {
+        this.ws.onerror = error => {
           console.error('WebSocket error:', error);
           this.setConnectionState('error');
           reject(error);
         };
-
       } catch (error) {
         this.setConnectionState('error');
         reject(error);
@@ -156,7 +151,7 @@ export class WebSocketService {
       if (this.ws?.readyState === WebSocket.OPEN) {
         this.send({
           type: 'heartbeat',
-          timestamp: Date.now()
+          timestamp: Date.now(),
         } as ClientMessage);
       }
     }, this.config.heartbeatInterval);

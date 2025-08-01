@@ -1,8 +1,11 @@
 import { useSetAtom, useAtomValue } from 'jotai';
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useMemo } from 'react';
 import type { ClientMessage, ServerMessage, ConnectionStatus } from '../../types/models';
 import { useWebSocketContext } from '../../services/websocket/WebSocketContext';
-import type { WebSocketServiceConfig, WebSocketServiceEvents } from '../../services/websocket/WebSocketService';
+import type {
+  WebSocketServiceConfig,
+  WebSocketServiceEvents,
+} from '../../services/websocket/WebSocketService';
 
 // Import existing WebSocket atoms
 import {
@@ -23,7 +26,7 @@ import {
   setWebSocketErrorAtom,
   clearWebSocketErrorAtom,
   connectedServersAtom,
-  totalConnectionsAtom
+  totalConnectionsAtom,
 } from '../atoms/websocket';
 
 // Re-export WebSocketService from services
@@ -49,8 +52,14 @@ export function useWebSocket(serverId: string, url: string) {
   // Get current state for this server
   const connectionState = connectionStates.get(serverId) || 'disconnected';
   const messages = messageQueues.get(serverId) || [];
-  const serverJoinedProjects = joinedProjects.get(serverId) || new Set();
-  const serverPendingMessages = pendingMessages.get(serverId) || [];
+  const serverJoinedProjects = useMemo(
+    () => joinedProjects.get(serverId) || new Set(),
+    [joinedProjects, serverId]
+  );
+  const serverPendingMessages = useMemo(
+    () => pendingMessages.get(serverId) || [],
+    [pendingMessages, serverId]
+  );
   const isConnected = connectionState === 'connected';
 
   // Use a ref to track the service but rely on context for service management
@@ -65,17 +74,17 @@ export function useWebSocket(serverId: string, url: string) {
       initialReconnectDelay: 1000,
       maxReconnectDelay: 30000,
       pingInterval: 30000,
-      connectionTimeout: 10000
+      connectionTimeout: 10000,
     };
 
     let service = context.getService(serverId);
     if (!service) {
       service = context.createService(serverId, config);
     }
-    
+
     // Track that we're using this service
     serviceRef.current = serverId;
-    
+
     return () => {
       // Only cleanup if this hook instance created/managed the service
       // In practice, services should be managed at a higher level
@@ -86,20 +95,20 @@ export function useWebSocket(serverId: string, url: string) {
   const connect = useCallback(async () => {
     try {
       clearWebSocketError(serverId);
-      
+
       const service = context.getService(serverId);
       if (!service) {
         throw new Error('WebSocket service not initialized');
       }
-      
+
       await service.connect();
-      
+
       // Send any pending messages
       serverPendingMessages.forEach(message => {
         service.send(message);
       });
       clearPendingMessages(serverId);
-      
+
       // Rejoin previously joined projects
       serverJoinedProjects.forEach(projectId => {
         service.joinProject(projectId);
@@ -109,7 +118,15 @@ export function useWebSocket(serverId: string, url: string) {
       setWebSocketError(serverId, errorMessage, true);
       throw error;
     }
-  }, [serverId, context, serverPendingMessages, serverJoinedProjects, clearWebSocketError, clearPendingMessages, setWebSocketError]);
+  }, [
+    serverId,
+    context,
+    serverPendingMessages,
+    serverJoinedProjects,
+    clearWebSocketError,
+    clearPendingMessages,
+    setWebSocketError,
+  ]);
 
   const disconnect = useCallback(() => {
     const service = context.getService(serverId);
@@ -118,50 +135,59 @@ export function useWebSocket(serverId: string, url: string) {
     }
   }, [serverId, context]);
 
-  const send = useCallback((message: ClientMessage): boolean => {
-    const service = context.getService(serverId);
-    
-    if (service && isConnected) {
-      try {
-        return service.send(message);
-      } catch (error) {
-        console.error('Failed to send WebSocket message:', error);
-        // Add to pending messages if send fails
+  const send = useCallback(
+    (message: ClientMessage): boolean => {
+      const service = context.getService(serverId);
+
+      if (service && isConnected) {
+        try {
+          return service.send(message);
+        } catch (error) {
+          console.error('Failed to send WebSocket message:', error);
+          // Add to pending messages if send fails
+          addPendingMessage(serverId, message);
+          return false;
+        }
+      } else {
+        // Add to pending messages if not connected
         addPendingMessage(serverId, message);
         return false;
       }
-    } else {
-      // Add to pending messages if not connected
-      addPendingMessage(serverId, message);
-      return false;
-    }
-  }, [serverId, context, isConnected, addPendingMessage]);
+    },
+    [serverId, context, isConnected, addPendingMessage]
+  );
 
-  const joinProject = useCallback((projectId: string) => {
-    const service = context.getService(serverId);
-    
-    if (service) {
-      service.joinProject(projectId);
-      return true;
-    } else {
-      // Store for later when service is available
-      joinProjectAction(serverId, projectId);
-      return false;
-    }
-  }, [serverId, context, joinProjectAction]);
+  const joinProject = useCallback(
+    (projectId: string) => {
+      const service = context.getService(serverId);
 
-  const leaveProject = useCallback((projectId: string) => {
-    const service = context.getService(serverId);
-    
-    if (service) {
-      service.leaveProject(projectId);
-      return true;
-    } else {
-      // Remove from joined projects
-      leaveProjectAction(serverId, projectId);
-      return false;
-    }
-  }, [serverId, context, leaveProjectAction]);
+      if (service) {
+        service.joinProject(projectId);
+        return true;
+      } else {
+        // Store for later when service is available
+        joinProjectAction(serverId, projectId);
+        return false;
+      }
+    },
+    [serverId, context, joinProjectAction]
+  );
+
+  const leaveProject = useCallback(
+    (projectId: string) => {
+      const service = context.getService(serverId);
+
+      if (service) {
+        service.leaveProject(projectId);
+        return true;
+      } else {
+        // Remove from joined projects
+        leaveProjectAction(serverId, projectId);
+        return false;
+      }
+    },
+    [serverId, context, leaveProjectAction]
+  );
 
   const clearMessages = useCallback(() => {
     clearMessageQueue(serverId);
@@ -176,14 +202,14 @@ export function useWebSocket(serverId: string, url: string) {
     hasError: connectionState === 'error',
     joinedProjects: Array.from(serverJoinedProjects),
     pendingMessages: serverPendingMessages,
-    
+
     // Actions
     connect,
     disconnect,
     send,
     joinProject,
     leaveProject,
-    clearMessages
+    clearMessages,
   };
 }
 
@@ -195,7 +221,7 @@ export function useWebSocketMessage(
   deps: React.DependencyList = []
 ) {
   const context = useWebSocketContext();
-  const stableHandler = useCallback(handler, deps);
+  const stableHandler = useCallback(handler, [handler, ...deps]);
   const handlerRef = useRef(stableHandler);
 
   // Update handler ref when stable handler changes
@@ -225,9 +251,12 @@ export function useWebSocketManager() {
   const connectedServers = useAtomValue(connectedServersAtom);
   const totalConnections = useAtomValue(totalConnectionsAtom);
 
-  const getConnectionState = useCallback((serverId: string): ConnectionStatus => {
-    return connectionStates.get(serverId) || 'disconnected';
-  }, [connectionStates]);
+  const getConnectionState = useCallback(
+    (serverId: string): ConnectionStatus => {
+      return connectionStates.get(serverId) || 'disconnected';
+    },
+    [connectionStates]
+  );
 
   const isAnyConnected = useCallback(() => {
     return totalConnections > 0;
@@ -241,7 +270,9 @@ export function useWebSocketManager() {
     // This function should disconnect all servers
     // Since we don't have access to context here, this is a limitation
     // In practice, this should be handled by the context or higher-level component
-    console.warn('disconnectAll: This function requires architectural refactoring to work with per-server services');
+    console.warn(
+      'disconnectAll: This function requires architectural refactoring to work with per-server services'
+    );
   }, []);
 
   return {
@@ -251,7 +282,7 @@ export function useWebSocketManager() {
     getConnectionState,
     isAnyConnected,
     getConnectedServers,
-    disconnectAll
+    disconnectAll,
   };
 }
 
@@ -259,20 +290,23 @@ export function useWebSocketManager() {
 export function useProjectStates() {
   const projectStates = useAtomValue(projectStatesAtom);
 
-  const getProjectState = useCallback((projectId: string) => {
-    return projectStates.get(projectId) || null;
-  }, [projectStates]);
+  const getProjectState = useCallback(
+    (projectId: string) => {
+      return projectStates.get(projectId) || null;
+    },
+    [projectStates]
+  );
 
   const getAllProjectStates = useCallback(() => {
     return Array.from(projectStates.entries()).map(([projectId, state]) => ({
       projectId,
-      ...state
+      ...state,
     }));
   }, [projectStates]);
 
   return {
     projectStates,
     getProjectState,
-    getAllProjectStates
+    getAllProjectStates,
   };
 }

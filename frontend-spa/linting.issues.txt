@@ -1,0 +1,58 @@
+
+> pocket-agent-frontend-spa@0.1.0 lint
+> eslint .
+
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/components/ErrorBoundary.tsx
+  232:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  247:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/components/LoadingScreen.tsx
+  310:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/components/ui/organisms/EmptyState.tsx
+  165:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  227:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/services/storage/StorageErrorBoundary.tsx
+  169:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/services/storage/hooks.ts
+   88:6  warning  React Hook useEffect has a missing dependency: 'triggerErrorBoundary'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  238:9  error    'memoizedServers' is assigned a value but never used                                                                     @typescript-eslint/no-unused-vars
+  270:6  warning  React Hook useEffect has a missing dependency: 'triggerErrorBoundary'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/services/websocket/WebSocketContext.tsx
+   84:6   warning  React Hook useCallback has a missing dependency: 'setupServiceEventListeners'. Either include it or remove the dependency array                                                                                                                                                        react-hooks/exhaustive-deps
+  256:27  warning  The ref value 'cleanupFunctionsRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'cleanupFunctionsRef.current' to a variable inside the effect, and use that variable in the cleanup function  react-hooks/exhaustive-deps
+  262:19  warning  The ref value 'servicesRef.current' will likely have changed by the time this effect cleanup function runs. If this ref points to a node rendered by React, copy 'servicesRef.current' to a variable inside the effect, and use that variable in the cleanup function                  react-hooks/exhaustive-deps
+  280:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                         react-refresh/only-export-components
+  291:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                         react-refresh/only-export-components
+  316:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                                                                                                         react-refresh/only-export-components
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/services/websocket/WebSocketService.ts
+  361:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  362:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  363:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  569:16  error  'parseError' is defined but never used    @typescript-eslint/no-unused-vars
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/services/websocket/hooks.ts
+  40:25  warning  React Hook useCallback received a function whose dependencies are unknown. Pass an inline function instead  react-hooks/exhaustive-deps
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/store/hooks/useUI.ts
+   31:3  error    'updateStorageStatusAtom' is defined but never used                                                                 @typescript-eslint/no-unused-vars
+  143:6  warning  React Hook useCallback has a missing dependency: 'mobileUIState'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/store/hooks/useWebSocket.ts
+   52:9   warning  The 'serverJoinedProjects' logical expression could make the dependencies of useCallback Hook (at line 112) change on every render. To fix this, wrap the initialization of 'serverJoinedProjects' in its own useMemo() Hook    react-hooks/exhaustive-deps
+   53:9   warning  The 'serverPendingMessages' logical expression could make the dependencies of useCallback Hook (at line 112) change on every render. To fix this, wrap the initialization of 'serverPendingMessages' in its own useMemo() Hook  react-hooks/exhaustive-deps
+  198:25  warning  React Hook useCallback received a function whose dependencies are unknown. Pass an inline function instead                                                                                                                      react-hooks/exhaustive-deps
+
+/Users/boyd/wip/pocket_agent/frontend-spa/src/types/models.ts
+  7:15  error  'ConnectionStatus' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/boyd/wip/pocket_agent/frontend-spa/temp_test.ts
+  1:10  error  'ConnectionStatus' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 27 problems (8 errors, 19 warnings)
+

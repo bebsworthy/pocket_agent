@@ -42,7 +42,7 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     // Set up system theme listener only if needed
     if (theme === 'system') {
       mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      
+
       const handleSystemThemeChange = (_e: MediaQueryListEvent) => {
         // Only respond to system changes if still in system mode
         const currentTheme = resolveTheme();
@@ -50,7 +50,7 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
       };
 
       mediaQuery.addEventListener('change', handleSystemThemeChange);
-      
+
       return () => {
         if (mediaQuery) {
           mediaQuery.removeEventListener('change', handleSystemThemeChange);
@@ -65,15 +65,13 @@ const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 
-
-
 // Inner App Component that uses hooks
 const AppContent: React.FC = () => {
   // Use mobile viewport hook
   useMobileViewport();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
       <Router />
     </div>
   );

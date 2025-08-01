@@ -18,7 +18,7 @@ import {
   updateServerAtom,
   updateServerConnectionStatusAtom,
   batchUpdateServerConnectionStatusAtom,
-  getServerByIdAtom
+  getServerByIdAtom,
 } from '../atoms/servers';
 
 // Primary hook for server management
@@ -48,7 +48,7 @@ export function useServers() {
     if (currentServer) {
       const updatedServer: Server = {
         ...currentServer,
-        ...updates
+        ...updates,
       };
       updateServerAction(updatedServer);
     }
@@ -62,7 +62,9 @@ export function useServers() {
     updateConnectionStatusAction(serverId, status);
   };
 
-  const batchUpdateConnectionStatus = (updates: Array<{ serverId: string; status: ConnectionStatus }>) => {
+  const batchUpdateConnectionStatus = (
+    updates: Array<{ serverId: string; status: ConnectionStatus }>
+  ) => {
     batchUpdateConnectionStatusAction(updates);
   };
 
@@ -75,15 +77,11 @@ export function useServers() {
   };
 
   const getConnectedServers = (): Server[] => {
-    return servers.filter(server => 
-      connectionStates.get(server.id) === 'connected'
-    );
+    return servers.filter(server => connectionStates.get(server.id) === 'connected');
   };
 
   const getDisconnectedServers = (): Server[] => {
-    return servers.filter(server => 
-      connectionStates.get(server.id) !== 'connected'
-    );
+    return servers.filter(server => connectionStates.get(server.id) !== 'connected');
   };
 
   const isServerConnected = (serverId: string): boolean => {
@@ -115,7 +113,7 @@ export function useServers() {
     getConnectedServers,
     getDisconnectedServers,
     isServerConnected,
-    setLoading
+    setLoading,
   };
 }
 
@@ -146,7 +144,7 @@ export function useServerActions() {
     addServer,
     updateServer,
     removeServer,
-    updateConnectionStatus
+    updateConnectionStatus,
   };
 }
 
@@ -160,7 +158,7 @@ export function useServerConnectionStatus(serverId?: string) {
       status: connectionStates.get(serverId) || 'disconnected',
       isConnected: connectionStates.get(serverId) === 'connected',
       isConnecting: connectionStates.get(serverId) === 'connecting',
-      hasError: connectionStates.get(serverId) === 'error'
+      hasError: connectionStates.get(serverId) === 'error',
     };
   }
 
@@ -168,6 +166,6 @@ export function useServerConnectionStatus(serverId?: string) {
     connectedCount,
     totalServers: connectionStates.size,
     hasConnectedServers: connectedCount > 0,
-    allConnectionStates: connectionStates
+    allConnectionStates: connectionStates,
   };
 }

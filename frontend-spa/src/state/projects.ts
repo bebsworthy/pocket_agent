@@ -11,6 +11,4 @@ export const currentProjectAtom = atom<Project | null>(null);
 export const projectsLoadingAtom = atom<boolean>(false);
 
 // Derived atom for project count
-export const projectCountAtom = atom(
-  (get) => get(projectsAtom).length
-);
+export const projectCountAtom = atom(get => get(projectsAtom).length);

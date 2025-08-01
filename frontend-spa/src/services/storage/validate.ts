@@ -26,7 +26,7 @@ export function validateLocalStorageService(): { success: boolean; errors: strin
     // Add project
     localStorageService.addProject(testProject);
     const projects = localStorageService.getProjects();
-    
+
     if (projects.length === 0 || projects[0].id !== testProject.id) {
       errors.push('Failed to add/retrieve project');
     } else {
@@ -34,10 +34,10 @@ export function validateLocalStorageService(): { success: boolean; errors: strin
     }
 
     // Update project
-    const updated = localStorageService.updateProject(testProject.id, { 
-      name: 'Updated Name' 
+    const updated = localStorageService.updateProject(testProject.id, {
+      name: 'Updated Name',
     });
-    
+
     if (!updated) {
       errors.push('Failed to update project');
     } else {
@@ -67,7 +67,7 @@ export function validateLocalStorageService(): { success: boolean; errors: strin
 
     localStorageService.addServer(testServer);
     const servers = localStorageService.getServers();
-    
+
     if (servers.length === 0 || servers[0].id !== testServer.id) {
       errors.push('Failed to add/retrieve server');
     } else {
@@ -101,10 +101,10 @@ export function validateLocalStorageService(): { success: boolean; errors: strin
     // Test 6: Export/Import
     localStorageService.addProject(testProject);
     localStorageService.addServer(testServer);
-    
+
     const exportedData = localStorageService.exportData();
     const parsed = JSON.parse(exportedData);
-    
+
     if (!parsed.projects || !parsed.servers || !parsed.theme) {
       errors.push('Data export incomplete');
     } else {
@@ -113,7 +113,7 @@ export function validateLocalStorageService(): { success: boolean; errors: strin
 
     // Clear test data
     localStorageService.clearAllData();
-    
+
     const importResult = localStorageService.importData(exportedData);
     if (!importResult.success) {
       errors.push(`Data import failed: ${importResult.message}`);
@@ -124,7 +124,6 @@ export function validateLocalStorageService(): { success: boolean; errors: strin
     // Final cleanup
     localStorageService.clearAllData();
     console.log('✓ Cleanup completed');
-
   } catch (error) {
     errors.push(`Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -138,7 +137,7 @@ export function validateLocalStorageService(): { success: boolean; errors: strin
 // Run validation if this file is executed directly
 if (typeof window !== 'undefined') {
   const result = validateLocalStorageService();
-  
+
   if (result.success) {
     console.log('🎉 All localStorage service validations passed!');
   } else {

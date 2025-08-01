@@ -33,18 +33,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: null
+      errorId: null,
     };
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     // Generate unique error ID for logging/debugging
     const errorId = `ERR_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     return {
       hasError: true,
       error,
-      errorId
+      errorId,
     };
   }
 
@@ -57,7 +57,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       errorId: this.state.errorId,
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
-      url: window.location.href
+      url: window.location.href,
     });
 
     this.setState({ errorInfo });
@@ -81,7 +81,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         stack: error.stack,
         componentStack: errorInfo.componentStack,
         errorId: this.state.errorId,
-        buildVersion: process.env.VITE_APP_VERSION || 'unknown'
+        buildVersion: process.env.VITE_APP_VERSION || 'unknown',
       });
     } catch (reportingError) {
       console.error('Failed to report error:', reportingError);
@@ -100,7 +100,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       hasError: false,
       error: null,
       errorInfo: null,
-      errorId: null
+      errorId: null,
     });
   };
 
@@ -125,12 +125,12 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       const isDevelopment = process.env.NODE_ENV === 'development';
 
       return (
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
-          <Card className="max-w-sm w-full">
-            <div className="p-6 text-center space-y-4">
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4 dark:bg-gray-900">
+          <Card className="w-full max-w-sm">
+            <div className="space-y-4 p-6 text-center">
               {/* Error Icon */}
-              <div className="mx-auto w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
-                <AlertTriangle className="w-8 h-8 text-red-600 dark:text-red-400" />
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/20">
+                <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
               </div>
 
               {/* Error Title */}
@@ -145,8 +145,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
               {/* Development Error Details */}
               {isDevelopment && this.state.error && (
-                <details className="text-left bg-gray-100 dark:bg-gray-800 rounded p-3 text-xs">
-                  <summary className="cursor-pointer font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <details className="rounded bg-gray-100 p-3 text-left text-xs dark:bg-gray-800">
+                  <summary className="mb-2 cursor-pointer font-medium text-gray-700 dark:text-gray-300">
                     Error Details (Development)
                   </summary>
                   <div className="space-y-2 text-gray-600 dark:text-gray-400">
@@ -159,7 +159,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     {this.state.error.stack && (
                       <div>
                         <strong>Stack:</strong>
-                        <pre className="whitespace-pre-wrap mt-1 text-xs overflow-x-auto">
+                        <pre className="mt-1 overflow-x-auto whitespace-pre-wrap text-xs">
                           {this.state.error.stack}
                         </pre>
                       </div>
@@ -170,7 +170,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
               {/* Error ID for User */}
               {this.state.errorId && (
-                <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded p-2">
+                <div className="rounded bg-gray-100 p-2 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                   Error ID: {this.state.errorId}
                 </div>
               )}
@@ -184,7 +184,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     onPress={this.handleRetry}
                     ariaLabel="Try again"
                   >
-                    <RefreshCw className="w-4 h-4 mr-2" />
+                    <RefreshCw className="mr-2 h-4 w-4" />
                     Try Again ({this.maxRetries - this.retryCount} attempts left)
                   </Button>
                 )}
@@ -196,7 +196,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     onPress={this.handleGoHome}
                     ariaLabel="Go to homepage"
                   >
-                    <Home className="w-4 h-4 mr-2" />
+                    <Home className="mr-2 h-4 w-4" />
                     Go Home
                   </Button>
                   <Button
@@ -205,14 +205,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     onPress={this.handleReload}
                     ariaLabel="Refresh page"
                   >
-                    <RefreshCw className="w-4 h-4 mr-2" />
+                    <RefreshCw className="mr-2 h-4 w-4" />
                     Refresh
                   </Button>
                 </div>
               </div>
 
               {/* Support Information */}
-              <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-700">
+              <div className="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400">
                 <p>If this problem persists, please contact support.</p>
                 {this.state.errorId && (
                   <p className="mt-1">Include Error ID: {this.state.errorId}</p>
@@ -229,6 +229,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 }
 
 // HOC for wrapping components with error boundary
+// eslint-disable-next-line react-refresh/only-export-components
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   errorBoundaryProps?: Omit<ErrorBoundaryProps, 'children'>
@@ -244,6 +245,7 @@ export function withErrorBoundary<P extends object>(
 }
 
 // Hook for triggering error boundary from child components
+// eslint-disable-next-line react-refresh/only-export-components
 export function useErrorBoundary() {
   return (error: Error) => {
     throw error;
@@ -264,15 +266,13 @@ export class AsyncErrorBoundary extends ErrorBoundary {
   private handleUnhandledRejection = (event: PromiseRejectionEvent) => {
     // Only handle if this boundary hasn't already caught an error
     if (!this.state.hasError) {
-      const error = new Error(
-        event.reason?.message || 'Unhandled promise rejection'
-      );
+      const error = new Error(event.reason?.message || 'Unhandled promise rejection');
       error.stack = event.reason?.stack || error.stack;
-      
+
       this.componentDidCatch(error, {
-        componentStack: 'AsyncErrorBoundary - Unhandled Promise Rejection'
+        componentStack: 'AsyncErrorBoundary - Unhandled Promise Rejection',
       });
-      
+
       event.preventDefault(); // Prevent default browser error handling
     }
   };

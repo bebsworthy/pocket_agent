@@ -1,6 +1,6 @@
 /**
  * Tests for LocalStorageService
- * 
+ *
  * This is a basic validation test to ensure the service works correctly.
  * More comprehensive testing will be added later in the testing phase.
  */
@@ -43,7 +43,7 @@ describe('LocalStorageService', () => {
     // Clear mock localStorage before each test
     mockLocalStorage.clear();
     jest.clearAllMocks();
-    
+
     // Get fresh instance (singleton will be reused but storage is cleared)
     service = LocalStorageService.getInstance();
   });
@@ -78,10 +78,10 @@ describe('LocalStorageService', () => {
 
     it('should update existing project when adding with same ID', () => {
       const updatedProject = { ...mockProject, name: 'Updated Name' };
-      
+
       service.addProject(mockProject);
       service.addProject(updatedProject);
-      
+
       const projects = service.getProjects();
       expect(projects).toHaveLength(1);
       expect(projects[0].name).toBe('Updated Name');
@@ -90,7 +90,7 @@ describe('LocalStorageService', () => {
     it('should remove project by ID', () => {
       service.addProject(mockProject);
       const removed = service.removeProject(mockProject.id);
-      
+
       expect(removed).toBe(true);
       expect(service.getProjects()).toHaveLength(0);
     });
@@ -102,11 +102,11 @@ describe('LocalStorageService', () => {
 
     it('should update project fields', () => {
       service.addProject(mockProject);
-      const updated = service.updateProject(mockProject.id, { 
+      const updated = service.updateProject(mockProject.id, {
         name: 'New Name',
-        lastActive: '2024-02-01T00:00:00.000Z'
+        lastActive: '2024-02-01T00:00:00.000Z',
       });
-      
+
       expect(updated).toBe(true);
       const projects = service.getProjects();
       expect(projects[0].name).toBe('New Name');
@@ -144,7 +144,7 @@ describe('LocalStorageService', () => {
     it('should always set isConnected to false when loading servers', () => {
       const connectedServer = { ...mockServer, isConnected: true };
       service.setServers([connectedServer]);
-      
+
       const servers = service.getServers();
       expect(servers[0].isConnected).toBe(false);
     });
@@ -167,7 +167,7 @@ describe('LocalStorageService', () => {
     it('should handle corrupted project data gracefully', () => {
       // Manually set corrupted data
       mockLocalStorage.setItem('pocket_agent_projects', 'invalid json');
-      
+
       const projects = service.getProjects();
       expect(projects).toEqual([]);
     });
@@ -177,11 +177,11 @@ describe('LocalStorageService', () => {
       const invalidData = {
         version: '1.0.0',
         timestamp: Date.now(),
-        data: [{ id: 'test', name: 'Test' }] // Missing required fields
+        data: [{ id: 'test', name: 'Test' }], // Missing required fields
       };
-      
+
       mockLocalStorage.setItem('pocket_agent_projects', JSON.stringify(invalidData));
-      
+
       const projects = service.getProjects();
       expect(projects).toEqual([]);
     });
@@ -193,17 +193,17 @@ describe('LocalStorageService', () => {
         id: 'test',
         name: 'Test',
         path: '/path',
-        serverId: 'server-1'
+        serverId: 'server-1',
       };
-      
+
       const data = {
         version: '1.0.0',
         timestamp: Date.now(),
-        data: [projectWithoutTimestamps]
+        data: [projectWithoutTimestamps],
       };
-      
+
       mockLocalStorage.setItem('pocket_agent_projects', JSON.stringify(data));
-      
+
       const projects = service.getProjects();
       expect(projects).toHaveLength(1);
       expect(projects[0].createdAt).toBeDefined();
@@ -221,7 +221,7 @@ describe('LocalStorageService', () => {
         createdAt: '2024-01-01T00:00:00.000Z',
         lastActive: '2024-01-01T00:00:00.000Z',
       });
-      
+
       const usage = service.getStorageUsage();
       expect(usage.used).toBeGreaterThan(0);
       expect(usage.available).toBeDefined();
@@ -237,9 +237,9 @@ describe('LocalStorageService', () => {
         lastActive: '2024-01-01T00:00:00.000Z',
       });
       service.setTheme('dark');
-      
+
       service.clearAllData();
-      
+
       expect(service.getProjects()).toEqual([]);
       expect(service.getTheme()).toBe('system'); // Should return default
     });
@@ -253,13 +253,13 @@ describe('LocalStorageService', () => {
         createdAt: '2024-01-01T00:00:00.000Z',
         lastActive: '2024-01-01T00:00:00.000Z',
       };
-      
+
       service.addProject(project);
       service.setTheme('dark');
-      
+
       const exportedData = service.exportData();
       const parsed = JSON.parse(exportedData);
-      
+
       expect(parsed.projects).toEqual([project]);
       expect(parsed.theme).toBe('dark');
       expect(parsed.version).toBe('1.0.0');
@@ -268,27 +268,31 @@ describe('LocalStorageService', () => {
 
     it('should import data successfully', () => {
       const importData = {
-        projects: [{
-          id: 'imported',
-          name: 'Imported Project',
-          path: '/imported',
-          serverId: 'server-1',
-          createdAt: '2024-01-01T00:00:00.000Z',
-          lastActive: '2024-01-01T00:00:00.000Z',
-        }],
-        servers: [{
-          id: 'server-1',
-          name: 'Imported Server',
-          websocketUrl: 'ws://imported:8080',
-          isConnected: false,
-        }],
+        projects: [
+          {
+            id: 'imported',
+            name: 'Imported Project',
+            path: '/imported',
+            serverId: 'server-1',
+            createdAt: '2024-01-01T00:00:00.000Z',
+            lastActive: '2024-01-01T00:00:00.000Z',
+          },
+        ],
+        servers: [
+          {
+            id: 'server-1',
+            name: 'Imported Server',
+            websocketUrl: 'ws://imported:8080',
+            isConnected: false,
+          },
+        ],
         theme: 'light' as const,
         version: '1.0.0',
         exportedAt: '2024-01-01T00:00:00.000Z',
       };
-      
+
       const result = service.importData(JSON.stringify(importData));
-      
+
       expect(result.success).toBe(true);
       expect(service.getProjects()).toHaveLength(1);
       expect(service.getServers()).toHaveLength(1);
@@ -297,7 +301,7 @@ describe('LocalStorageService', () => {
 
     it('should handle invalid import data', () => {
       const result = service.importData('invalid json');
-      
+
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to import data');
     });

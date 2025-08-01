@@ -3,9 +3,6 @@
  * These interfaces define the client-side data structures for projects and servers.
  */
 
-// Import connection types from messages module to avoid duplication
-import type { ConnectionStatus } from './messages';
-
 export interface Project {
   id: string;
   name: string;

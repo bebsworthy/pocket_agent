@@ -1,15 +1,12 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     screens: {
       // Mobile-first breakpoints (320px-428px target range)
       xs: '320px',
-      sm: '375px', 
+      sm: '375px',
       md: '428px',
       // Larger screens for future expansion
       lg: '768px',
@@ -100,28 +97,28 @@ export default {
       },
       spacing: {
         // Touch-friendly spacing
-        'touch': '44px', // Minimum touch target size
+        touch: '44px', // Minimum touch target size
         'touch-lg': '48px', // Larger touch target
       },
       minHeight: {
-        'touch': '44px',
+        touch: '44px',
         'touch-lg': '48px',
       },
       minWidth: {
-        'touch': '44px',
+        touch: '44px',
         'touch-lg': '48px',
       },
       borderRadius: {
-        'sm': '4px',
-        'md': '8px',
-        'lg': '12px',
-        'xl': '16px',
+        sm: '4px',
+        md: '8px',
+        lg: '12px',
+        xl: '16px',
       },
       boxShadow: {
         // Mobile-optimized shadows
-        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+        card: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
         'card-hover': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        'modal': '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+        modal: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
       },
       animation: {
         'fade-in': 'fadeIn 0.15s ease-out',
@@ -139,15 +136,15 @@ export default {
         },
       },
       transitionDuration: {
-        'fast': '150ms',
-        'normal': '200ms',
-        'slow': '300ms',
+        fast: '150ms',
+        normal: '200ms',
+        slow: '300ms',
       },
     },
   },
   plugins: [
     // Add support for touch targets and better accessibility
-    function({ addUtilities }) {
+    function ({ addUtilities }) {
       const newUtilities = {
         '.touch-target': {
           minHeight: '44px',
@@ -167,8 +164,8 @@ export default {
           '-webkit-overflow-scrolling': 'touch',
           'overflow-scrolling': 'touch',
         },
-      }
-      addUtilities(newUtilities)
-    }
+      };
+      addUtilities(newUtilities);
+    },
   ],
-}
+};
