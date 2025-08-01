@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { useProjects, useServers, useUI, useWebSocket } from '../hooks';
+import { useProjects, useServers, useUI, useWebSocketManager } from '../hooks';
 
 export function StateUsageExample() {
   // Example: Using project state
@@ -36,9 +36,9 @@ export function StateUsageExample() {
   // Example: Using WebSocket state
   const { 
     totalConnections, 
-    isAnyServerConnecting
-    // sendMessage available if needed
-  } = useWebSocket();
+    isAnyConnected
+    // Additional methods: getConnectionState, getConnectedServers, disconnectAll
+  } = useWebSocketManager();
 
   const handleAddProject = () => {
     const newProject = addProject({
@@ -105,7 +105,7 @@ export function StateUsageExample() {
         <div>
           <h3 className="font-semibold">WebSocket</h3>
           <p>Total connections: {totalConnections}</p>
-          <p>Any connecting: {isAnyServerConnecting ? 'Yes' : 'No'}</p>
+          <p>Any connected: {isAnyConnected() ? 'Yes' : 'No'}</p>
         </div>
 
         <div className="mt-4">

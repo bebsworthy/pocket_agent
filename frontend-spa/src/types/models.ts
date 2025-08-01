@@ -3,6 +3,9 @@
  * These interfaces define the client-side data structures for projects and servers.
  */
 
+// Import connection types from messages module to avoid duplication
+import type { ConnectionStatus } from './messages';
+
 export interface Project {
   id: string;
   name: string;
@@ -19,9 +22,6 @@ export interface Server {
   isConnected: boolean;
 }
 
-// Connection state types
-export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'error';
-
 // Project state types (matches server protocol)
 export type ProjectState = 'IDLE' | 'EXECUTING' | 'ERROR';
 
@@ -36,4 +36,4 @@ export interface ServerWithStats extends Server {
 }
 
 // Re-export message types for compatibility
-export type { ClientMessage, ServerMessage } from './messages';
+export type { ClientMessage, ServerMessage, ConnectionStatus } from './messages';

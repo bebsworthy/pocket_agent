@@ -45,11 +45,7 @@ export function ProjectCard({
     };
   }, []); // Empty dependency array since function logic is static
 
-  const handleCardPress = (e: React.MouseEvent) => {
-    // Prevent card press when clicking action buttons
-    if ((e.target as HTMLElement).closest('[data-action-button]')) {
-      return;
-    }
+  const handleCardPress = () => {
     onPress();
   };
 
@@ -58,8 +54,7 @@ export function ProjectCard({
     onDisconnect?.();
   };
 
-  const handleSettings = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleSettings = () => {
     onSettings?.();
   };
 
@@ -67,6 +62,13 @@ export function ProjectCard({
     <Card
       onPress={handleCardPress}
       className="relative"
+      onClick={(e: React.MouseEvent) => {
+        // Prevent card press when clicking action buttons
+        if ((e.target as HTMLElement).closest('[data-action-button]')) {
+          e.stopPropagation();
+          return;
+        }
+      }}
     >
       <CardContent className="p-4">
         {/* Header with project name and status */}
@@ -132,8 +134,8 @@ export function ProjectCard({
           </div>
         </div>
 
-        {/* Connection status banner for errors */}
-        {connectionStatus === 'error' && (
+        {/* Connection status banner for disconnected state */}
+        {connectionStatus === 'disconnected' && (
           <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
             <p className="text-sm text-red-700 dark:text-red-300">
               Connection failed. Tap to retry.

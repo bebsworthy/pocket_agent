@@ -137,10 +137,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       setWebSocketError(serverId, error.message, false);
       
       // Integrate with error boundary for critical errors
-      if ((error as any).isWebSocketError) {
+      if ('isWebSocketError' in error && (error as Error & { isWebSocketError: boolean }).isWebSocketError) {
         try {
           handleError(error, `WebSocket service for server ${serverId}`);
-        } catch (boundaryError) {
+        } catch {
           // Error boundary will handle this
           console.warn('Error boundary handling triggered for WebSocket error');
         }

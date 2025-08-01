@@ -107,7 +107,8 @@ export function ServerForm({
   }, [formData]);
 
   // Handle input changes
-  const handleInputChange = (field: keyof FormData) => (value: string) => {
+  const handleInputChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
     setFormData(prev => ({ ...prev, [field]: value }));
     
     // Clear field error when user starts typing
@@ -219,7 +220,7 @@ export function ServerForm({
             onPress={onCancel}
             size="sm"
             variant="ghost"
-            ariaLabel="Close form"
+            aria-label="Close form"
           />
         </CardHeader>
 
@@ -317,6 +318,7 @@ export function ServerForm({
               fullWidth
               loading={isSubmitting}
               disabled={isTestingConnection}
+              onPress={() => {}}
             >
               {isEditing ? 'Save Changes' : 'Add Server'}
             </Button>

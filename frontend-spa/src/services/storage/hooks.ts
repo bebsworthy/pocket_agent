@@ -75,7 +75,8 @@ export function useProjectStorage() {
             message: error.message,
             level: 'error' as const,
             announceToScreenReader: true,
-            context: 'project-storage'
+            context: 'project-storage',
+            timestamp: new Date().toISOString()
           });
         }
       } finally {
@@ -108,7 +109,8 @@ export function useProjectStorage() {
             message: error.message,
             level: 'error' as const,
             announceToScreenReader: true,
-            context: 'project-storage'
+            context: 'project-storage',
+            timestamp: new Date().toISOString()
           });
         }
       }
@@ -125,10 +127,10 @@ export function useProjectStorage() {
     try {
       checkStorageRateLimit('addProject');
       localStorageService.addProject(project);
-      setProjects(prev => {
-        const existing = prev.find(p => p.id === project.id);
+      setProjects((prev: Project[]) => {
+        const existing = prev.find((p: Project) => p.id === project.id);
         if (existing) {
-          return prev.map(p => p.id === project.id ? project : p);
+          return prev.map((p: Project) => p.id === project.id ? project : p);
         }
         return [...prev, project];
       });
@@ -139,7 +141,8 @@ export function useProjectStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
       throw error;
@@ -151,7 +154,7 @@ export function useProjectStorage() {
       checkStorageRateLimit('removeProject');
       const success = localStorageService.removeProject(projectId);
       if (success) {
-        setProjects(prev => prev.filter(p => p.id !== projectId));
+        setProjects((prev: Project[]) => prev.filter((p: Project) => p.id !== projectId));
       }
       return success;
     } catch (error) {
@@ -161,7 +164,8 @@ export function useProjectStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
       throw error;
@@ -173,7 +177,7 @@ export function useProjectStorage() {
       checkStorageRateLimit('updateProject');
       const success = localStorageService.updateProject(projectId, updates);
       if (success) {
-        setProjects(prev => prev.map(p => 
+        setProjects((prev: Project[]) => prev.map((p: Project) => 
           p.id === projectId ? { ...p, ...updates } : p
         ));
       }
@@ -185,7 +189,8 @@ export function useProjectStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
       throw error;
@@ -203,7 +208,8 @@ export function useProjectStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
     }
@@ -251,7 +257,8 @@ export function useServerStorage() {
             message: error.message,
             level: 'error' as const,
             announceToScreenReader: true,
-            context: 'server-storage'
+            context: 'server-storage',
+            timestamp: new Date().toISOString()
           });
         }
       } finally {
@@ -284,7 +291,8 @@ export function useServerStorage() {
             message: error.message,
             level: 'error' as const,
             announceToScreenReader: true,
-            context: 'project-storage'
+            context: 'server-storage',
+            timestamp: new Date().toISOString()
           });
         }
       }
@@ -301,10 +309,10 @@ export function useServerStorage() {
     try {
       checkStorageRateLimit('addServer');
       localStorageService.addServer(server);
-      setServers(prev => {
-        const existing = prev.find(s => s.id === server.id);
+      setServers((prev: Server[]) => {
+        const existing = prev.find((s: Server) => s.id === server.id);
         if (existing) {
-          return prev.map(s => s.id === server.id ? server : s);
+          return prev.map((s: Server) => s.id === server.id ? server : s);
         }
         return [...prev, server];
       });
@@ -315,7 +323,8 @@ export function useServerStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
       throw error;
@@ -327,7 +336,7 @@ export function useServerStorage() {
       checkStorageRateLimit('removeServer');
       const success = localStorageService.removeServer(serverId);
       if (success) {
-        setServers(prev => prev.filter(s => s.id !== serverId));
+        setServers((prev: Server[]) => prev.filter((s: Server) => s.id !== serverId));
       }
       return success;
     } catch (error) {
@@ -337,7 +346,8 @@ export function useServerStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
       throw error;
@@ -349,7 +359,7 @@ export function useServerStorage() {
       checkStorageRateLimit('updateServer');
       const success = localStorageService.updateServer(serverId, updates);
       if (success) {
-        setServers(prev => prev.map(s => 
+        setServers((prev: Server[]) => prev.map((s: Server) => 
           s.id === serverId ? { ...s, ...updates } : s
         ));
       }
@@ -361,7 +371,8 @@ export function useServerStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
       throw error;
@@ -379,7 +390,8 @@ export function useServerStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
     }
@@ -414,7 +426,8 @@ export function useThemeStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
     }
@@ -431,7 +444,8 @@ export function useThemeStorage() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
       throw error;
@@ -459,7 +473,8 @@ export function useStorageError() {
       message: error.message,
       level: 'error' as const,
       announceToScreenReader: true,
-      context: 'storage-service'
+      context: 'storage-service',
+      timestamp: new Date().toISOString()
     });
     
     // Auto-clear error after 10 seconds unless it's a quota error
@@ -485,11 +500,13 @@ export function useStorageStatus() {
 
   const updateStorageUsage = useCallback(() => {
     try {
-      const usage = localStorageService.getStorageUsage();
-      setStatus(prev => ({
+      const storageUsage = localStorageService.getStorageUsage();
+      setStatus((prev: { available: number; used: number; quotaExceeded: boolean; lastUpdated: string }) => ({
         ...prev,
-        usage,
-        lastSync: new Date(),
+        available: storageUsage.available,
+        used: storageUsage.used,
+        quotaExceeded: storageUsage.available < 0,
+        lastUpdated: new Date().toISOString(),
       }));
     } catch (error) {
       console.error('Failed to get storage usage:', error);
@@ -504,7 +521,7 @@ export function useStorageStatus() {
     return () => clearInterval(interval);
   }, [updateStorageUsage]);
 
-  const isStorageFull = status.usage.available < 100 * 1024; // Less than 100KB available
+  const isStorageFull = status.available < 100 * 1024; // Less than 100KB available
 
   return {
     ...status,
@@ -533,7 +550,8 @@ export function useStorageBackup() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
       return null;
@@ -568,7 +586,8 @@ export function useStorageBackup() {
           message: error.message,
           level: 'error' as const,
           announceToScreenReader: true,
-          context: 'storage-operation'
+          context: 'storage-operation',
+          timestamp: new Date().toISOString()
         });
       }
     }

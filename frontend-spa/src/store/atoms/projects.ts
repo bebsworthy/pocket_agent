@@ -7,40 +7,80 @@ import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 import type { Project } from '../../types/models';
 
-// Projects list with localStorage persistence and error handling
-export const projectsAtom = atomWithStorage<Project[]>('projects', [], {
-  getOnInit: true,
-  serialize: JSON.stringify,
-  deserialize: (str) => {
+// Custom storage implementation with error handling for projects
+const projectsStorage = {
+  getItem: (key: string, initialValue: Project[]): Project[] => {
     try {
-      const parsed = JSON.parse(str);
+      const item = localStorage.getItem(key);
+      if (item === null) {
+        return initialValue;
+      }
+      const parsed = JSON.parse(item);
       // Validate that parsed data is an array
       if (!Array.isArray(parsed)) {
         console.warn('Projects data in localStorage is not an array, resetting to empty array');
-        return [];
+        return initialValue;
       }
-      return parsed;
+      return parsed as Project[];
     } catch (error) {
       console.error('Failed to deserialize projects from localStorage:', error);
-      return [];
+      return initialValue;
     }
+  },
+  setItem: (key: string, value: Project[]): void => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error('Failed to serialize projects to localStorage:', error);
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error('Failed to remove projects from localStorage:', error);
+    }
+  },
+  subscribe: (key: string, callback: (value: Project[]) => void, initialValue: Project[]) => {
+    if (typeof window === 'undefined' || typeof window.addEventListener === 'undefined') {
+      return () => {};
+    }
+    const handler = (e: StorageEvent) => {
+      if (e.storageArea === localStorage && e.key === key) {
+        try {
+          const newValue = e.newValue ? JSON.parse(e.newValue) : initialValue;
+          if (Array.isArray(newValue)) {
+            callback(newValue as Project[]);
+          } else {
+            callback(initialValue);
+          }
+        } catch {
+          callback(initialValue);
+        }
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
   }
-});
+};
+
+// Projects list with localStorage persistence and error handling
+export const projectsAtom = atomWithStorage<Project[]>('projects', [], projectsStorage);
 
 // Selected project ID
-export const selectedProjectIdAtom = atom<string | null>(null);
+export const selectedProjectIdAtom = atom(null as string | null);
 
 // Derived atom for selected project
 export const selectedProjectAtom = atom(
   (get) => {
     const projects = get(projectsAtom);
     const selectedId = get(selectedProjectIdAtom);
-    return projects.find(p => p.id === selectedId) || null;
+    return projects.find((p: Project) => p.id === selectedId) || null;
   }
 );
 
 // Project loading state
-export const projectsLoadingAtom = atom<boolean>(false);
+export const projectsLoadingAtom = atom(false);
 
 // Derived atom for project count
 export const projectCountAtom = atom(
@@ -61,7 +101,7 @@ export const projectOperationAtom = atom<{
 // Write-only atom for adding a project
 export const addProjectAtom = atom(
   null,
-  (get, set, newProject: Omit<Project, 'id'>) => {
+  (get, set, newProject: Omit<Project, 'id' | 'createdAt' | 'lastActive'>) => {
     const projects = get(projectsAtom);
     const projectWithId: Project = {
       ...newProject,
@@ -80,7 +120,7 @@ export const removeProjectAtom = atom(
   null,
   (get, set, projectId: string) => {
     const projects = get(projectsAtom);
-    const filteredProjects = projects.filter(p => p.id !== projectId);
+    const filteredProjects = projects.filter((p: Project) => p.id !== projectId);
     set(projectsAtom, filteredProjects);
     set(projectOperationAtom, { type: 'remove', projectId });
     
@@ -97,7 +137,7 @@ export const updateProjectAtom = atom(
   null,
   (get, set, updatedProject: Project) => {
     const projects = get(projectsAtom);
-    const updatedProjects = projects.map(p => 
+    const updatedProjects = projects.map((p: Project) => 
       p.id === updatedProject.id 
         ? { ...updatedProject, lastActive: new Date().toISOString() }
         : p
@@ -112,7 +152,7 @@ export const updateProjectLastActiveAtom = atom(
   null,
   (get, set, projectId: string) => {
     const projects = get(projectsAtom);
-    const updatedProjects = projects.map(p => 
+    const updatedProjects = projects.map((p: Project) => 
       p.id === projectId 
         ? { ...p, lastActive: new Date().toISOString() }
         : p

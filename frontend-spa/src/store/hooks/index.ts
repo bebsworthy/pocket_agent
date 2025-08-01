@@ -11,6 +11,15 @@ export {
   useServerConnectionStatus
 } from './useServers';
 
+// UI state management hooks
+export {
+  useUI,
+  useTheme,
+  useToast,
+  useLoading,
+  useModal
+} from './useUI';
+
 // WebSocket integration hooks
 export {
   useWebSocket,

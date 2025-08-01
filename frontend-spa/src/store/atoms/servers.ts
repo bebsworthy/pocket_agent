@@ -8,24 +8,67 @@ import { atomWithStorage, selectAtom } from 'jotai/utils';
 import type { Server, ConnectionStatus } from '../../types/models';
 
 // Servers list with localStorage persistence and error handling
-export const serversAtom = atomWithStorage<Server[]>('servers', [], {
-  getOnInit: true,
-  serialize: JSON.stringify,
-  deserialize: (str) => {
-    try {
-      const parsed = JSON.parse(str);
-      // Validate that parsed data is an array
-      if (!Array.isArray(parsed)) {
-        console.warn('Servers data in localStorage is not an array, resetting to empty array');
-        return [];
+export const serversAtom = atomWithStorage<Server[]>(
+  'servers',
+  [],
+  {
+    getItem: (key: string, initialValue: Server[]) => {
+      try {
+        const item = localStorage.getItem(key);
+        if (item === null) {
+          return initialValue;
+        }
+        const parsed = JSON.parse(item);
+        // Validate that parsed data is an array
+        if (!Array.isArray(parsed)) {
+          console.warn('Servers data in localStorage is not an array, resetting to empty array');
+          return initialValue;
+        }
+        return parsed;
+      } catch (error) {
+        console.error('Failed to deserialize servers from localStorage:', error);
+        return initialValue;
       }
-      return parsed;
-    } catch (error) {
-      console.error('Failed to deserialize servers from localStorage:', error);
-      return [];
-    }
+    },
+    setItem: (key: string, value: Server[]) => {
+      localStorage.setItem(key, JSON.stringify(value));
+    },
+    removeItem: (key: string) => {
+      localStorage.removeItem(key);
+    },
+    subscribe: (key: string, callback: (value: Server[]) => void, initialValue: Server[]) => {
+      if (typeof window === 'undefined' || typeof window.addEventListener === 'undefined') {
+        return;
+      }
+      const handler = (e: StorageEvent) => {
+        if (e.storageArea === localStorage && e.key === key) {
+          let newValue: Server[];
+          try {
+            if (e.newValue === null) {
+              newValue = initialValue;
+            } else {
+              const parsed = JSON.parse(e.newValue);
+              if (!Array.isArray(parsed)) {
+                console.warn('Servers data in localStorage is not an array, resetting to empty array');
+                newValue = initialValue;
+              } else {
+                newValue = parsed;
+              }
+            }
+          } catch {
+            newValue = initialValue;
+          }
+          callback(newValue);
+        }
+      };
+      window.addEventListener('storage', handler);
+      return () => window.removeEventListener('storage', handler);
+    },
+  },
+  {
+    getOnInit: true,
   }
-});
+);
 
 // Server connection states (not persisted - runtime state)
 export const serverConnectionStatesAtom = atom<Map<string, ConnectionStatus>>(new Map());

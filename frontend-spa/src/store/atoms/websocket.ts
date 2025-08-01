@@ -10,7 +10,7 @@ import type {
   ConnectionStatus,
   ProjectState 
 } from '../../types/models';
-import type { WebSocketService } from '../../services/websocket';
+import type { WebSocketService } from '../../services/websocket/WebSocketService';
 
 // Consolidated server state interface
 export interface WebSocketServerState {
@@ -205,12 +205,12 @@ export const connectedServersAtom = atom(
     const serverStates = get(websocketServerStatesAtom);
     const connectedServerIds: string[] = [];
     
-    // More efficient: iterate Map entries directly
-    for (const [serverId, state] of serverStates.entries()) {
+    // Use Array.from to iterate Map entries safely
+    serverStates.forEach((state, serverId) => {
       if (state.connectionStatus === 'connected') {
         connectedServerIds.push(serverId);
       }
-    }
+    });
     
     return connectedServerIds;
   }
@@ -227,12 +227,13 @@ export const isAnyServerConnectingAtom = atom(
     const serverStates = get(websocketServerStatesAtom);
     
     // Early exit optimization: return as soon as we find a connecting server
-    for (const state of serverStates.values()) {
+    let isConnecting = false;
+    serverStates.forEach((state) => {
       if (state.connectionStatus === 'connecting') {
-        return true;
+        isConnecting = true;
       }
-    }
-    return false;
+    });
+    return isConnecting;
   }
 );
 
@@ -376,11 +377,15 @@ export const leaveProjectAtom = atom(
 export const addPendingMessageAtom = atom(
   null,
   (get, set, serverId: string, message: ClientMessage) => {
-    const pendingMessages = get(pendingMessagesAtom);
-    const currentMessages = pendingMessages.get(serverId) || [];
-    const newPendingMessages = new Map(pendingMessages);
-    newPendingMessages.set(serverId, [...currentMessages, message]);
-    set(pendingMessagesAtom, newPendingMessages);
+    const serverStates = get(websocketServerStatesAtom);
+    const newServerStates = new Map(serverStates);
+    const currentState = getOrCreateServerState(serverStates, serverId);
+    
+    newServerStates.set(serverId, {
+      ...currentState,
+      pendingMessages: [...currentState.pendingMessages, message]
+    });
+    set(websocketServerStatesAtom, newServerStates);
   }
 );
 
@@ -388,10 +393,15 @@ export const addPendingMessageAtom = atom(
 export const clearPendingMessagesAtom = atom(
   null,
   (get, set, serverId: string) => {
-    const pendingMessages = get(pendingMessagesAtom);
-    const newPendingMessages = new Map(pendingMessages);
-    newPendingMessages.set(serverId, []);
-    set(pendingMessagesAtom, newPendingMessages);
+    const serverStates = get(websocketServerStatesAtom);
+    const newServerStates = new Map(serverStates);
+    const currentState = getOrCreateServerState(serverStates, serverId);
+    
+    newServerStates.set(serverId, {
+      ...currentState,
+      pendingMessages: []
+    });
+    set(websocketServerStatesAtom, newServerStates);
   }
 );
 
@@ -442,13 +452,18 @@ export const updateServerStatsAtom = atom(
     status: 'healthy' | 'degraded' | 'unhealthy';
     lastUpdate: string;
   }, 'lastUpdate'>) => {
-    const serverStats = get(serverStatsAtom);
-    const newServerStats = new Map(serverStats);
-    newServerStats.set(serverId, {
-      ...stats,
-      lastUpdate: new Date().toISOString()
+    const serverStates = get(websocketServerStatesAtom);
+    const newServerStates = new Map(serverStates);
+    const currentState = getOrCreateServerState(serverStates, serverId);
+    
+    newServerStates.set(serverId, {
+      ...currentState,
+      stats: {
+        ...stats,
+        lastUpdate: new Date().toISOString()
+      }
     });
-    set(serverStatsAtom, newServerStats);
+    set(websocketServerStatesAtom, newServerStates);
   }
 );
 
@@ -462,9 +477,14 @@ export const setWebSocketConfigAtom = atom(
     reconnectDelay: number;
     pingInterval: number;
   }) => {
-    const configs = get(websocketConfigAtom);
-    const newConfigs = new Map(configs);
-    newConfigs.set(serverId, config);
-    set(websocketConfigAtom, newConfigs);
+    const serverStates = get(websocketServerStatesAtom);
+    const newServerStates = new Map(serverStates);
+    const currentState = getOrCreateServerState(serverStates, serverId);
+    
+    newServerStates.set(serverId, {
+      ...currentState,
+      config
+    });
+    set(websocketServerStatesAtom, newServerStates);
   }
 );
