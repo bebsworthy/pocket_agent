@@ -107,7 +107,7 @@ func CreateMockClaudeScript(scriptPath string, config ClaudeMockConfig) error {
 		// Default delays for specific scenarios
 		switch config.Scenario {
 		case ScenarioTimeout:
-			delayMs = 10000 // 10 seconds
+			delayMs = 2000 // 2 seconds (reduced from 10s)
 		case ScenarioSlowStream:
 			delayMs = 500 // 500ms between messages
 		}

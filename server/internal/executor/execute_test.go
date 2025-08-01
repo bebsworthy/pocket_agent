@@ -43,7 +43,7 @@ echo '{"type": "assistant", "content": {"text": "Hello"}}'
 	defer os.RemoveAll(filepath.Dir(failPath))
 
 	// Create timeout mock
-	timeoutScript := `sleep 10`
+	timeoutScript := `sleep 2`  // Reduced from 10s to 2s
 	timeoutPath := createMockClaude(t, timeoutScript)
 	defer os.RemoveAll(filepath.Dir(timeoutPath))
 
@@ -137,7 +137,7 @@ echo '{"type": "assistant", "content": {"text": "Hello"}}'
 				activeProcesses: make(map[string]*ProcessInfo),
 				config: Config{
 					ClaudePath:              tt.claudePath,
-					DefaultTimeout:          5 * time.Second,
+					DefaultTimeout:          1 * time.Second,  // Reduced from 5s to 1s
 					MaxConcurrentExecutions: 10,
 				},
 				logger: logger.New("info"),
