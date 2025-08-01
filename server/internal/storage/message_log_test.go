@@ -64,7 +64,7 @@ func TestMessageLog(t *testing.T) {
 		if _, err := os.Stat(logDir); os.IsNotExist(err) {
 			t.Error("Log directory was not created after first append")
 		}
-		
+
 		// Check that a file was created
 		files, err := os.ReadDir(logDir)
 		if err != nil {

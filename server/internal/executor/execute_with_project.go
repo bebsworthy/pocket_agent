@@ -17,7 +17,7 @@ func (ce *ClaudeExecutor) ExecuteWithProject(projectID, projectPath string, opti
 
 	// Check if project is already executing
 	if ce.IsProjectExecuting(projectID) {
-		return nil, errors.New(errors.CodeProcessActive, 
+		return nil, errors.New(errors.CodeProcessActive,
 			"project %s already has an active execution", projectID)
 	}
 

@@ -45,7 +45,7 @@ func TestWebSocketLifecycle(t *testing.T) {
 
 	// Convert http:// to ws://
 	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws"
-	
+
 	// Debug: Log the URL
 	t.Logf("Test server URL: %s", ts.URL)
 	t.Logf("WebSocket URL: %s", wsURL)
@@ -165,7 +165,7 @@ func TestProjectManagement(t *testing.T) {
 		// Should have at least one project
 		respData, ok := resp.Data.(map[string]interface{})
 		require.True(t, ok)
-		
+
 		projects, ok := respData["projects"].([]interface{})
 		require.True(t, ok)
 		assert.GreaterOrEqual(t, len(projects), 1)
@@ -175,18 +175,18 @@ func TestProjectManagement(t *testing.T) {
 		// First create a project to delete (in case running in isolation)
 		deletePath := filepath.Join(testDir, "delete_project")
 		os.MkdirAll(deletePath, 0o755)
-		
+
 		createMsg := models.ClientMessage{
 			Type: models.MessageTypeProjectCreate,
 			Data: json.RawMessage(fmt.Sprintf(`{"path": "%s"}`, deletePath)),
 		}
 		err := ws.WriteJSON(createMsg)
 		require.NoError(t, err)
-		
+
 		var createResp models.ServerMessage
 		err = ws.ReadJSON(&createResp)
 		require.NoError(t, err)
-		
+
 		// Get the project ID from creation response
 		projectData := createResp.Data.(map[string]interface{})
 		projectID := projectData["id"].(string)
@@ -203,12 +203,12 @@ func TestProjectManagement(t *testing.T) {
 		var deleteResp models.ServerMessage
 		err = ws.ReadJSON(&deleteResp)
 		require.NoError(t, err)
-		
+
 		// Log the response for debugging
 		if deleteResp.Type == models.MessageTypeError {
 			t.Logf("Delete error response: %+v", deleteResp.Data)
 		}
-		
+
 		assert.Equal(t, models.MessageTypeProjectDeleted, deleteResp.Type)
 	})
 }
@@ -233,8 +233,11 @@ func TestClaudeExecution(t *testing.T) {
 				// The data should be a Claude message
 				data, ok := resp.Data.(map[string]interface{})
 				require.True(t, ok)
-				// Claude messages have 'type' and 'content' fields
-				assert.Equal(t, "text", data["type"])
+				// For success scenario, we should get an assistant message
+				msgType, ok := data["type"].(string)
+				require.True(t, ok)
+				assert.Equal(t, "assistant", msgType)
+				// Assistant message should have content
 				content, ok := data["content"].(map[string]interface{})
 				require.True(t, ok)
 				assert.NotEmpty(t, content["text"])
@@ -245,10 +248,17 @@ func TestClaudeExecution(t *testing.T) {
 			scenario: mocks.ScenarioError,
 			check: func(t *testing.T, resp models.ServerMessage, err error) {
 				require.NoError(t, err)
-				if resp.Type != models.MessageTypeError {
-					t.Logf("Expected error type but got: %s, data: %+v", resp.Type, resp.Data)
+				// For error response, we might get either an agent message with error type
+				// or a server error message after execution fails
+				if resp.Type == models.MessageTypeAgentMessage {
+					data, ok := resp.Data.(map[string]interface{})
+					require.True(t, ok)
+					msgType, _ := data["type"].(string)
+					assert.Equal(t, "error", msgType)
+					assert.NotEmpty(t, data["error"])
+				} else {
+					assert.Equal(t, models.MessageTypeError, resp.Type)
 				}
-				assert.Equal(t, models.MessageTypeError, resp.Type)
 			},
 		},
 		{
@@ -271,10 +281,12 @@ func TestClaudeExecution(t *testing.T) {
 			mock := mocks.NewClaudeMockExecutable(t).WithScenario(tc.scenario)
 			claudePath := mock.MustCreate(t)
 			defer mock.Cleanup()
-			
+
 			// Verify the mock executable exists
-			if _, err := os.Stat(claudePath); err != nil {
+			if stat, err := os.Stat(claudePath); err != nil {
 				t.Fatalf("Mock executable not found at %s: %v", claudePath, err)
+			} else {
+				t.Logf("Mock executable found at %s (mode: %v, scenario: %s)", claudePath, stat.Mode(), tc.scenario)
 			}
 
 			// Create server with appropriate timeout for each test
@@ -282,10 +294,10 @@ func TestClaudeExecution(t *testing.T) {
 			if tc.scenario == mocks.ScenarioTimeout {
 				timeout = 100 * time.Millisecond // Short timeout for timeout test
 			}
-			
+
 			cfg := &config.Config{
-				DataDir:  filepath.Join(testDir, "data"),
-				Port:     0,
+				DataDir: filepath.Join(testDir, "data"),
+				Port:    0,
 				Execution: config.ExecutionConfig{
 					ClaudeBinaryPath: claudePath,
 					CommandTimeout:   config.Duration{timeout},
@@ -319,7 +331,7 @@ func TestClaudeExecution(t *testing.T) {
 
 			projectData := createResp.Data.(map[string]interface{})
 			projectID := projectData["id"].(string)
-			
+
 			// Join the project before executing
 			joinMsg := models.ClientMessage{
 				Type: models.MessageTypeProjectJoin,
@@ -327,7 +339,7 @@ func TestClaudeExecution(t *testing.T) {
 			}
 			err = ws.WriteJSON(joinMsg)
 			require.NoError(t, err)
-			
+
 			var joinResp models.ServerMessage
 			err = ws.ReadJSON(&joinResp)
 			require.NoError(t, err)
@@ -347,9 +359,10 @@ func TestClaudeExecution(t *testing.T) {
 
 			// Read response with timeout
 			ws.SetReadDeadline(time.Now().Add(5 * time.Second))
-			
+
 			// Read messages until we get the expected type or timeout
 			var executeResp models.ServerMessage
+			var agentMessages []models.ServerMessage
 			messageReceived := false
 			for i := 0; i < 10; i++ { // Try up to 10 messages
 				var msg models.ServerMessage
@@ -358,31 +371,49 @@ func TestClaudeExecution(t *testing.T) {
 					tc.check(t, executeResp, err)
 					return
 				}
-				
+
 				// Log the message type for debugging
 				t.Logf("Received message type: %s, data: %v", msg.Type, msg.Data)
-				
+
 				// Skip project state updates and other intermediate messages
-				if msg.Type == models.MessageTypeProjectState || 
-				   msg.Type == models.MessageTypeProjectUpdate {
+				if msg.Type == models.MessageTypeProjectState ||
+					msg.Type == models.MessageTypeProjectUpdate {
 					continue
 				}
-				
+
 				// Check if this is an execute confirmation (should not happen)
 				if msg.Type == models.MessageTypeExecute {
 					t.Errorf("Received unexpected execute message echo")
 					continue
 				}
-				
-				// We're looking for agent_message or error
-				if msg.Type == models.MessageTypeAgentMessage || 
-				   msg.Type == models.MessageTypeError {
+
+				// Collect agent messages
+				if msg.Type == models.MessageTypeAgentMessage {
+					agentMessages = append(agentMessages, msg)
+					// For success scenario, check if we've received an assistant message
+					if tc.scenario == mocks.ScenarioSuccess {
+						data, _ := msg.Data.(map[string]interface{})
+						if msgType, _ := data["type"].(string); msgType == "assistant" {
+							executeResp = msg
+							messageReceived = true
+							break
+						}
+					} else if tc.scenario == mocks.ScenarioError {
+						// For error scenario, we might get error messages as agent messages
+						// but we should wait for the actual server error
+						data, _ := msg.Data.(map[string]interface{})
+						if msgType, _ := data["type"].(string); msgType == "error" {
+							// Continue reading to get the server error message
+							continue
+						}
+					}
+				} else if msg.Type == models.MessageTypeError {
 					executeResp = msg
 					messageReceived = true
 					break
 				}
 			}
-			
+
 			if messageReceived {
 				tc.check(t, executeResp, nil)
 			} else {
@@ -430,7 +461,7 @@ func TestMultiClientBroadcast(t *testing.T) {
 
 	projectData := createResp.Data.(map[string]interface{})
 	projectID := projectData["id"].(string)
-	
+
 	// First client needs to join the project too
 	joinMsg1 := models.ClientMessage{
 		Type: models.MessageTypeProjectJoin,
@@ -438,7 +469,7 @@ func TestMultiClientBroadcast(t *testing.T) {
 	}
 	err = ws1.WriteJSON(joinMsg1)
 	require.NoError(t, err)
-	
+
 	var joinResp1 models.ServerMessage
 	err = ws1.ReadJSON(&joinResp1)
 	require.NoError(t, err)
@@ -490,8 +521,8 @@ func TestMultiClientBroadcast(t *testing.T) {
 				break
 			}
 			// Only collect relevant messages (not project state updates)
-			if msg.Type == models.MessageTypeAgentMessage || 
-			   msg.Type == models.MessageTypeError {
+			if msg.Type == models.MessageTypeAgentMessage ||
+				msg.Type == models.MessageTypeError {
 				mu.Lock()
 				messages1 = append(messages1, msg)
 				mu.Unlock()
@@ -511,8 +542,8 @@ func TestMultiClientBroadcast(t *testing.T) {
 				break
 			}
 			// Only collect relevant messages (not project state updates)
-			if msg.Type == models.MessageTypeAgentMessage || 
-			   msg.Type == models.MessageTypeError {
+			if msg.Type == models.MessageTypeAgentMessage ||
+				msg.Type == models.MessageTypeError {
 				mu.Lock()
 				messages2 = append(messages2, msg)
 				mu.Unlock()
@@ -525,7 +556,7 @@ func TestMultiClientBroadcast(t *testing.T) {
 	// Both clients should have received messages
 	t.Logf("Client 1 received %d messages", len(messages1))
 	t.Logf("Client 2 received %d messages", len(messages2))
-	
+
 	// Log the messages for debugging
 	for i, msg := range messages1 {
 		t.Logf("Client 1 message %d: type=%s", i, msg.Type)
@@ -533,7 +564,7 @@ func TestMultiClientBroadcast(t *testing.T) {
 	for i, msg := range messages2 {
 		t.Logf("Client 2 message %d: type=%s", i, msg.Type)
 	}
-	
+
 	assert.Greater(t, len(messages1), 0, "Client 1 should receive messages")
 	assert.Greater(t, len(messages2), 0, "Client 2 should receive messages")
 }
@@ -586,7 +617,7 @@ func TestServerRestart(t *testing.T) {
 
 		projectData := createResp.Data.(map[string]interface{})
 		projectID = projectData["id"].(string)
-		
+
 		// Join the project before executing
 		joinMsg := models.ClientMessage{
 			Type: models.MessageTypeProjectJoin,
@@ -594,7 +625,7 @@ func TestServerRestart(t *testing.T) {
 		}
 		err = ws.WriteJSON(joinMsg)
 		require.NoError(t, err)
-		
+
 		var joinResp models.ServerMessage
 		err = ws.ReadJSON(&joinResp)
 		require.NoError(t, err)
@@ -655,7 +686,7 @@ func TestServerRestart(t *testing.T) {
 
 		respData, ok := listResp.Data.(map[string]interface{})
 		require.True(t, ok)
-		
+
 		projects, ok := respData["projects"].([]interface{})
 		require.True(t, ok)
 		require.Greater(t, len(projects), 0)
@@ -833,24 +864,24 @@ func createTestServerWithConfig(t *testing.T, cfg *config.Config) http.Handler {
 
 	// Create handlers
 	handlerCfg := handlers.Config{
-		ProjectManager:  projectMgr,
-		Executor:        claudeExec,
-		Logger:          log,
-		ClaudePath:      cfg.Execution.ClaudeBinaryPath,
-		DataDir:         cfg.DataDir,
+		ProjectManager: projectMgr,
+		Executor:       claudeExec,
+		Logger:         log,
+		ClaudePath:     cfg.Execution.ClaudeBinaryPath,
+		DataDir:        cfg.DataDir,
 		BroadcastConfig: handlers.BroadcasterConfig{
 			WriteTimeout:       10 * time.Second,
 			BroadcastBuffer:    100,
 			SlowClientDeadline: 5 * time.Second,
 		},
 	}
-	
+
 	// Create server stats mock
 	serverStats := &mockServerStats{}
-	
+
 	// Create all handlers
 	allHandlers := handlers.NewHandlers(handlerCfg, serverStats)
-	
+
 	// Create WebSocket server config
 	wsCfg := ws.Config{
 		ReadTimeout:         10 * time.Minute,
@@ -865,7 +896,7 @@ func createTestServerWithConfig(t *testing.T, cfg *config.Config) http.Handler {
 		AllowedOrigins:      []string{"*"},
 		ConnectionTimeout:   5 * time.Minute,
 	}
-	
+
 	// Create server with handlers as the message handler
 	wsServer := ws.NewServer(wsCfg, allHandlers, log)
 

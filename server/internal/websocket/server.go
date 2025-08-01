@@ -281,7 +281,15 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	session, err := s.HandleUpgrade(w, r)
 	if err != nil {
 		appErr := err.(*errors.AppError)
-		http.Error(w, appErr.Message, http.StatusTooManyRequests)
+		// Map error codes to appropriate HTTP status codes
+		status := http.StatusInternalServerError
+		switch appErr.Code {
+		case errors.CodeResourceLimit, errors.CodeConnectionLimit:
+			status = http.StatusTooManyRequests
+		case errors.CodeWebSocketError:
+			status = http.StatusBadRequest
+		}
+		http.Error(w, appErr.Message, status)
 		return
 	}
 

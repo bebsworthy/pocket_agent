@@ -188,7 +188,7 @@ func FromMetadata(meta ProjectMetadata) *Project {
 func (p *Project) Copy() *Project {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	
+
 	return &Project{
 		ID:           p.ID,
 		Path:         p.Path,

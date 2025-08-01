@@ -175,7 +175,7 @@ func (b *Broadcaster) BroadcastClaudeMessage(project *models.Project, claudeMsg 
 	if err := json.Unmarshal(claudeMsg.Content, &contentData); err == nil {
 		// Add the Claude message type to the data
 		contentData["type"] = claudeMsg.Type
-		
+
 		msg := &models.ServerMessage{
 			Type:      models.MessageTypeAgentMessage,
 			ProjectID: project.ID,
@@ -187,7 +187,7 @@ func (b *Broadcaster) BroadcastClaudeMessage(project *models.Project, claudeMsg 
 		b.log.Warn("Failed to parse Claude message content, using nested structure",
 			"error", err,
 			"type", claudeMsg.Type)
-		
+
 		msg := &models.ServerMessage{
 			Type:      models.MessageTypeAgentMessage,
 			ProjectID: project.ID,

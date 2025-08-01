@@ -31,7 +31,8 @@ func createMockClaude(t *testing.T, script string) string {
 func TestExecute(t *testing.T) {
 	// Create successful mock
 	successScript := `
-echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content": {"text": "Hello"}}]}'
+echo '{"type": "system", "session_id": "test-session-123"}'
+echo '{"type": "assistant", "content": {"text": "Hello"}}'
 `
 	successPath := createMockClaude(t, successScript)
 	defer os.RemoveAll(filepath.Dir(successPath))
@@ -74,8 +75,8 @@ echo '{"session_id": "test-session-123", "messages": [{"type": "text", "content"
 				if r.SessionID != "test-session-123" {
 					t.Errorf("expected session ID test-session-123, got %s", r.SessionID)
 				}
-				if len(r.Messages) != 1 {
-					t.Errorf("expected 1 message, got %d", len(r.Messages))
+				if len(r.Messages) != 2 {
+					t.Errorf("expected 2 messages, got %d", len(r.Messages))
 				}
 				if r.ExitCode != 0 {
 					t.Errorf("expected exit code 0, got %d", r.ExitCode)
@@ -184,7 +185,7 @@ func TestBuildCommandArgs(t *testing.T) {
 			options: ExecuteOptions{
 				Prompt: "Hello Claude",
 			},
-			expected: []string{"-p", "/test/path", "Hello Claude"},
+			expected: []string{"-p", "--verbose", "--output-format", "stream-json"},
 		},
 		{
 			name:    "with session ID",
@@ -192,7 +193,7 @@ func TestBuildCommandArgs(t *testing.T) {
 			options: ExecuteOptions{
 				Prompt: "Hello",
 			},
-			expected: []string{"-c", "test-session", "-p", "/test/path", "Hello"},
+			expected: []string{"-c", "test-session", "-p", "--verbose", "--output-format", "stream-json"},
 		},
 		{
 			name:    "with all options",
@@ -212,7 +213,7 @@ func TestBuildCommandArgs(t *testing.T) {
 			},
 			expected: []string{
 				"-c", "test-session",
-				"-p", "/test/path",
+				"-p",
 				"--dangerously-skip-permissions",
 				"--allowed-tools", "tool1,tool2",
 				"--disallowed-tools", "bad1,bad2",
@@ -224,7 +225,8 @@ func TestBuildCommandArgs(t *testing.T) {
 				"--add-dir", "/dir1",
 				"--add-dir", "/dir2",
 				"--strict-mcp-config",
-				"Test",
+				"--verbose",
+				"--output-format", "stream-json",
 			},
 		},
 	}
@@ -261,14 +263,10 @@ func TestParseClaudeOutput(t *testing.T) {
 	}{
 		{
 			name: "valid JSON output",
-			output: `{
-				"session_id": "session-123",
-				"messages": [
-					{"type": "text", "content": {"text": "Hello"}},
-					{"type": "text", "content": {"text": "World"}}
-				]
-			}`,
-			wantMessages:  2,
+			output: `{"type": "system", "session_id": "session-123"}
+{"type": "assistant", "content": {"text": "Hello"}}
+{"type": "assistant", "content": {"text": "World"}}`,
+			wantMessages:  3,
 			wantSessionID: "session-123",
 			wantErr:       false,
 		},
@@ -282,31 +280,28 @@ func TestParseClaudeOutput(t *testing.T) {
 			name:    "invalid JSON",
 			output:  "{invalid json}",
 			wantErr: true,
-			errMsg:  "failed to parse JSON",
+			errMsg:  "no valid messages or session ID found in output",
 		},
 		{
 			name: "JSON with prefix/suffix",
 			output: `Some prefix text
-			{"session_id": "extracted-123", "messages": []}
-			Some suffix`,
-			wantMessages:  0,
+{"type": "system", "session_id": "extracted-123"}
+Some suffix`,
+			wantMessages:  1,
 			wantSessionID: "extracted-123",
 			wantErr:       false,
 		},
 		{
 			name: "error in output",
-			output: `{
-				"error": "Claude encountered an error",
-				"messages": []
-			}`,
+			output: `{"type": "error", "message": "Claude encountered an error"}`,
 			wantErr: true,
-			errMsg:  "Claude reported error",
+			errMsg:  "Claude error: Claude encountered an error",
 		},
 		{
 			name:    "no JSON in output",
 			output:  "Just plain text without JSON",
 			wantErr: true,
-			errMsg:  "no valid JSON found",
+			errMsg:  "no valid messages or session ID found",
 		},
 	}
 
@@ -337,11 +332,10 @@ func TestParseClaudeOutput(t *testing.T) {
 func TestExecuteWithCallback(t *testing.T) {
 	// Create mock that returns multiple messages
 	script := `
-echo '{"session_id": "cb-session", "messages": [
-	{"type": "text", "content": {"text": "Message 1"}},
-	{"type": "text", "content": {"text": "Message 2"}},
-	{"type": "text", "content": {"text": "Message 3"}}
-]}'
+echo '{"type": "system", "session_id": "cb-session"}'
+echo '{"type": "assistant", "content": {"text": "Message 1"}}'
+echo '{"type": "assistant", "content": {"text": "Message 2"}}'
+echo '{"type": "assistant", "content": {"text": "Message 3"}}'
 `
 	mockPath := createMockClaude(t, script)
 	defer os.RemoveAll(filepath.Dir(mockPath))
@@ -377,8 +371,8 @@ echo '{"session_id": "cb-session", "messages": [
 	}
 
 	// Verify callback was called for each message
-	if len(callbackMessages) != 3 {
-		t.Errorf("expected callback called 3 times, got %d", len(callbackMessages))
+	if len(callbackMessages) != 4 {
+		t.Errorf("expected callback called 4 times, got %d", len(callbackMessages))
 	}
 
 	// Verify messages match result
@@ -397,7 +391,7 @@ func TestExecuteConcurrentLimit(t *testing.T) {
 	// Mock that sleeps to simulate long execution
 	script := `
 sleep 0.5
-echo '{"session_id": "test", "messages": []}'
+echo '{"type": "system", "session_id": "test"}'
 `
 	mockPath := createMockClaude(t, script)
 	defer os.RemoveAll(filepath.Dir(mockPath))
@@ -449,7 +443,7 @@ echo '{"session_id": "test", "messages": []}'
 
 func TestExecuteProcessCleanup(t *testing.T) {
 	// Mock that completes quickly
-	script := `echo '{"session_id": "cleanup", "messages": []}'`
+	script := `echo '{"type": "system", "session_id": "cleanup"}'`
 	mockPath := createMockClaude(t, script)
 	defer os.RemoveAll(filepath.Dir(mockPath))
 

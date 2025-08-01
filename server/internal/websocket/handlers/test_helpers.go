@@ -30,7 +30,7 @@ func newTestSessionWithCapture(id string) *testSessionWithCapture {
 		LastPing:  time.Now(),
 		Conn:      nil, // We'll handle writes ourselves
 	}
-	
+
 	return &testSessionWithCapture{
 		Session:     session,
 		WrittenData: make([]interface{}, 0),
@@ -41,11 +41,11 @@ func newTestSessionWithCapture(id string) *testSessionWithCapture {
 func (s *testSessionWithCapture) WriteJSON(v interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	if s.WriteError != nil {
 		return s.WriteError
 	}
-	
+
 	s.WrittenData = append(s.WrittenData, v)
 	return nil
 }
@@ -76,11 +76,11 @@ func NewTestSession(id string) *TestSessionWrapper {
 func (s *TestSessionWrapper) WriteJSON(v interface{}) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	if s.WriteError != nil {
 		return s.WriteError
 	}
-	
+
 	s.WrittenData = append(s.WrittenData, v)
 	return nil
 }
@@ -102,7 +102,7 @@ func (s *TestSessionWrapper) GetProject() string {
 	return s.session.GetProject()
 }
 
-// SetProject sets the current project ID  
+// SetProject sets the current project ID
 func (s *TestSessionWrapper) SetProject(projectID string) {
 	s.session.SetProject(projectID)
 }
@@ -118,7 +118,7 @@ func (s *TestSessionWrapper) GetWrittenResponses() []interface{} {
 func (s *TestSessionWrapper) GetLastResponse() interface{} {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	if len(s.WrittenData) == 0 {
 		return nil
 	}
@@ -184,22 +184,22 @@ func (b *TestBroadcaster) GetProjectDeletions() []*models.Project {
 func createTestProjectManager(t *testing.T) (*project.Manager, func()) {
 	// Create temporary directory for test
 	tempDir := t.TempDir()
-	
+
 	config := project.Config{
 		DataDir:     tempDir,
 		MaxProjects: 100,
 		Validator:   validation.NewValidator(),
 	}
-	
+
 	manager, err := project.NewManager(config)
 	if err != nil {
 		t.Fatalf("Failed to create project manager: %v", err)
 	}
-	
+
 	cleanup := func() {
 		// Cleanup is handled by t.TempDir()
 	}
-	
+
 	return manager, cleanup
 }
 
@@ -219,23 +219,23 @@ func parseResponse(t *testing.T, response interface{}) map[string]interface{} {
 	if err != nil {
 		t.Fatalf("Failed to marshal response: %v", err)
 	}
-	
+
 	var result map[string]interface{}
 	if err := json.Unmarshal(data, &result); err != nil {
 		t.Fatalf("Failed to unmarshal response: %v", err)
 	}
-	
+
 	return result
 }
 
 // assertErrorResponse checks if a response is an error with expected code
 func assertErrorResponse(t *testing.T, response interface{}, expectedCode string) {
 	parsed := parseResponse(t, response)
-	
+
 	if parsed["type"] != "error" {
 		t.Errorf("Expected error response, got type: %v", parsed["type"])
 	}
-	
+
 	if errorData, ok := parsed["error"].(map[string]interface{}); ok {
 		if errorData["code"] != expectedCode {
 			t.Errorf("Expected error code %s, got: %v", expectedCode, errorData["code"])
@@ -248,14 +248,14 @@ func assertErrorResponse(t *testing.T, response interface{}, expectedCode string
 // assertSuccessResponse checks if a response is successful
 func assertSuccessResponse(t *testing.T, response interface{}, expectedType string) map[string]interface{} {
 	parsed := parseResponse(t, response)
-	
+
 	if parsed["type"] != expectedType {
 		t.Errorf("Expected response type %s, got: %v", expectedType, parsed["type"])
 	}
-	
+
 	if parsed["error"] != nil {
 		t.Errorf("Unexpected error in response: %v", parsed["error"])
 	}
-	
+
 	return parsed
 }

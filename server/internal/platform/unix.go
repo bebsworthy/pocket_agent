@@ -38,8 +38,11 @@ func KillProcessGroup(cmd *exec.Cmd) error {
 	// Kill the entire process group
 	pgid, err := syscall.Getpgid(cmd.Process.Pid)
 	if err == nil && pgid > 0 {
+		// First try SIGTERM for graceful shutdown
+		syscall.Kill(-pgid, syscall.SIGTERM)
+		// Then immediately follow with SIGKILL to ensure termination
 		// Negative PID kills the entire process group
-		return syscall.Kill(-pgid, syscall.SIGTERM)
+		return syscall.Kill(-pgid, syscall.SIGKILL)
 	}
 
 	// Fallback to killing just the process

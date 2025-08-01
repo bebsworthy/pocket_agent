@@ -39,14 +39,14 @@ func TestDurationUnmarshalJSON(t *testing.T) {
 			expected: time.Second,
 		},
 		{
-			name:     "invalid string format",
-			input:    `"invalid"`,
-			wantErr:  true,
+			name:    "invalid string format",
+			input:   `"invalid"`,
+			wantErr: true,
 		},
 		{
-			name:     "invalid type",
-			input:    `true`,
-			wantErr:  true,
+			name:    "invalid type",
+			input:   `true`,
+			wantErr: true,
 		},
 	}
 
@@ -54,19 +54,19 @@ func TestDurationUnmarshalJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var d Duration
 			err := json.Unmarshal([]byte(tt.input), &d)
-			
+
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error but got none")
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 				return
 			}
-			
+
 			if d.Get() != tt.expected {
 				t.Errorf("expected %v, got %v", tt.expected, d.Get())
 			}
@@ -108,7 +108,7 @@ func TestDurationMarshalJSON(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			
+
 			if string(data) != tt.expected {
 				t.Errorf("expected %s, got %s", tt.expected, string(data))
 			}

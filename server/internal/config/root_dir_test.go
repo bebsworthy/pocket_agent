@@ -90,7 +90,7 @@ func TestRootDirectory(t *testing.T) {
 func TestRootDirectoryOverrides(t *testing.T) {
 	tmpDir := t.TempDir()
 	customDataDir := filepath.Join(tmpDir, "custom-data")
-	
+
 	// Test that command line data-dir overrides root directory default
 	opts := Options{
 		RootDir: tmpDir,

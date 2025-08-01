@@ -65,7 +65,7 @@ type Options struct {
 func DefaultConfig() *Config {
 	homeDir, _ := os.UserHomeDir()
 	baseDir := filepath.Join(homeDir, ".pocket_agent")
-	
+
 	return &Config{
 		Port:        8443,
 		Host:        "0.0.0.0",
@@ -145,7 +145,7 @@ func EnsureDefaultConfigWithRoot(rootDir string) error {
 		cfg.LogFile = filepath.Join(rootDir, "logs", "pocket-agent.log")
 		cfg.TLSCertFile = filepath.Join(rootDir, "certs", "server.crt")
 		cfg.TLSKeyFile = filepath.Join(rootDir, "certs", "server.key")
-		
+
 		data, err := json.MarshalIndent(cfg, "", "  ")
 		if err != nil {
 			return fmt.Errorf("failed to marshal default config: %w", err)

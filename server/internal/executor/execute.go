@@ -167,6 +167,7 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 
 	// Start goroutine to read and parse streaming output
 	go func() {
+		defer close(messagesChan)
 		scanner := bufio.NewScanner(stdoutPipe)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -177,7 +178,7 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 			// Parse each line as a JSON object
 			var obj map[string]interface{}
 			if err := json.Unmarshal([]byte(line), &obj); err != nil {
-				ce.logger.Debug("Failed to parse line as JSON", 
+				ce.logger.Debug("Failed to parse line as JSON",
 					"line", line,
 					"error", err)
 				continue
@@ -249,8 +250,8 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 					sessionIDMutex.Unlock()
 				}
 
-			case "message_start", "content_block_start", "content_block_delta", 
-			     "content_block_stop", "message_delta", "message_stop":
+			case "message_start", "content_block_start", "content_block_delta",
+				"content_block_stop", "message_delta", "message_stop":
 				// These are streaming message events - store and stream the raw JSON
 				content, _ := json.Marshal(obj)
 				msg := models.ClaudeMessage{
@@ -274,8 +275,31 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 				}
 
 			case "error":
-				// Handle error messages
+				// Store error message
+				content, _ := json.Marshal(obj)
+				msg := models.ClaudeMessage{
+					Type:    msgType,
+					Content: json.RawMessage(content),
+				}
+				messagesChan <- msg
+				if callback != nil {
+					callback(msg)
+				}
+				// Log the error message
+				if messageLog != nil {
+					timestampedMsg := models.TimestampedMessage{
+						Timestamp: time.Now(),
+						Message:   msg,
+						Direction: "claude",
+					}
+					if err := messageLog.Append(timestampedMsg); err != nil {
+						ce.logger.Error("Failed to log Claude error", "error", err)
+					}
+				}
+				// Also send to error channel - check both 'message' and 'error' fields
 				if errMsg, ok := obj["message"].(string); ok {
+					errorChan <- fmt.Errorf("Claude error: %s", errMsg)
+				} else if errMsg, ok := obj["error"].(string); ok {
 					errorChan <- fmt.Errorf("Claude error: %s", errMsg)
 				} else {
 					errorChan <- fmt.Errorf("Claude error: %v", obj)
@@ -291,7 +315,6 @@ func (ce *ClaudeExecutor) executeInternalWithStreaming(
 		if err := scanner.Err(); err != nil {
 			errorChan <- fmt.Errorf("error reading stdout: %w", err)
 		}
-		close(messagesChan)
 	}()
 
 	// Wait for completion
@@ -454,8 +477,8 @@ func (ce *ClaudeExecutor) parseClaudeOutput(output string) ([]models.ClaudeMessa
 		// Parse each line as a JSON object
 		var obj map[string]interface{}
 		if err := json.Unmarshal([]byte(line), &obj); err != nil {
-			ce.logger.Debug("Failed to parse line as JSON", 
-				"line_number", i+1, 
+			ce.logger.Debug("Failed to parse line as JSON",
+				"line_number", i+1,
 				"line", line,
 				"error", err)
 			continue
@@ -491,8 +514,8 @@ func (ce *ClaudeExecutor) parseClaudeOutput(output string) ([]models.ClaudeMessa
 			if sid, ok := obj["session_id"].(string); ok && sid != "" {
 				sessionID = sid
 			}
-		case "message_start", "content_block_start", "content_block_delta", 
-		     "content_block_stop", "message_delta", "message_stop":
+		case "message_start", "content_block_start", "content_block_delta",
+			"content_block_stop", "message_delta", "message_stop":
 			// These are streaming message events - store the raw JSON
 			content, _ := json.Marshal(obj)
 			messages = append(messages, models.ClaudeMessage{
@@ -500,8 +523,11 @@ func (ce *ClaudeExecutor) parseClaudeOutput(output string) ([]models.ClaudeMessa
 				Content: json.RawMessage(content),
 			})
 		case "error":
-			// Handle error messages
+			// Handle error messages - check both 'message' and 'error' fields
 			if errMsg, ok := obj["message"].(string); ok {
+				return nil, "", fmt.Errorf("Claude error: %s", errMsg)
+			}
+			if errMsg, ok := obj["error"].(string); ok {
 				return nil, "", fmt.Errorf("Claude error: %s", errMsg)
 			}
 			return nil, "", fmt.Errorf("Claude error: %v", obj)
@@ -527,4 +553,3 @@ func (ce *ClaudeExecutor) ExecuteWithCallback(
 	// Use the streaming implementation
 	return ce.executeInternalWithStreaming(project, options, callback)
 }
-

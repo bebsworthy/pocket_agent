@@ -667,7 +667,7 @@ func createLoadTestServer(t *testing.T, cfg *config.Config) http.Handler {
 	}
 	projectMgr, err := project.NewManager(projectMgrCfg)
 	require.NoError(t, err)
-	
+
 	// Create executor
 	executorCfg := executor.Config{
 		ClaudePath:              cfg.Execution.ClaudeBinaryPath,
@@ -676,33 +676,33 @@ func createLoadTestServer(t *testing.T, cfg *config.Config) http.Handler {
 	}
 	claudeExec, err := executor.NewClaudeExecutor(executorCfg)
 	require.NoError(t, err)
-	
+
 	// Create handlers
 	handlerCfg := handlers.Config{
-		ProjectManager:  projectMgr,
-		Executor:        claudeExec,
-		Logger:          log,
-		ClaudePath:      cfg.Execution.ClaudeBinaryPath,
-		DataDir:         cfg.DataDir,
+		ProjectManager: projectMgr,
+		Executor:       claudeExec,
+		Logger:         log,
+		ClaudePath:     cfg.Execution.ClaudeBinaryPath,
+		DataDir:        cfg.DataDir,
 	}
-	
+
 	// Create server stats mock
 	serverStats := &mockServerStats{}
-	
+
 	// Create all handlers
 	allHandlers := handlers.NewHandlers(handlerCfg, serverStats)
-	
+
 	// Create WebSocket server
 	wsCfg := websocket.Config{
-		ReadTimeout:     10 * time.Minute,
-		WriteTimeout:    10 * time.Second,
-		PingInterval:    5 * time.Minute,
-		PongTimeout:     30 * time.Second,
-		MaxMessageSize:  1024 * 1024,
-		BufferSize:      1024,
-		MaxConnections:  1000,
+		ReadTimeout:    10 * time.Minute,
+		WriteTimeout:   10 * time.Second,
+		PingInterval:   5 * time.Minute,
+		PongTimeout:    30 * time.Second,
+		MaxMessageSize: 1024 * 1024,
+		BufferSize:     1024,
+		MaxConnections: 1000,
 	}
-	
+
 	wsServer := websocket.NewServer(wsCfg, allHandlers, log)
 
 	mux := http.NewServeMux()
@@ -728,14 +728,14 @@ func createBenchServer(dataDir, claudePath string) http.Handler {
 	}
 
 	log := logger.New("error")
-	
+
 	// Create project manager
 	projectMgrCfg := project.Config{
 		DataDir:     cfg.DataDir,
 		MaxProjects: cfg.Execution.MaxProjects,
 	}
 	projectMgr, _ := project.NewManager(projectMgrCfg)
-	
+
 	// Create executor
 	executorCfg := executor.Config{
 		ClaudePath:              cfg.Execution.ClaudeBinaryPath,
@@ -743,33 +743,33 @@ func createBenchServer(dataDir, claudePath string) http.Handler {
 		MaxConcurrentExecutions: 10,
 	}
 	claudeExec, _ := executor.NewClaudeExecutor(executorCfg)
-	
+
 	// Create handlers
 	handlerCfg := handlers.Config{
-		ProjectManager:  projectMgr,
-		Executor:        claudeExec,
-		Logger:          log,
-		ClaudePath:      cfg.Execution.ClaudeBinaryPath,
-		DataDir:         cfg.DataDir,
+		ProjectManager: projectMgr,
+		Executor:       claudeExec,
+		Logger:         log,
+		ClaudePath:     cfg.Execution.ClaudeBinaryPath,
+		DataDir:        cfg.DataDir,
 	}
-	
+
 	// Create server stats mock
 	serverStats := &mockServerStats{}
-	
+
 	// Create all handlers
 	allHandlers := handlers.NewHandlers(handlerCfg, serverStats)
-	
+
 	// Create WebSocket server
 	wsCfg := websocket.Config{
-		ReadTimeout:     10 * time.Minute,
-		WriteTimeout:    10 * time.Second,
-		PingInterval:    5 * time.Minute,
-		PongTimeout:     30 * time.Second,
-		MaxMessageSize:  1024 * 1024,
-		BufferSize:      1024,
-		MaxConnections:  1000,
+		ReadTimeout:    10 * time.Minute,
+		WriteTimeout:   10 * time.Second,
+		PingInterval:   5 * time.Minute,
+		PongTimeout:    30 * time.Second,
+		MaxMessageSize: 1024 * 1024,
+		BufferSize:     1024,
+		MaxConnections: 1000,
 	}
-	
+
 	wsServer := websocket.NewServer(wsCfg, allHandlers, log)
 
 	mux := http.NewServeMux()

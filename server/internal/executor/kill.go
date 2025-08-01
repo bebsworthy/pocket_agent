@@ -33,18 +33,19 @@ func (ce *ClaudeExecutor) KillExecution(projectID string) error {
 
 	// Give the process a moment to respond to context cancellation
 	gracefulTimeout := 2 * time.Second
-	done := make(chan struct{})
+	done := make(chan error, 1)
 
 	go func() {
-		processInfo.Cmd.Wait()
-		close(done)
+		err := processInfo.Cmd.Wait()
+		done <- err
 	}()
 
 	select {
-	case <-done:
+	case err := <-done:
 		// Process terminated gracefully
 		ce.logger.Info("Process terminated gracefully",
-			"project_id", projectID)
+			"project_id", projectID,
+			"wait_error", err)
 		ce.cleanupProcess(projectID, processInfo)
 		return nil
 
@@ -66,13 +67,18 @@ func (ce *ClaudeExecutor) KillExecution(projectID string) error {
 	// Wait for process to actually terminate
 	killTimeout := 5 * time.Second
 	select {
-	case <-done:
+	case err := <-done:
 		ce.logger.Info("Process killed successfully",
-			"project_id", projectID)
+			"project_id", projectID,
+			"wait_error", err)
 
 	case <-time.After(killTimeout):
 		ce.logger.Error("Process did not terminate after kill signal",
-			"project_id", projectID)
+			"project_id", projectID,
+			"pid", processInfo.Cmd.Process.Pid)
+		// Even if the process didn't terminate, clean it up from our tracking
+		// to prevent resource leaks
+		ce.cleanupProcess(projectID, processInfo)
 		return errors.New(errors.CodeExecutionFailed,
 			"process did not terminate after kill signal")
 	}
@@ -100,13 +106,9 @@ func (ce *ClaudeExecutor) killProcess(process *os.Process) error {
 	// Platform-specific kill implementation
 	switch runtime.GOOS {
 	case "linux", "darwin":
-		// On Unix-like systems, first try SIGTERM, then SIGKILL
-		// Send SIGTERM to allow graceful shutdown
-		if err := process.Signal(syscall.SIGTERM); err != nil {
-			// If SIGTERM fails, try SIGKILL
-			if err := process.Signal(syscall.SIGKILL); err != nil {
-				return fmt.Errorf("failed to send kill signal: %w", err)
-			}
+		// Force kill with SIGKILL since this is called after graceful termination failed
+		if err := process.Signal(syscall.SIGKILL); err != nil {
+			return fmt.Errorf("failed to send kill signal: %w", err)
 		}
 		return nil
 

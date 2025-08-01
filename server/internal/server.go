@@ -161,7 +161,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	// Create WebSocket server
 	s.wsServer = websocket.NewServer(wsConfig, handler, log)
-	
+
 	// Set server as metrics provider for WebSocket server
 	s.wsServer.SetMetricsProvider(s)
 

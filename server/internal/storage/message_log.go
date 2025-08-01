@@ -155,12 +155,12 @@ func (ml *MessageLog) Close() error {
 		// Check if empty before closing
 		stat, _ := ml.currentFile.Stat()
 		err := ml.currentFile.Close()
-		
+
 		// Delete if empty
 		if stat != nil && stat.Size() == 0 {
 			os.Remove(ml.currentPath)
 		}
-		
+
 		return err
 	}
 	return nil
@@ -195,12 +195,12 @@ func (ml *MessageLog) rotateLog() error {
 		if err := ml.currentFile.Close(); err != nil {
 			return fmt.Errorf("failed to close current file: %w", err)
 		}
-		
+
 		// Delete if empty
 		if stat != nil && stat.Size() == 0 {
 			os.Remove(ml.currentPath)
 		}
-		
+
 		ml.currentFile = nil // Clear reference immediately after closing
 	}
 

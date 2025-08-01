@@ -20,7 +20,7 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.TLSEnabled {
 		t.Error("expected TLS to be disabled by default")
 	}
-	
+
 	// Check that data dir is in home directory
 	homeDir, _ := os.UserHomeDir()
 	expectedDataDir := filepath.Join(homeDir, ".pocket_agent")

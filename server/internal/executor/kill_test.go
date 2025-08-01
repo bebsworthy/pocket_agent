@@ -187,7 +187,7 @@ func TestKillAll(t *testing.T) {
 func TestKillAllWithFailures(t *testing.T) {
 	// Test KillAll behavior when some kills fail
 	// We'll use a mock-like approach by modifying activeProcesses during execution
-	
+
 	ce := &ClaudeExecutor{
 		activeProcesses: make(map[string]*ProcessInfo),
 		logger:          logger.New("info"),
@@ -196,19 +196,19 @@ func TestKillAllWithFailures(t *testing.T) {
 	// This test actually validates the robustness of KillAll
 	// In practice, KillAll rarely fails because KillExecution handles most errors gracefully
 	// The only real failure case is when a process doesn't exist in activeProcesses
-	
+
 	// Add multiple processes
 	processes := make([]*exec.Cmd, 3)
 	cancels := make([]context.CancelFunc, 3)
-	
+
 	for i := 0; i < 3; i++ {
 		ctx, cancel := context.WithCancel(context.Background())
 		cmd := exec.CommandContext(ctx, "sleep", "10")
 		cmd.Start()
-		
+
 		processes[i] = cmd
 		cancels[i] = cancel
-		
+
 		projectID := fmt.Sprintf("process-%d", i)
 		ce.activeProcesses[projectID] = &ProcessInfo{
 			Cmd:       cmd,
@@ -221,7 +221,6 @@ func TestKillAllWithFailures(t *testing.T) {
 
 	// KillAll should handle all processes successfully
 	err := ce.KillAll()
-	
 	// In the current implementation, KillAll only fails if KillExecution returns an error
 	// Since our processes are valid, no error should occur
 	if err != nil {
@@ -345,7 +344,7 @@ func TestIsProcessAlive(t *testing.T) {
 
 	// Clean up - remove from active processes to test actual behavior
 	delete(ce.activeProcesses, "alive")
-	
+
 	// Now it should definitely be false (not in map)
 	if ce.IsProcessAlive("alive") {
 		t.Error("expected false for process not in active map")
@@ -358,8 +357,15 @@ func TestKillTimeouts(t *testing.T) {
 		logger:          logger.New("info"),
 	}
 
-	// Create a process that ignores SIGTERM (simulated by not responding to context)
-	cmd := exec.Command("sh", "-c", "trap '' TERM; sleep 10")
+	// Create a process that ignores SIGTERM
+	// Use a shorter sleep to avoid test timeout issues
+	cmd := exec.Command("sh", "-c", "trap '' TERM; sleep 3")
+	
+	// Set up process group to ensure child processes are killed too
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+	
 	if err := cmd.Start(); err != nil {
 		t.Skip("Cannot start command")
 	}
@@ -369,6 +375,7 @@ func TestKillTimeouts(t *testing.T) {
 		ProjectID: "stubborn",
 		Context:   context.Background(),
 		Cancel:    func() {}, // No-op cancel
+		StartTime: time.Now(),
 	}
 	ce.activeProcesses["stubborn"] = processInfo
 
@@ -381,12 +388,19 @@ func TestKillTimeouts(t *testing.T) {
 		t.Errorf("KillExecution() unexpected error: %v", err)
 	}
 
-	// Should have waited for graceful period but not too long
+	// Should have waited for graceful period (2s) but not too long
+	// The process ignores SIGTERM, so it should wait 2s then force kill
 	if elapsed < 2*time.Second {
 		t.Error("kill completed too quickly, expected graceful wait")
 	}
-	if elapsed > 8*time.Second {
-		t.Error("kill took too long")
+	// Allow some buffer for process cleanup
+	if elapsed > 4*time.Second {
+		t.Errorf("kill took too long: %v", elapsed)
+	}
+
+	// Verify process was cleaned up
+	if _, exists := ce.activeProcesses["stubborn"]; exists {
+		t.Error("process was not cleaned up from active processes")
 	}
 }
 

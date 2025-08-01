@@ -126,7 +126,7 @@ func TestStorageIntegration(t *testing.T) {
 		if err := ml.Append(msg); err != nil {
 			t.Fatalf("Failed to append message: %v", err)
 		}
-		
+
 		ml.Close()
 
 		// Update project

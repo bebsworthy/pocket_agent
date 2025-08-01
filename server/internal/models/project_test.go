@@ -235,7 +235,7 @@ func TestProjectCopy(t *testing.T) {
 	// Verify copy is independent - modify copy and check original is unchanged
 	copy.Path = "/modified/path"
 	copy.State = StateError
-	
+
 	if original.Path == "/modified/path" {
 		t.Error("Modifying copy affected original path")
 	}
@@ -256,7 +256,7 @@ func TestProjectCopyThreadSafety(t *testing.T) {
 
 	// Concurrently copy and modify
 	done := make(chan bool)
-	
+
 	// Multiple readers copying
 	for i := 0; i < 5; i++ {
 		go func() {

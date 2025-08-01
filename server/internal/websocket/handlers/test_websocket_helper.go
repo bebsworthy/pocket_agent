@@ -13,12 +13,12 @@ import (
 
 // testWebSocketServer creates a test WebSocket server and client connection
 type testWebSocketServer struct {
-	server          *httptest.Server
-	serverConn      *websocket.Conn
-	clientConn      *websocket.Conn
+	server           *httptest.Server
+	serverConn       *websocket.Conn
+	clientConn       *websocket.Conn
 	receivedMessages []interface{}
-	mu              sync.Mutex
-	connMu          sync.Mutex  // Separate mutex for connection access
+	mu               sync.Mutex
+	connMu           sync.Mutex // Separate mutex for connection access
 }
 
 // newTestWebSocketServer creates a test WebSocket server
@@ -26,13 +26,13 @@ func newTestWebSocketServer(t *testing.T) *testWebSocketServer {
 	tws := &testWebSocketServer{
 		receivedMessages: make([]interface{}, 0),
 	}
-	
+
 	// Create test server
 	tws.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		upgrader := websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		}
-		
+
 		var err error
 		tws.connMu.Lock()
 		tws.serverConn, err = upgrader.Upgrade(w, r, nil)
@@ -40,7 +40,7 @@ func newTestWebSocketServer(t *testing.T) *testWebSocketServer {
 		if err != nil {
 			t.Fatalf("Failed to upgrade: %v", err)
 		}
-		
+
 		// Read messages in background
 		go func() {
 			for {
@@ -49,14 +49,14 @@ func newTestWebSocketServer(t *testing.T) *testWebSocketServer {
 				if err != nil {
 					return
 				}
-				
+
 				tws.mu.Lock()
 				tws.receivedMessages = append(tws.receivedMessages, msg)
 				tws.mu.Unlock()
 			}
 		}()
 	}))
-	
+
 	// Create client connection
 	wsURL := strings.Replace(tws.server.URL, "http", "ws", 1)
 	var err error
@@ -64,7 +64,7 @@ func newTestWebSocketServer(t *testing.T) *testWebSocketServer {
 	if err != nil {
 		t.Fatalf("Failed to dial: %v", err)
 	}
-	
+
 	return tws
 }
 

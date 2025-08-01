@@ -92,7 +92,7 @@ func (v *Validator) ValidatePath(path string) error {
 
 	// Clean the path to resolve any symbolic links or redundant elements
 	cleanPath := filepath.Clean(path)
-	
+
 	// Double-check after cleaning - if cleaned path differs significantly, it might be suspicious
 	if strings.Contains(path, "..") && !strings.Contains(cleanPath, "..") {
 		// Path was attempting traversal that got cleaned
@@ -271,10 +271,10 @@ func (v *Validator) SanitizePath(path string) string {
 	// First, replace invalid characters before cleaning
 	// This preserves the structure for the test expectations
 	cleaned := invalidPathChars.ReplaceAllString(path, "_")
-	
+
 	// Remove path traversal attempts by replacing .. segments
 	cleaned = pathTraversalPattern.ReplaceAllString(cleaned, "_/")
-	
+
 	// Now clean the path
 	cleaned = filepath.Clean(cleaned)
 

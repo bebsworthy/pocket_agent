@@ -76,7 +76,7 @@ func (h *Handlers) HandleMessage(ctx context.Context, session *models.Session, m
 	// Create a router and register all handlers
 	router := websocket.NewMessageRouter(h.Project.log)
 	h.RegisterAll(router)
-	
+
 	// Route the message
 	return router.HandleMessage(ctx, session, msg)
 }

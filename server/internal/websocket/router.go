@@ -38,7 +38,7 @@ func (r *MessageRouter) HandleMessage(ctx context.Context, session *models.Sessi
 	if msg == nil {
 		return errors.New(errors.CodeValidationFailed, "message is nil")
 	}
-	
+
 	r.log.Debug("Routing message",
 		"session_id", session.ID,
 		"type", msg.Type,
@@ -114,6 +114,12 @@ func (d *MessageDispatcher) HandleMessage(ctx context.Context, session *models.S
 	}
 
 	return handler.HandleMessage(ctx, session, msg)
+}
+
+// OnSessionCleanup implements MessageHandler interface
+func (d *MessageDispatcher) OnSessionCleanup(session *models.Session) {
+	// Delegate to router
+	d.router.OnSessionCleanup(session)
 }
 
 // Common middleware functions
