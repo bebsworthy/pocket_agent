@@ -18,6 +18,19 @@ Generate parallel-optimized implementation task list with agent recommendations 
 ## Instructions
 You are working on the tasks phase of the spec workflow, generating tasks optimized for parallel execution with specialized agents.
 
+## Review and Rework Process
+
+**MANDATORY**: All development tracks must include Code Review (CR) and Product Review (PR) tasks after implementation:
+
+1. After each track's development tasks, a **Code Review (CR)** is performed by the appropriate code reviewer agent
+2. Following the code review, a **Product Review (PR)** is performed by the product-owner-reviewer
+3. If either review fails (status: "REQUIRES CHANGES"), a **Rework (RW)** task is triggered
+4. The appropriate developer agent addresses all findings from the failed reviews
+5. After rework, the review process repeats until approval is achieved (status: "APPROVED")
+6. Only after both CR and PR are approved can dependent tracks proceed
+
+**Review Dependencies**: Reviews gate track progression - no dependent tracks can start until all prerequisite reviews are approved.
+
 ### Step 0: Check for --optimize-existing Flag
 
 If `--optimize-existing` flag is provided:
@@ -64,14 +77,16 @@ If `--optimize-existing` flag is provided:
    - **Framework specialists**: `{language}-{framework}-developer` (e.g., typescript-react-developer)
    - **Testing specialists**: `{language}-test-engineer` (e.g., go-test-engineer)
    - **Architecture reviewers**: `system-architect`, `api-architect`
-   - **Code reviewers**: `code-quality-reviewer` (mandatory for all features)
+   - **Code reviewers**: `{technology}-code-reviewer` (e.g., typescript-react-code-reviewer, go-code-reviewer) - mandatory for all CR tasks
+   - **Product reviewer**: `product-owner-reviewer` (mandatory for all PR tasks)
    - **Domain specialists**: `websocket-specialist`, `database-specialist`, etc.
 
 3. **Agent Matching Logic**
    - Match based on technology stack in design.md
    - Consider language, frameworks, and architectural patterns
    - Prefer specialized agents over general ones
-   - Always include code-quality-reviewer for review tasks
+   - Always include technology-specific code reviewer for CR tasks
+   - Always include product-owner-reviewer for PR tasks
 
 ### Step 3: Prerequisites and Context Loading
 
@@ -94,7 +109,7 @@ If `--optimize-existing` flag is provided:
    - Track A: Foundation tasks with no dependencies
    - Track B-E: Core implementation tasks that can run in parallel
    - Track F: Integration and finalization tasks
-   - Code Review (CR) track: Reviews after each development phase
+   - Review tasks (CR/PR/RW): Quality gates after each development phase
 
 2. **Dependency Management**
    - Clearly mark task dependencies
@@ -106,12 +121,22 @@ If `--optimize-existing` flag is provided:
    - Assign the most appropriate agent to each task
    - Consider agent specialization and tools
    - Group tasks by agent when possible for efficiency
-   - Always assign code-quality-reviewer to CR tasks
+   - Always assign technology-specific code reviewer to CR tasks
+   - Always assign product-owner-reviewer to PR tasks
+   - Use original developer agent for RW tasks
 
 ### Step 5: Task Format
 
 ```markdown
 # Implementation Tasks
+
+## Review and Rework Process
+1. After each track's development tasks, a **Code Review (CR)** is performed by the {technology}-code-reviewer
+2. Following the code review, a **Product Review (PR)** is performed by the product-owner-reviewer
+3. If either review fails (status: "Requires changes"), a **Rework (RW)** task is triggered
+4. The {technology}-developer addresses all findings from the failed reviews
+5. After rework, the review process repeats until approval is achieved
+6. Only after both CR and PR are approved can dependent tracks proceed
 
 ## Parallel Execution Tracks
 
@@ -129,63 +154,125 @@ If `--optimize-existing` flag is provided:
   - _Requirements: 1.2_
   - _Agent: {agent-name}_
 
-### Track B: Core Features (Dependencies: Track A)
-> Primary Agent: {agent-name}
+- [ ] CR-A. **Code Review: Foundation Setup**
+  - Review project configuration and build setup
+  - Verify all libraries use latest stable versions
+  - Check linting and TypeScript configuration
+  - Validate type definitions match server protocol
+  - Ensure mobile viewport configuration is correct
+  - _Dependencies: Tasks 1-2_
+  - _Agent: {technology}-code-reviewer_
+
+- [ ] PR-A. **Product Review: Track A Foundation**
+  - Validate project setup meets all requirements in sections 1.x
+  - Verify TypeScript strict mode configuration
+  - Check mobile viewport and meta tags implementation
+  - Ensure all type definitions match server protocol specs
+  - Validate linting and formatting setup
+  - Review output saved to: `{module}/product_review/track-a.md`
+  - _Spec References: requirements.md sections 1.x, 5.3; design.md Project Setup_
+  - _Dependencies: CR-A_
+  - _Agent: product-owner-reviewer_
+
+- [ ] RW-A. **Rework: Address Track A Review Findings**
+  - Review findings from `{module}/code_review/CR-A.md` and/or `{module}/product_review/track-a.md`
+  - Address all critical issues identified in reviews
+  - Implement required changes and improvements
+  - Re-run linting and type checking
+  - Update documentation if needed
+  - _Trigger: Only if CR-A or PR-A status is "Requires changes"_
+  - _Dependencies: CR-A and/or PR-A (failed)_
+  - _Agent: {agent-name}_
+
+### Track B: Core Features (Dependencies: Track A, CR-A, PR-A)
+> Primary Agent: {specialized-agent}
 
 - [ ] 3. **Feature implementation**
   - Implementation specifics
   - _Requirements: 2.1_
-  - _Dependencies: Task 1_
+  - _Dependencies: PR-A (approved)_
   - _Agent: {specialized-agent}_
 
-### Track C: Additional Features (Dependencies: Track A)
+- [ ] CR-B. **Code Review: Core Features**
+  - Review feature implementation quality
+  - Validate security and best practices
+  - Check error handling patterns
+  - Ensure code maintainability
+  - _Dependencies: Task 3_
+  - _Agent: {technology}-code-reviewer_
+
+- [ ] PR-B. **Product Review: Track B Core Features**
+  - Validate feature meets requirements 2.x
+  - Verify functionality matches specifications
+  - Check user experience flows
+  - Ensure integration points work correctly
+  - Review output saved to: `{module}/product_review/track-b.md`
+  - _Spec References: requirements.md sections 2.x; design.md Core Features_
+  - _Dependencies: CR-B_
+  - _Agent: product-owner-reviewer_
+
+- [ ] RW-B. **Rework: Address Track B Review Findings**
+  - Review findings from failed reviews
+  - Fix implementation issues
+  - Improve code quality and security
+  - Re-test functionality
+  - _Trigger: Only if CR-B or PR-B status is "Requires changes"_
+  - _Dependencies: CR-B and/or PR-B (failed)_
+  - _Agent: {specialized-agent}_
+
+### Track C: Additional Features (Dependencies: Track A, CR-A, PR-A)
 > Primary Agent: {agent-name}
 
 - [ ] 5. **Parallel feature**
   - Can run simultaneously with Track B
   - _Requirements: 3.1_
-  - _Dependencies: Task 2_
+  - _Dependencies: PR-A (approved)_
   - _Agent: {agent-name}_
 
-### Code Review Track (Progressive Reviews)
+- [ ] CR-C. **Code Review: Additional Features**
+  - Review parallel implementation
+  - Check integration compatibility
+  - _Dependencies: Task 5_
+  - _Agent: {technology}-code-reviewer_
 
-- [ ] CR1. **Review Track A implementation**
-  - Review all foundation code
-  - Security and best practices check
-  - _Dependencies: Track A completion_
-  - _Agent: code-quality-reviewer_
+- [ ] PR-C. **Product Review: Track C Additional Features**
+  - Validate additional features meet requirements 3.x
+  - Review output saved to: `{module}/product_review/track-c.md`
+  - _Spec References: requirements.md sections 3.x_
+  - _Dependencies: CR-C_
+  - _Agent: product-owner-reviewer_
 
-- [ ] CR2. **Review Track B & C implementation**
-  - Review core features
-  - Integration validation
-  - _Dependencies: Track B, C completion_
-  - _Agent: code-quality-reviewer_
+- [ ] RW-C. **Rework: Address Track C Review Findings**
+  - Fix additional feature issues
+  - _Trigger: Only if CR-C or PR-C status is "Requires changes"_
+  - _Dependencies: CR-C and/or PR-C (failed)_
+  - _Agent: {agent-name}_
 
-### Track D: Testing (Dependencies: CR1, CR2)
+### Checkpoint Review 1
+- [ ] CR1. **Comprehensive Review: Foundation and Core Features**
+  - Review overall architecture consistency
+  - Validate integration between tracks
+  - Check performance implications
+  - Ensure security standards
+  - _Dependencies: All previous CR/PR approvals (PR-A, PR-B, PR-C)_
+  - _Agent: {technology}-code-reviewer_
+
+### Track D: Advanced Features (Dependencies: CR1)
 > Primary Agent: {test-engineer-agent}
 
-- [ ] 10. **Unit tests for core features**
-  - Test coverage for all new code
+- [ ] 10. **Advanced implementation**
+  - Implementation requiring foundation completion
   - _Requirements: Testing_
-  - _Dependencies: CR2_
+  - _Dependencies: CR1_
   - _Agent: {language}-test-engineer_
-
-### Track E: Integration (Dependencies: Track D)
-> Primary Agent: {agent-name}
-
-- [ ] 15. **Integration tasks**
-  - System integration
-  - _Requirements: 4.1_
-  - _Dependencies: Task 10_
-  - _Agent: {agent-name}_
 
 ### Final Review Track
 
-- [ ] CR3. **Final comprehensive review**
+- [ ] CR-FINAL. **Final comprehensive review**
   - Full feature review
   - Performance and security audit
   - _Dependencies: All implementation tracks_
-  - _Agent: code-quality-reviewer_
+  - _Agent: {technology}-code-reviewer_
 
 ## Cross-Module Coordination (if applicable)
 
@@ -195,30 +282,43 @@ If `--optimize-existing` flag is provided:
 
 ## Execution Strategy
 
-### Parallel Groups
+### Parallel Groups with Review Gates
 1. **Group 1 (Immediate Start)**:
-   - Track A (Tasks 1-2)
+   - Track A Development (Tasks 1-2)
    
-2. **Group 2 (After Group 1 + CR1)**:
-   - Track B (Tasks 3-4)
-   - Track C (Tasks 5-6)
+2. **Group 2 (After Track A Development)**:
+   - CR-A (Code Review Track A)
+   - PR-A (Product Review Track A)
+   - RW-A (Rework Track A - only if reviews fail)
    
-3. **Group 3 (After Group 2 + CR2)**:
-   - Track D (Tasks 10-12)
+3. **Group 3 (After PR-A Approval)**:
+   - Track B Development (Tasks 3-4) - parallel execution
+   - Track C Development (Tasks 5-6) - parallel execution
    
-4. **Group 4 (After Group 3)**:
-   - Track E (Tasks 15-17)
-   - Final Review (CR3)
+4. **Group 4 (Individual Track Reviews)**:
+   - CR-B, PR-B, RW-B (if needed) - for Track B
+   - CR-C, PR-C, RW-C (if needed) - for Track C
+   
+5. **Group 5 (After All Track Reviews Approved)**:
+   - CR1 (Comprehensive Checkpoint Review)
+   
+6. **Group 6 (After CR1 Approval)**:
+   - Track D Development (Tasks 10-12)
+   - Additional dependent tracks
+   
+7. **Group 7 (Final Review)**:
+   - CR-FINAL (Complete feature review)
 
 ### Agent Utilization
 - **Primary Agents**: {list of main agents}
 - **Specialist Agents**: {list of specialized agents}
-- **Review Agent**: code-quality-reviewer (mandatory)
+- **Code Review Agent**: {technology}-code-reviewer (mandatory for all CR tasks)
+- **Product Review Agent**: product-owner-reviewer (mandatory for all PR tasks)
 
 ### Time Estimates
-- Parallel execution time: ~X days with 6 agents
+- Parallel execution time: ~X days with N agents
 - Sequential execution time: ~Y days
-- Review overhead: ~Z hours per phase
+- Review overhead: ~Z hours per track (CR + PR + potential RW)
 ```
 
 ### Step 6: Task Guidelines
@@ -235,13 +335,22 @@ If `--optimize-existing` flag is provided:
 - Match task technology to agent expertise
 - Prefer specialized agents for complex tasks
 - Use general agents for simple tasks
-- Always use code-quality-reviewer for reviews
+- Always use {technology}-code-reviewer for CR tasks
+- Always use product-owner-reviewer for PR tasks
+- Use original developer agent for RW tasks
 
 **Code Review Integration**:
 - Insert CR tasks after each major development phase
 - Group reviews by logical feature boundaries
 - Reviews should not block unrelated parallel work
 - Final review covers entire feature
+
+**Review Output Requirements**:
+- **Code Reviews (CR)**: Save output to `{module}/code_review/CR-{track}.md`
+- **Product Reviews (PR)**: Save output to `{module}/product_review/track-{track}.md`
+- **Review Status**: Must be either "APPROVED" or "REQUIRES CHANGES"
+- **Spec References**: PR tasks must reference specific requirement sections and design elements
+- **Rework Triggers**: RW tasks are conditional - only execute if reviews fail
 
 ### Step 7: Excluded Tasks
 
@@ -257,19 +366,21 @@ If `--optimize-existing` flag is provided:
    - Show parallel track organization
    - Highlight agent assignments and rationale
    - Display execution timeline with parallelism
-   - Show code review checkpoints
+   - Show code review and product review checkpoints
+   - Explain review gates and dependency blocking
 
 2. **For Optimization Mode (--optimize-existing)**
    - Show optimization summary first
    - Clearly separate completed vs pending tasks
    - Explain the reorganization rationale
-   - Highlight new code review insertions
+   - Highlight new review task insertions (CR/PR/RW)
    - Show before/after parallelism improvement
+   - Preserve completed review statuses
 
 3. **Request Approval**
-   - For new tasks: "Do the tasks and agent assignments look good?"
-   - For optimization: "Does this optimization preserve your completed work while improving parallelism?"
-   - Explain parallel execution benefits
+   - For new tasks: "Do the tasks, agent assignments, and review process look good?"
+   - For optimization: "Does this optimization preserve your completed work while improving parallelism and adding review gates?"
+   - Explain parallel execution benefits and quality gates
    - Make revisions based on feedback
    - Continue until explicit approval
 
@@ -285,9 +396,10 @@ When using `--optimize-existing`, the output should look like:
 ## Optimization Summary
 - Completed tasks preserved: 5 (Tasks 1-5)
 - Pending tasks reorganized: 32 (Tasks 6-37)
-- New code review tasks added: 3 (CR2, CR3, CR4)
+- New review tasks added: 9 (3 CR, 3 PR, 3 RW conditional)
 - Parallel tracks created: 5 (B, C, D, E, F)
-- Agents assigned: 4 unique agents
+- Review gates established: 3 checkpoints
+- Agents assigned: 6 unique agents (including reviewers)
 
 ## Completed Tasks (Preserved)
 
@@ -303,9 +415,16 @@ When using `--optimize-existing`, the output should look like:
   - _Completed: 2024-01-15_
 
 ### Code Review Track
-- [x] CR1. **Review Track A implementation** ✓
-  - Reviewed foundation code
-  - _Agent: code-quality-reviewer_
+- [x] CR-A. **Code Review: Foundation Implementation** ✓
+  - Reviewed foundation code and build setup
+  - Status: APPROVED
+  - _Agent: go-code-reviewer_
+  - _Completed: 2024-01-16_
+
+- [x] PR-A. **Product Review: Track A Foundation** ✓
+  - Validated requirements compliance
+  - Status: APPROVED
+  - _Agent: product-owner-reviewer_
   - _Completed: 2024-01-16_
 
 ## Pending Tasks (Optimized for Parallel Execution)
@@ -326,12 +445,43 @@ When using `--optimize-existing`, the output should look like:
   - _Requirements: 1.1, 1.2_
   - _Agent: go-websocket-specialist_
 
-### Code Review Track (New)
+### Review Track (New)
 
-- [ ] CR2. **Review Track B & C implementation**
-  - Review data models and WebSocket setup
-  - _Dependencies: Track B, C completion_
-  - _Agent: code-quality-reviewer_
+- [ ] CR-B. **Code Review: Data Models**
+  - Review data models implementation
+  - Check Go best practices and type safety
+  - _Dependencies: Task 4_
+  - _Agent: go-code-reviewer_
+
+- [ ] PR-B. **Product Review: Track B Data Models**
+  - Validate data models meet requirements 2.x, 3.x
+  - Review output saved to: `server/product_review/track-b.md`
+  - _Spec References: requirements.md sections 2.x, 3.x_
+  - _Dependencies: CR-B_
+  - _Agent: product-owner-reviewer_
+
+- [ ] RW-B. **Rework: Address Track B Review Findings**
+  - Fix data model issues if reviews fail
+  - _Trigger: Only if CR-B or PR-B status is "Requires changes"_
+  - _Dependencies: CR-B and/or PR-B (failed)_
+  - _Agent: go-developer_
+
+- [ ] CR-C. **Code Review: WebSocket Infrastructure**
+  - Review WebSocket server implementation
+  - _Dependencies: Task 15_
+  - _Agent: go-websocket-specialist_
+
+- [ ] PR-C. **Product Review: Track C WebSocket**
+  - Validate WebSocket implementation meets requirements 1.x
+  - Review output saved to: `server/product_review/track-c.md`
+  - _Dependencies: CR-C_
+  - _Agent: product-owner-reviewer_
+
+- [ ] RW-C. **Rework: Address Track C Review Findings**
+  - Fix WebSocket issues if reviews fail
+  - _Trigger: Only if CR-C or PR-C status is "Requires changes"_
+  - _Dependencies: CR-C and/or PR-C (failed)_
+  - _Agent: go-websocket-specialist_
 
 [Additional tracks...]
 ```
@@ -347,7 +497,8 @@ For normal task generation (without --optimize-existing):
 - go-developer: Go server development
 - go-websocket-specialist: WebSocket protocol expert
 - go-test-engineer: Go testing specialist
-- code-quality-reviewer: Code review specialist
+- go-code-reviewer: Go code review specialist
+- product-owner-reviewer: Product specification compliance specialist
 
 ## Parallel Execution Tracks
 
@@ -369,12 +520,26 @@ For normal task generation (without --optimize-existing):
   - _Dependencies: Task 1_
   - _Agent: go-websocket-specialist_
 
-### Code Review Track
+### Review Track
 
-- [ ] CR1. **Review foundation code**
+- [ ] CR-A. **Code Review: Foundation Code**
   - Review project structure and setup
-  - _Dependencies: Track A_
-  - _Agent: code-quality-reviewer_
+  - Check Go module configuration and best practices
+  - _Dependencies: Task 1_
+  - _Agent: go-code-reviewer_
+
+- [ ] PR-A. **Product Review: Track A Foundation**
+  - Validate foundation meets requirements 1.x
+  - Review output saved to: `server/product_review/track-a.md`
+  - _Spec References: requirements.md sections 1.x_
+  - _Dependencies: CR-A_
+  - _Agent: product-owner-reviewer_
+
+- [ ] RW-A. **Rework: Address Track A Review Findings**
+  - Fix foundation issues if reviews fail
+  - _Trigger: Only if CR-A or PR-A status is "Requires changes"_
+  - _Dependencies: CR-A and/or PR-A (failed)_
+  - _Agent: go-developer_
 ```
 
 ## Next Phase
