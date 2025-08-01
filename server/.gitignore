@@ -48,6 +48,9 @@ logs/
 # Data directory
 data/
 
+# Runtime directory
+run/
+
 # Coverage reports
 coverage.txt
 coverage.html
