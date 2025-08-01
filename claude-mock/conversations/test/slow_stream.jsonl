@@ -1,0 +1,4 @@
+{"timestamp":"2025-01-01T10:00:00Z","message":{"type":"system","session_id":"test-session-123"},"direction":"claude"}
+{"timestamp":"2025-01-01T10:00:01Z","message":{"type":"assistant","content":{"text":"Thinking..."}},"direction":"claude"}
+{"timestamp":"2025-01-01T10:00:02Z","message":{"type":"assistant","content":{"text":"Processing your request..."}},"direction":"claude"}
+{"timestamp":"2025-01-01T10:00:03Z","message":{"type":"assistant","content":{"text":"Done!"}},"direction":"claude"}

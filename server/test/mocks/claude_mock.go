@@ -2,11 +2,13 @@ package mocks
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
-	"math/rand"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -50,349 +52,95 @@ type ClaudeMockConfig struct {
 	CustomResponse string
 }
 
-// GenerateClaudeResponse generates a mock Claude response based on config
-func GenerateClaudeResponse(config ClaudeMockConfig) (string, error) {
+var (
+	claudeMockBinaryPath string
+	buildOnce            sync.Once
+)
+
+// ensureClaudeMockBinary ensures the claude-mock binary is built
+func ensureClaudeMockBinary() error {
+	var buildErr error
+	buildOnce.Do(func() {
+		// Find the claude-mock directory
+		_, filename, _, _ := runtime.Caller(0)
+		serverDir := filepath.Dir(filepath.Dir(filepath.Dir(filename)))
+		claudeMockDir := filepath.Join(filepath.Dir(serverDir), "claude-mock")
+		claudeMockBinaryPath = filepath.Join(filepath.Dir(serverDir), "bin", "claude-mock")
+		
+		// Check if binary exists
+		if _, err := os.Stat(claudeMockBinaryPath); os.IsNotExist(err) {
+			// Build the binary
+			cmd := exec.Command("make", "build")
+			cmd.Dir = claudeMockDir
+			if output, err := cmd.CombinedOutput(); err != nil {
+				buildErr = fmt.Errorf("failed to build claude-mock: %v\nOutput: %s", err, output)
+			}
+		}
+	})
+	return buildErr
+}
+
+// CreateMockClaudeScript creates a wrapper script that uses the claude-mock binary
+func CreateMockClaudeScript(scriptPath string, config ClaudeMockConfig) error {
+	// Ensure binary is built
+	if err := ensureClaudeMockBinary(); err != nil {
+		return err
+	}
+	
+	// Map scenario to conversation file
+	_, filename, _, _ := runtime.Caller(0)
+	serverDir := filepath.Dir(filepath.Dir(filepath.Dir(filename)))
+	conversationsDir := filepath.Join(filepath.Dir(serverDir), "claude-mock", "conversations", "test")
+	
+	var conversationFile string
+	var delayMs int
+	
 	switch config.Scenario {
 	case ScenarioSuccess:
-		return generateSuccessResponse(config)
+		conversationFile = filepath.Join(conversationsDir, "success.jsonl")
 	case ScenarioError:
-		return generateErrorResponse(config)
+		conversationFile = filepath.Join(conversationsDir, "error.jsonl")
 	case ScenarioTimeout:
-		// Sleep forever (will be killed by timeout)
-		time.Sleep(time.Hour)
-		return "", nil
+		conversationFile = filepath.Join(conversationsDir, "timeout.jsonl")
+		delayMs = 10000 // 10 seconds to simulate timeout
 	case ScenarioInvalidJSON:
-		return "This is not valid JSON { broken", nil
+		conversationFile = filepath.Join(conversationsDir, "invalid_json.jsonl")
 	case ScenarioEmpty:
-		return "", nil
-	case ScenarioPartialJSON:
-		// Return partial JSON that gets cut off
-		return `{"session_id": "test-123", "messages": [{"type": "text", "cont`, nil
+		conversationFile = filepath.Join(conversationsDir, "empty.jsonl")
 	case ScenarioMultiMessage:
-		return generateMultiMessageResponse(config)
+		conversationFile = filepath.Join(conversationsDir, "multi_message.jsonl")
 	case ScenarioLongResponse:
-		return generateLongResponse(config)
+		conversationFile = filepath.Join(conversationsDir, "long_response.jsonl")
 	case ScenarioSlowStream:
-		return generateSlowStreamResponse(config)
+		conversationFile = filepath.Join(conversationsDir, "slow_stream.jsonl")
+		delayMs = 500 // 500ms between messages
 	default:
-		if config.CustomResponse != "" {
-			return config.CustomResponse, nil
-		}
-		return generateSuccessResponse(config)
+		conversationFile = filepath.Join(conversationsDir, "success.jsonl")
 	}
-}
-
-func generateSuccessResponse(config ClaudeMockConfig) (string, error) {
-	sessionID := config.SessionID
-	if sessionID == "" {
-		sessionID = fmt.Sprintf("session-%d", time.Now().Unix())
-	}
-
-	messages := []ClaudeMessage{
-		{
-			Type:    "text",
-			Content: json.RawMessage(`{"text": "Hello! I successfully processed your request."}`),
-		},
-	}
-
-	output := ClaudeOutput{
-		SessionID: sessionID,
-		Messages:  messages,
-	}
-
-	data, err := json.Marshal(output)
-	if err != nil {
-		return "", err
-	}
-
+	
+	// Override delay if specified
 	if config.Delay > 0 {
-		time.Sleep(config.Delay)
+		delayMs = int(config.Delay.Milliseconds())
+	} else if delayMs == 0 {
+		// Default to no delay for tests
+		delayMs = 0
 	}
-
-	return string(data), nil
-}
-
-func generateErrorResponse(config ClaudeMockConfig) (string, error) {
-	output := ClaudeOutput{
-		SessionID: config.SessionID,
-		Error:     "Claude encountered an error processing your request",
-		Messages: []ClaudeMessage{
-			{
-				Type:  "error",
-				Error: "Failed to process prompt",
-			},
-		},
-	}
-
-	data, err := json.Marshal(output)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
-
-func generateMultiMessageResponse(config ClaudeMockConfig) (string, error) {
-	sessionID := config.SessionID
-	if sessionID == "" {
-		sessionID = fmt.Sprintf("session-%d", time.Now().Unix())
-	}
-
-	messageCount := config.MessageCount
-	if messageCount == 0 {
-		messageCount = 5
-	}
-
-	messages := make([]ClaudeMessage, 0, messageCount)
-	for i := 0; i < messageCount; i++ {
-		messages = append(messages, ClaudeMessage{
-			Type:    "text",
-			Content: json.RawMessage(fmt.Sprintf(`{"text": "Message %d of %d"}`, i+1, messageCount)),
-		})
-	}
-
-	// Add a code block message
-	messages = append(messages, ClaudeMessage{
-		Type:    "code",
-		Content: json.RawMessage(`{"language": "go", "code": "func main() {\n\tfmt.Println(\"Hello, World!\")\n}"}`),
-	})
-
-	output := ClaudeOutput{
-		SessionID: sessionID,
-		Messages:  messages,
-	}
-
-	data, err := json.Marshal(output)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
-
-func generateLongResponse(config ClaudeMockConfig) (string, error) {
-	sessionID := config.SessionID
-	if sessionID == "" {
-		sessionID = fmt.Sprintf("session-%d", time.Now().Unix())
-	}
-
-	// Generate a very long text response
-	var longText strings.Builder
-	longText.WriteString("This is a very long response. ")
-	for i := 0; i < 1000; i++ {
-		longText.WriteString(fmt.Sprintf("Line %d: Lorem ipsum dolor sit amet, consectetur adipiscing elit. ", i))
-	}
-
-	messages := []ClaudeMessage{
-		{
-			Type:    "text",
-			Content: json.RawMessage(fmt.Sprintf(`{"text": %q}`, longText.String())),
-		},
-	}
-
-	output := ClaudeOutput{
-		SessionID: sessionID,
-		Messages:  messages,
-	}
-
-	data, err := json.Marshal(output)
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
-
-func generateSlowStreamResponse(config ClaudeMockConfig) (string, error) {
-	sessionID := config.SessionID
-	if sessionID == "" {
-		sessionID = fmt.Sprintf("session-%d", time.Now().Unix())
-	}
-
-	// Simulate streaming by outputting parts slowly
-	parts := []string{
-		`{"session_id": "` + sessionID + `",`,
-		`"messages": [`,
-		`{"type": "text",`,
-		`"content": {"text": "Thinking..."}}`,
-		`]}`,
-	}
-
-	delay := config.Delay
-	if delay == 0 {
-		delay = 100 * time.Millisecond
-	}
-
-	var result strings.Builder
-	for _, part := range parts {
-		result.WriteString(part)
-		time.Sleep(delay)
-	}
-
-	return result.String(), nil
-}
-
-// MockClaudeExecutable is a main function for creating a standalone mock executable
-func MockClaudeExecutable() {
-	var (
-		scenario     string
-		sessionID    string
-		exitCode     int
-		delay        int
-		messageCount int
-		stderr       string
-		customJSON   string
-	)
-
-	// Parse command line flags
-	flag.StringVar(&scenario, "scenario", "success", "Response scenario")
-	flag.StringVar(&sessionID, "session", "", "Session ID to use")
-	flag.IntVar(&exitCode, "exit", 0, "Exit code")
-	flag.IntVar(&delay, "delay", 0, "Delay in milliseconds")
-	flag.IntVar(&messageCount, "messages", 1, "Number of messages")
-	flag.StringVar(&stderr, "stderr", "", "Stderr output")
-	flag.StringVar(&customJSON, "json", "", "Custom JSON response")
-
-	// Parse Claude CLI flags (to make it compatible)
-	var (
-		projectPath string
-		prompt      string
-		sessionFlag string
-	)
-	flag.StringVar(&projectPath, "p", "", "Project path")
-	flag.StringVar(&prompt, "prompt", "", "Prompt")
-	flag.StringVar(&sessionFlag, "c", "", "Session ID")
-
-	flag.Parse()
-
-	// If session flag is provided, use it
-	if sessionFlag != "" && sessionID == "" {
-		sessionID = sessionFlag
-	}
-
-	// If using environment variable for scenario
-	if envScenario := os.Getenv("CLAUDE_MOCK_SCENARIO"); envScenario != "" {
-		scenario = envScenario
-	}
-
-	config := ClaudeMockConfig{
-		Scenario:       ClaudeMockScenario(scenario),
-		SessionID:      sessionID,
-		MessageCount:   messageCount,
-		Delay:          time.Duration(delay) * time.Millisecond,
-		ExitCode:       exitCode,
-		StderrOutput:   stderr,
-		CustomResponse: customJSON,
-	}
-
-	// Generate response
-	response, err := GenerateClaudeResponse(config)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating response: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Output stderr if configured
-	if config.StderrOutput != "" {
-		fmt.Fprint(os.Stderr, config.StderrOutput)
-	}
-
-	// Output response
-	if response != "" {
-		fmt.Print(response)
-	}
-
-	// Exit with configured code
-	os.Exit(config.ExitCode)
-}
-
-// CreateMockClaudeScript creates a shell script that acts as a mock Claude executable
-func CreateMockClaudeScript(scriptPath string, config ClaudeMockConfig) error {
+	
+	// Create wrapper script that sets environment and calls claude-mock
 	script := fmt.Sprintf(`#!/bin/sh
-# Mock Claude CLI for testing
-# This script simulates Claude CLI behavior for deterministic testing
+# Wrapper script for claude-mock binary
+export CLAUDE_MOCK_LOG_FILE="%s"
+export CLAUDE_MOCK_DELAY_MS="%d"
 
-SCENARIO="%s"
-SESSION_ID="%s"
-EXIT_CODE=%d
-DELAY=%d
-MESSAGE_COUNT=%d
-
-# Parse arguments
-while [ $# -gt 0 ]; do
-  case "$1" in
-    -c) SESSION_ID="$2"; shift 2 ;;
-    -p) PROJECT_PATH="$2"; shift 2 ;;
-    --prompt) PROMPT="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-
-# Add delay if configured (in milliseconds)
-if [ $DELAY -gt 0 ]; then
-  # Convert milliseconds to seconds with decimal
-  # Using awk for portability (bc might not be available)
-  DELAY_SEC=$(awk "BEGIN {print $DELAY/1000}")
-  # Use perl for sub-second sleep if available, otherwise use sleep 1
-  if command -v perl >/dev/null 2>&1; then
-    perl -e "select(undef, undef, undef, $DELAY_SEC)"
-  else
-    # Fallback to integer sleep
-    sleep 1
-  fi
-fi
-
-# Generate response based on scenario
-case "$SCENARIO" in
-  "success")
-    if [ -z "$SESSION_ID" ]; then
-      SESSION_ID="session-$(date +%%s)"
-    fi
-    echo '{"session_id": "'$SESSION_ID'", "messages": [{"type": "text", "content": {"text": "Mock response"}}]}'
-    ;;
-  "error")
-    echo '{"error": "Mock error", "messages": [{"type": "error", "error": "Failed"}]}'
-    exit 1
-    ;;
-  "timeout")
-    sleep 3600
-    ;;
-  "invalid_json")
-    echo "Invalid JSON {"
-    ;;
-  "empty")
-    # Output nothing
-    ;;
-  "multi_message")
-    if [ -z "$SESSION_ID" ]; then
-      SESSION_ID="session-$(date +%%s)"
-    fi
-    COUNT=$MESSAGE_COUNT
-    if [ -z "$COUNT" ] || [ "$COUNT" -eq 0 ]; then
-      COUNT=3
-    fi
-    echo '{"session_id": "'$SESSION_ID'", "messages": ['
-    for i in $(seq 1 $COUNT); do
-      echo '{"type": "text", "content": {"text": "Message '$i' of '$COUNT'"}}'
-      if [ $i -lt $COUNT ]; then
-        echo ','
-      fi
-    done
-    echo ']}'
-    ;;
-  *)
-    echo '{"session_id": "default", "messages": [{"type": "text", "content": {"text": "Default mock"}}]}'
-    ;;
-esac
-
-exit $EXIT_CODE
-`, config.Scenario, config.SessionID, config.ExitCode, int(config.Delay.Milliseconds()), config.MessageCount)
-
-	// Write script to file
-	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
-		return fmt.Errorf("failed to write mock script: %w", err)
+# Execute the claude-mock binary with all arguments
+exec "%s" "$@"
+`, conversationFile, delayMs, claudeMockBinaryPath)
+	
+	// Write script
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		return fmt.Errorf("failed to write wrapper script: %w", err)
 	}
-
+	
 	return nil
 }
 
@@ -406,7 +154,7 @@ type ClaudeMockBuilder struct {
 // NewClaudeMockBuilder creates a new mock builder
 func NewClaudeMockBuilder() *ClaudeMockBuilder {
 	return &ClaudeMockBuilder{
-		sessionID: fmt.Sprintf("mock-session-%d", rand.Int63()),
+		sessionID: fmt.Sprintf("mock-session-%d", time.Now().UnixNano()),
 		messages:  []ClaudeMessage{},
 	}
 }
@@ -455,4 +203,52 @@ func (b *ClaudeMockBuilder) Build() (string, error) {
 	}
 
 	return string(data), nil
+}
+
+// The following functions are kept for backward compatibility but are not used with the binary approach
+
+// GenerateClaudeResponse generates a mock Claude response based on config
+func GenerateClaudeResponse(config ClaudeMockConfig) (string, error) {
+	// This is kept for tests that might call it directly
+	// The actual mock responses are now in the conversation files
+	return "", fmt.Errorf("GenerateClaudeResponse is deprecated - use conversation files")
+}
+
+// parseClaudeOutput is kept for compatibility
+func parseClaudeOutput(output string) ([]ClaudeMessage, string, error) {
+	output = strings.TrimSpace(output)
+	if output == "" {
+		return nil, "", fmt.Errorf("empty Claude output")
+	}
+
+	var messages []ClaudeMessage
+	var sessionID string
+
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var obj map[string]interface{}
+		if err := json.Unmarshal([]byte(line), &obj); err != nil {
+			continue
+		}
+
+		msgType, _ := obj["type"].(string)
+		if msgType == "system" {
+			if sid, ok := obj["session_id"].(string); ok && sid != "" {
+				sessionID = sid
+			}
+		}
+
+		content, _ := json.Marshal(obj)
+		messages = append(messages, ClaudeMessage{
+			Type:    msgType,
+			Content: json.RawMessage(content),
+		})
+	}
+
+	return messages, sessionID, nil
 }

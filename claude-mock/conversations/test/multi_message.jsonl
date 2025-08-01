@@ -1,0 +1,5 @@
+{"timestamp":"2025-01-01T10:00:00Z","message":{"type":"system","session_id":"test-session-123"},"direction":"claude"}
+{"timestamp":"2025-01-01T10:00:01Z","message":{"type":"assistant","content":{"text":"Message 1 of 3"}},"direction":"claude"}
+{"timestamp":"2025-01-01T10:00:02Z","message":{"type":"assistant","content":{"text":"Message 2 of 3"}},"direction":"claude"}
+{"timestamp":"2025-01-01T10:00:03Z","message":{"type":"assistant","content":{"text":"Message 3 of 3"}},"direction":"claude"}
+{"timestamp":"2025-01-01T10:00:04Z","message":{"type":"assistant","content":{"text":"func main() {\n\tfmt.Println(\"Hello, World!\")\n}"}},"direction":"claude"}

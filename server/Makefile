@@ -54,17 +54,36 @@ build-all: ## Build for all platforms
 	@echo "$(COLOR_GREEN)Multi-platform build complete$(COLOR_RESET)"
 
 .PHONY: test
-test: ## Run tests with coverage
+test: test-build-claude-mock ## Run tests with coverage
 	@echo "$(COLOR_BLUE)Running tests...$(COLOR_RESET)"
 	@mkdir -p $(COVERAGE_DIR)
-	$(GOTEST) -v -race -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
+	$(GOTEST) -v -timeout 300s -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
 	@echo "$(COLOR_GREEN)Tests complete$(COLOR_RESET)"
+
+.PHONY: test-build-claude-mock
+test-build-claude-mock: ## Build claude-mock binary before running tests
+	@echo "$(COLOR_BLUE)Building claude-mock binary...$(COLOR_RESET)"
+	@cd ../claude-mock && make build
+	@echo "$(COLOR_GREEN)Claude-mock built$(COLOR_RESET)"
+
+.PHONY: test-race
+test-race: ## Run tests with race detection and coverage
+	@echo "$(COLOR_BLUE)Running tests with race detection...$(COLOR_RESET)"
+	@mkdir -p $(COVERAGE_DIR)
+	$(GOTEST) -v -race -timeout 300s -coverprofile=$(COVERAGE_DIR)/coverage.out -covermode=atomic ./...
+	@echo "$(COLOR_GREEN)Tests with race detection complete$(COLOR_RESET)"
 
 .PHONY: test-integration
 test-integration: ## Run integration tests
 	@echo "$(COLOR_BLUE)Running integration tests...$(COLOR_RESET)"
-	$(GOTEST) -v -race -tags=integration ./test/integration/...
+	$(GOTEST) -v -tags=integration ./test/integration/...
 	@echo "$(COLOR_GREEN)Integration tests complete$(COLOR_RESET)"
+
+.PHONY: test-integration-race
+test-integration-race: ## Run integration tests with race detection
+	@echo "$(COLOR_BLUE)Running integration tests with race detection...$(COLOR_RESET)"
+	$(GOTEST) -v -race -tags=integration ./test/integration/...
+	@echo "$(COLOR_GREEN)Integration tests with race detection complete$(COLOR_RESET)"
 
 .PHONY: coverage
 coverage: test ## Generate coverage report
@@ -210,6 +229,10 @@ version: ## Display version information
 .PHONY: check
 check: fmt lint vet test ## Run all checks
 	@echo "$(COLOR_GREEN)All checks passed$(COLOR_RESET)"
+
+.PHONY: check-race
+check-race: fmt lint vet test-race ## Run all checks with race detection
+	@echo "$(COLOR_GREEN)All checks with race detection passed$(COLOR_RESET)"
 
 .PHONY: ci
 ci: deps check build ## Run CI pipeline
