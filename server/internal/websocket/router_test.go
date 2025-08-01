@@ -456,6 +456,10 @@ func (m *mockNextHandler) HandleMessage(ctx context.Context, session *models.Ses
 	return m.returnErr
 }
 
+func (m *mockNextHandler) OnSessionCleanup(session *models.Session) {
+	// No-op for tests
+}
+
 func TestValidationMiddleware(t *testing.T) {
 	middleware := ValidationMiddleware()
 

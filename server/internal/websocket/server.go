@@ -87,6 +87,7 @@ type Server struct {
 // MessageHandler handles WebSocket messages
 type MessageHandler interface {
 	HandleMessage(ctx context.Context, session *models.Session, msg *models.ClientMessage) error
+	OnSessionCleanup(session *models.Session)
 }
 
 // NewServer creates a new WebSocket server
@@ -423,6 +424,11 @@ func (s *Server) cleanupSession(session *models.Session) {
 	if _, loaded := s.sessions.LoadAndDelete(session.ID); !loaded {
 		// Session was already cleaned up, avoid double cleanup
 		return
+	}
+
+	// Notify handler to clean up any project subscriptions
+	if s.handler != nil {
+		s.handler.OnSessionCleanup(session)
 	}
 
 	atomic.AddInt64(&s.activeConnections, -1)

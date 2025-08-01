@@ -71,6 +71,11 @@ func (r *MessageRouter) HandleMessage(ctx context.Context, session *models.Sessi
 	return nil
 }
 
+// OnSessionCleanup implements MessageHandler interface
+func (r *MessageRouter) OnSessionCleanup(session *models.Session) {
+	// No-op for router - cleanup is handled by the parent handler
+}
+
 // RouteMessage is a convenience method for dispatching messages
 func (r *MessageRouter) RouteMessage(ctx context.Context, session *models.Session, msg *models.ClientMessage) error {
 	return r.HandleMessage(ctx, session, msg)
@@ -193,6 +198,11 @@ type MessageHandlerFunc func(ctx context.Context, session *models.Session, msg *
 // HandleMessage implements MessageHandler
 func (f MessageHandlerFunc) HandleMessage(ctx context.Context, session *models.Session, msg *models.ClientMessage) error {
 	return f(ctx, session, msg)
+}
+
+// OnSessionCleanup implements MessageHandler
+func (f MessageHandlerFunc) OnSessionCleanup(session *models.Session) {
+	// No-op for function handlers
 }
 
 // Helper functions for common response patterns

@@ -80,3 +80,28 @@ func (h *Handlers) HandleMessage(ctx context.Context, session *models.Session, m
 	// Route the message
 	return router.HandleMessage(ctx, session, msg)
 }
+
+// OnSessionCleanup implements the MessageHandler interface to clean up session resources
+func (h *Handlers) OnSessionCleanup(session *models.Session) {
+	// Get the project ID the session was subscribed to
+	projectID := session.GetProject()
+	if projectID == "" {
+		// Session wasn't subscribed to any project
+		return
+	}
+
+	// Remove the session from the project's subscribers
+	if err := h.Project.projectMgr.RemoveSubscriber(projectID, session.ID); err != nil {
+		// Log but don't fail - the project might have been deleted
+		h.Project.log.Debug("Failed to remove subscriber during cleanup",
+			"session_id", session.ID,
+			"project_id", projectID,
+			"error", err,
+		)
+	} else {
+		h.Project.log.Info("Removed disconnected session from project",
+			"session_id", session.ID,
+			"project_id", projectID,
+		)
+	}
+}

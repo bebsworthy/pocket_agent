@@ -29,6 +29,10 @@ func (m *mockHandler) HandleMessage(ctx context.Context, session *models.Session
 	return nil
 }
 
+func (m *mockHandler) OnSessionCleanup(session *models.Session) {
+	// No-op for tests
+}
+
 func (m *mockHandler) getMessages() []*models.ClientMessage {
 	m.mu.Lock()
 	defer m.mu.Unlock()
