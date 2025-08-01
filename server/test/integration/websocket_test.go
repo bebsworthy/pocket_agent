@@ -33,8 +33,7 @@ func TestWebSocketLifecycle(t *testing.T) {
 
 	// Create mock Claude executable
 	mock := mocks.NewClaudeMockExecutable(t).
-		WithScenario(mocks.ScenarioSuccess).
-		WithSessionID("test-session-123")
+		WithScenario(mocks.ScenarioSuccess)
 	claudePath := mock.MustCreate(t)
 	defer mock.Cleanup()
 
@@ -429,8 +428,7 @@ func TestMultiClientBroadcast(t *testing.T) {
 	defer os.RemoveAll(testDir)
 
 	mock := mocks.NewClaudeMockExecutable(t).
-		WithScenario(mocks.ScenarioMultiMessage).
-		WithMessageCount(3)
+		WithScenario(mocks.ScenarioMultiMessage)
 	claudePath := mock.MustCreate(t)
 	defer mock.Cleanup()
 

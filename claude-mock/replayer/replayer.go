@@ -118,5 +118,8 @@ func (r *Replayer) Replay() error {
 		return fmt.Errorf("error reading log file: %w", err)
 	}
 
+	// Small delay to ensure output is flushed before exit
+	time.Sleep(10 * time.Millisecond)
+	
 	return nil
 }
