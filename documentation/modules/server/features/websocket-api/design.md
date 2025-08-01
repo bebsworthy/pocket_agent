@@ -43,17 +43,31 @@ classDiagram
         +projectMgr: ProjectManager
         +executor: ClaudeExecutor
         +sessionMgr: SessionManager
+        +metricsCollector: MetricsCollector
         +Start() error
         +broadcastStats()
+        +IncrementConnections()
+        +DecrementConnections()
     }
     
     class WebSocketHandler {
         +projectMgr: ProjectManager
         +executor: ClaudeExecutor
         +sessions: map[string]Session
+        +metricsProvider: MetricsProvider
         +HandleUpgrade(w, r)
         +RouteMessage(session, msg)
         +broadcastToProject(project, msg)
+        +SetMetricsProvider(provider)
+        +cleanupSession(session)
+    }
+    
+    class MetricsProvider {
+        <<interface>>
+        +IncrementConnections()
+        +DecrementConnections()
+        +IncrementMessages()
+        +IncrementErrors()
     }
     
     class ProjectManager {
@@ -94,8 +108,10 @@ classDiagram
     Server --> WebSocketHandler
     Server --> ProjectManager
     Server --> ClaudeExecutor
+    Server ..|> MetricsProvider : implements
     WebSocketHandler --> ProjectManager
     WebSocketHandler --> ClaudeExecutor
+    WebSocketHandler --> MetricsProvider
     ProjectManager --> Project
     Project --> MessageLog
 ```
@@ -111,6 +127,8 @@ classDiagram
 - Route messages to appropriate handlers
 - Manage session lifecycle
 - Broadcast updates to subscribers
+- Clean up dead sessions from project subscribers
+- Report metrics to external providers
 
 **Key Methods**:
 ```go
@@ -127,7 +145,21 @@ func (h *WebSocketHandler) RouteMessage(session *Session, msg ClientMessage) {
     case "get_messages":     // Retrieve message history
     }
 }
+
+// MessageHandler interface
+type MessageHandler interface {
+    HandleMessage(ctx context.Context, session *Session, msg *ClientMessage) error
+    OnSessionCleanup(session *Session) // Called when connection is lost
+}
 ```
+
+**Connection Lifecycle**:
+1. Accept WebSocket upgrade
+2. Set read deadline to `PingInterval + PongTimeout` (prevents premature timeout)
+3. Register session and increment metrics
+4. Handle messages until disconnection
+5. On disconnect: Call `OnSessionCleanup` to remove from project subscribers
+6. Clean up resources and decrement metrics
 
 ### Project Manager
 **Purpose**: Manages project lifecycle and persistence
@@ -153,6 +185,7 @@ func (h *WebSocketHandler) RouteMessage(session *Session, msg ClientMessage) {
 - Parse Claude JSON output
 - Handle process lifecycle
 - Enforce sequential execution per project
+- Use project's existing MessageLog (no new logs per execution)
 
 **Execution Flow**:
 1. Acquire project lock (mutex)
@@ -160,7 +193,8 @@ func (h *WebSocketHandler) RouteMessage(session *Session, msg ClientMessage) {
 3. Create context with timeout
 4. Execute and track process
 5. Parse output and update session
-6. Clean up and release lock
+6. Log messages to project's MessageLog
+7. Clean up and release lock
 
 ### Message Log
 **Purpose**: Persistent message storage with rotation
@@ -171,12 +205,15 @@ func (h *WebSocketHandler) RouteMessage(session *Session, msg ClientMessage) {
 - Query messages by timestamp
 - Handle concurrent access
 - Maintain chronological order
+- Lazy initialization (prevent empty file creation)
+- Reuse across multiple executions per project
 
 **Rotation Strategy**:
 - New file each day at midnight
 - New file after 100MB or 10,000 messages
 - Filename: `messages_YYYY-MM-DD_HH-MM-SS.jsonl`
 - Symlink/pointer to latest file
+- Skip rotation for empty files
 
 ## Data Models
 
@@ -378,6 +415,56 @@ type ErrorResponse struct {
 - `RESOURCE_LIMIT`: Resource limit exceeded
 - `INTERNAL_ERROR`: Unexpected server error
 
+## Metrics Integration
+
+### Overview
+The WebSocket server integrates with the main server's metrics collection system to provide unified monitoring and observability.
+
+### Implementation
+```go
+// MetricsProvider interface allows external metrics collection
+type MetricsProvider interface {
+    IncrementConnections()
+    DecrementConnections()
+    IncrementMessages()
+    IncrementErrors()
+}
+
+// WebSocket server accepts a metrics provider
+func (s *Server) SetMetricsProvider(provider MetricsProvider)
+```
+
+### Metrics Tracked
+- **Connection Metrics**: Active connections, total connections
+- **Message Metrics**: Messages sent/received, broadcast performance
+- **Error Metrics**: Connection errors, message parsing errors
+- **Performance Metrics**: Message routing latency, broadcast duration
+
+## Interactive Test Client
+
+### Overview
+A TypeScript CLI client for interactive testing and debugging of the WebSocket API.
+
+### Features
+- **Real-time Interaction**: Send prompts and receive Claude responses
+- **Visual State Indicators**: 
+  - 🟢 Green: IDLE (ready for commands)
+  - 🟡 Yellow: EXECUTING (Claude is processing)
+  - 🔴 Red: ERROR or disconnected
+- **Permission Modes**: Switch between modes with Tab key
+  - `default`: Standard permission handling
+  - `acceptEdits`: Auto-accept file edits
+  - `bypassPermissions`: Skip all permission prompts
+  - `plan`: Enable planning mode
+- **Debug Mode**: Toggle JSON message display with `json on/off`
+- **Commands**: help, status, clear, exit/quit
+
+### Usage
+```bash
+cd test-client
+npm run interactive
+```
+
 ## Testing Strategy
 
 ### Unit Testing
@@ -386,6 +473,7 @@ type ErrorResponse struct {
 - Concurrent operations
 - File rotation logic
 - Error scenarios
+- Session cleanup on disconnect
 
 ### Integration Testing
 - WebSocket connection lifecycle
@@ -393,6 +481,15 @@ type ErrorResponse struct {
 - Server restart recovery
 - Process timeout handling
 - Message persistence
+- 30-second timeout prevention
+- Dead subscriber cleanup
+
+### Interactive Testing
+- Use the TypeScript test client for manual testing
+- Test connection stability over time
+- Verify multi-client broadcasting
+- Test permission mode switching
+- Validate state transitions
 
 ### Load Testing
 - 100+ concurrent connections
@@ -446,6 +543,39 @@ type ErrorResponse struct {
 - Command caching (future)
 - Output streaming
 - Resource monitoring
+
+## Known Issues and Fixes
+
+### Fixed Issues
+
+1. **30-Second Connection Timeout**
+   - **Issue**: Connections closed exactly 30 seconds after establishment
+   - **Cause**: Initial read deadline set to `PongTimeout` only
+   - **Fix**: Set initial deadline to `PingInterval + PongTimeout`
+   - **File**: `server/internal/websocket/server.go`
+
+2. **Metrics Not Reporting Connections**
+   - **Issue**: Server metrics always showed 0 connections
+   - **Cause**: WebSocket server didn't propagate metrics to main server
+   - **Fix**: Implemented `MetricsProvider` interface for metrics integration
+   - **Files**: `server/internal/websocket/metrics.go`, `server/internal/server.go`
+
+3. **Excessive Log File Creation**
+   - **Issue**: New log file created for each execution
+   - **Cause**: Executor creating new MessageLog instances
+   - **Fix**: Reuse project's existing MessageLog
+   - **File**: `server/internal/executor/execute.go`
+
+4. **Dead Subscriber Cleanup**
+   - **Issue**: Disconnected sessions remained in project subscriber lists
+   - **Cause**: `cleanupSession` didn't remove from projects
+   - **Fix**: Added `OnSessionCleanup` to MessageHandler interface
+   - **Files**: `server/internal/websocket/server.go`, `handlers/handlers.go`
+
+### Message Type Corrections
+- Changed `agent.message` to `agent_message`
+- Changed `project.state` to `project_state`
+- Ensures consistency with underscore naming convention
 
 ---
 *Design Complete*

@@ -12,7 +12,10 @@
 1.2 WHEN multiple clients connect THEN the server SHALL maintain separate session contexts  
 1.3 WHEN a client disconnects THEN the server SHALL clean up the session without affecting other clients  
 1.4 IF the connection is idle for 5 minutes THEN the server SHALL send a ping to check connection health  
-1.5 IF a client doesn't respond to ping within 30 seconds THEN the server SHALL terminate the connection
+1.5 IF a client doesn't respond to ping within 30 seconds THEN the server SHALL terminate the connection  
+1.6 WHEN a connection is established THEN the initial read deadline SHALL be set to PingInterval + PongTimeout to prevent premature timeouts  
+1.7 WHEN a session is cleaned up THEN the server SHALL remove the session from all project subscriber lists  
+1.8 WHEN connections are created or destroyed THEN the server SHALL update metrics accordingly
 
 ### Story 2: Project Management
 **As a** developer  
@@ -119,7 +122,9 @@
 10.2 WHEN total projects exceed 100 THEN the server SHALL reject new project creation  
 10.3 WHEN a connection is closed THEN the server SHALL clean up all associated resources  
 10.4 IF disk space is low THEN the server SHALL handle gracefully without data corruption  
-10.5 WHEN broadcasting messages THEN the server SHALL handle slow clients without blocking others
+10.5 WHEN broadcasting messages THEN the server SHALL handle slow clients without blocking others  
+10.6 WHEN a project is created THEN a single MessageLog SHALL be created and reused for all executions  
+10.7 WHEN log rotation occurs THEN empty files SHALL be skipped to prevent proliferation
 
 ## Non-Functional Requirements
 
@@ -148,7 +153,20 @@
 - Handle Unix signal processing
 - Compatible with Claude CLI updates
 
+### Story 11: Interactive Testing
+**As a** developer  
+**I want** an interactive CLI test client  
+**So that** I can test and debug the WebSocket API
+
+#### Acceptance Criteria
+11.1 WHEN I run the interactive client THEN it SHALL connect to the WebSocket server  
+11.2 WHEN the project is IDLE THEN I SHALL be able to type prompts for Claude  
+11.3 WHEN I press Tab THEN the client SHALL cycle through permission modes  
+11.4 WHEN I type "json on" THEN the client SHALL display raw JSON messages  
+11.5 WHEN the connection state changes THEN the prompt SHALL show visual indicators (🟢/🟡/🔴)  
+11.6 WHEN messages are received THEN they SHALL be displayed in real-time
+
 ---
-*Requirements: 10 stories, 50 acceptance criteria*
+*Requirements: 11 stories, 56 acceptance criteria*
 *Feature: WebSocket API*
 *Module: Server*
