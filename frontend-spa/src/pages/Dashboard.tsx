@@ -5,7 +5,7 @@ import { useProjects } from '../store/hooks/useProjects';
 import { useServers } from '../store/hooks/useServers';
 import { useTheme } from '../store/hooks/useUI';
 import { useSetAtom, useAtomValue } from 'jotai';
-import { updateCreateProjectFieldAtom, createProjectIsVisibleAtom } from '../store/atoms/projectCreationAtoms';
+import { updateCreateProjectFieldAtom, createProjectIsVisibleAtom, showCreateProjectModalAtom, hideCreateProjectModalAtom } from '../store/atoms/projectCreationAtoms';
 import { FAB } from '../components/ui/atoms/FAB';
 import { IconButton } from '../components/ui/atoms/IconButton';
 import { ProjectCard } from '../components/ui/organisms/ProjectCard';
@@ -25,6 +25,10 @@ const DashboardInner: React.FC = () => {
   
   // Atom for updating project creation form
   const updateProjectField = useSetAtom(updateCreateProjectFieldAtom);
+  
+  // Atoms for showing/hiding project creation modal
+  const showModal = useSetAtom(showCreateProjectModalAtom);
+  const hideModal = useSetAtom(hideCreateProjectModalAtom);
 
   // Modal state management using atoms for consistency
   const showCreateProjectModal = useAtomValue(createProjectIsVisibleAtom);
@@ -61,14 +65,12 @@ const DashboardInner: React.FC = () => {
 
   // Handle project creation modal using atoms
   const handleOpenCreateProject = useCallback(() => {
-    // Using atoms directly - no need for local state setter
-    // This will be handled by the atom update
-  }, []);
+    showModal();
+  }, [showModal]);
 
   const handleCloseCreateProject = useCallback(() => {
-    // Using atoms directly - no need for local state setter
-    // This will be handled by the atom update
-  }, []);
+    hideModal();
+  }, [hideModal]);
 
   // Handle server form modal  
   const handleOpenServerForm = useCallback(() => {
