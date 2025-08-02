@@ -1,0 +1,751 @@
+import React, { useState, useCallback, useEffect } from 'react';
+import { useAtomValue, useSetAtom } from 'jotai';
+import { Card, CardHeader, CardContent, CardFooter } from '../molecules/Card';
+import { Button } from '../atoms/Button';
+import { Input } from '../atoms/Input';
+import { IconButton } from '../atoms/IconButton';
+import { useProjects } from '../../../store/hooks/useProjects';
+import { useServers } from '../../../store/hooks/useServers';
+import { serverOperationAtom } from '../../../store/atoms/servers';
+import { useWebSocket, useWebSocketMessage } from '../../../store/hooks/useWebSocket';
+import { X, Plus, Server, AlertCircle } from 'lucide-react';
+import {
+  createProjectFormDataAtom,
+  createProjectErrorsAtom,
+  createProjectIsSubmittingAtom,
+  createProjectIsValidAtom,
+  updateCreateProjectFieldAtom,
+  setCreateProjectErrorsAtom,
+  startCreateProjectSubmissionAtom,
+  completeCreateProjectSubmissionAtom,
+  failCreateProjectSubmissionAtom,
+} from '../../../store/atoms/projectCreationAtoms';
+import { cn } from '../../../utils/cn';
+import type { ProjectCreateMessage, ProjectStateMessage, ErrorMessage, ServerMessage } from '../../../types/messages';
+
+export interface ProjectCreationModalProps {
+  isVisible: boolean;
+  onClose: () => void;
+  onAddServer: () => void;
+  onServerAdded?: (server: { id: string; name: string }) => void;
+  className?: string;
+}
+
+interface FormErrors {
+  name?: string;
+  path?: string;
+  serverId?: string;
+  general?: string;
+}
+
+class ProjectCreationError extends Error {
+  code?: string;
+  details?: Record<string, unknown>;
+  
+  constructor(message: string, code?: string, details?: Record<string, unknown>) {
+    super(message);
+    this.name = 'ProjectCreationError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+/**
+ * Comprehensive path validation and sanitization
+ * Protects against path traversal attacks and validates filesystem compatibility
+ */
+const validateAndSanitizePath = (path: string): { isValid: boolean; error?: string; sanitizedPath?: string } => {
+  if (!path || !path.trim()) {
+    return { isValid: false, error: 'Path cannot be empty' };
+  }
+
+  const trimmedPath = path.trim();
+
+  // Check for path traversal attempts
+  const pathTraversalPatterns = [
+    /\.\./,           // Parent directory traversal
+    /\.\\/,           // Current directory with separator  
+    /\/\./,           // Hidden directory patterns
+    /~\//,            // User home shortcuts in middle of path
+    /\/+/,            // Multiple consecutive slashes
+  ];
+
+  const hasPathTraversal = pathTraversalPatterns.some(pattern => pattern.test(trimmedPath));
+  if (hasPathTraversal && !trimmedPath.startsWith('~/')) {
+    return { isValid: false, error: 'Path contains invalid directory traversal patterns' };
+  }
+
+  // Check for dangerous filesystem characters (Windows + Unix)
+  // eslint-disable-next-line no-control-regex
+  const dangerousChars = /[<>:"|?*\0\x01-\x1f\x7f]/;
+  if (dangerousChars.test(trimmedPath)) {
+    return { isValid: false, error: 'Path contains invalid filesystem characters' };
+  }
+
+  // Check for reserved Windows filenames
+  const windowsReserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+  const pathParts = trimmedPath.split(/[/\\]/).filter(Boolean);
+  const hasReservedName = pathParts.some(part => windowsReserved.test(part));
+  if (hasReservedName) {
+    return { isValid: false, error: 'Path contains reserved system names' };
+  }
+
+  // Length validation
+  if (trimmedPath.length > 260) { // Windows MAX_PATH limit
+    return { isValid: false, error: 'Path is too long (maximum 260 characters)' };
+  }
+
+  // Check for excessively long path segments
+  const hasLongSegment = pathParts.some(part => part.length > 255); // Most filesystems limit
+  if (hasLongSegment) {
+    return { isValid: false, error: 'Path segment is too long (maximum 255 characters)' };
+  }
+
+  // Sanitize the path by normalizing separators and removing redundant elements
+  let sanitizedPath = trimmedPath
+    .replace(/[/\\]+/g, '/') // Normalize separators to forward slash
+    .replace(/\/+$/, ''); // Remove trailing slashes
+
+  // Handle home directory expansion
+  if (sanitizedPath.startsWith('~/')) {
+    // Keep as-is for home directory paths - server will handle expansion
+  } else if (!sanitizedPath.startsWith('/')) {
+    // Ensure absolute paths start with /
+    sanitizedPath = '/' + sanitizedPath;
+  }
+
+  return { 
+    isValid: true, 
+    sanitizedPath: sanitizedPath || '/' 
+  };
+};
+
+/**
+ * ProjectCreationModal - A full-screen modal for creating new projects.
+ * Features form validation, server selection, and mobile-optimized UI.
+ */
+export function ProjectCreationModal({
+  isVisible,
+  onClose,
+  onAddServer,
+  onServerAdded,
+  className,
+}: ProjectCreationModalProps) {
+  const formData = useAtomValue(createProjectFormDataAtom);
+  const errors = useAtomValue(createProjectErrorsAtom);
+  const isSubmitting = useAtomValue(createProjectIsSubmittingAtom);
+  const isValid = useAtomValue(createProjectIsValidAtom);
+  
+  const updateField = useSetAtom(updateCreateProjectFieldAtom);
+  const setErrors = useSetAtom(setCreateProjectErrorsAtom);
+  const startSubmission = useSetAtom(startCreateProjectSubmissionAtom);
+  const completeSubmission = useSetAtom(completeCreateProjectSubmissionAtom);
+  const failSubmission = useSetAtom(failCreateProjectSubmissionAtom);
+
+  const { addProject } = useProjects();
+  const { servers, hasServers } = useServers();
+
+  const [showServerDropdown, setShowServerDropdown] = useState(false);
+  const [activeOptionId, setActiveOptionId] = useState<string | null>(null);
+
+  // WebSocket integration for project creation
+  const selectedServer = servers.find(s => s.id === formData.serverId);
+  // Always call hook to avoid conditional hook rule violation
+  const webSocket = useWebSocket(
+    selectedServer?.id || 'placeholder', 
+    selectedServer?.websocketUrl || 'ws://placeholder'
+  );
+  
+  // Handle WebSocket responses for project creation
+  useWebSocketMessage(
+    formData.serverId,
+    'project_state',
+    useCallback((message: ServerMessage) => {
+      const projectStateMessage = message as ProjectStateMessage;
+      if (projectStateMessage.project_id && isSubmitting) {
+        // Project created successfully
+        const projectData = {
+          id: projectStateMessage.project_id,
+          name: formData.name.trim(),
+          path: projectStateMessage.data.path || formData.path.trim(),
+          serverId: formData.serverId,
+          createdAt: projectStateMessage.data.created_at || new Date().toISOString(),
+          lastActive: new Date().toISOString(),
+        };
+        
+        addProject(projectData);
+        completeSubmission();
+        onClose();
+      }
+    }, [formData, isSubmitting, addProject, completeSubmission, onClose]),
+    [formData.serverId, formData.name, formData.path, isSubmitting]
+  );
+
+  // Handle WebSocket errors
+  useWebSocketMessage(
+    formData.serverId,
+    'error',
+    useCallback((message: ServerMessage) => {
+      const errorMessage = message as ErrorMessage;
+      if (isSubmitting) {
+        const errorMsg = errorMessage.data?.message || 'Failed to create project';
+        const errorCode = errorMessage.data?.code || 'UNKNOWN_ERROR';
+        
+        // Map specific error codes to user-friendly messages
+        let userErrorMsg = errorMsg;
+        switch (errorCode) {
+          case 'INVALID_PATH':
+            userErrorMsg = 'The specified path is invalid or inaccessible';
+            break;
+          case 'PROJECT_NESTING':
+            userErrorMsg = 'Cannot create nested projects';
+            break;
+          case 'PROJECT_LIMIT':
+            userErrorMsg = 'Server has reached maximum project limit';
+            break;
+          case 'RESOURCE_LIMIT':
+            userErrorMsg = 'Server resources are at capacity';
+            break;
+          default:
+            userErrorMsg = errorMsg;
+        }
+
+        failSubmission({ general: userErrorMsg });
+      }
+    }, [isSubmitting, failSubmission]),
+    [formData.serverId, isSubmitting]
+  );
+
+  // Handle escape key for modal dismissal
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscapeKey);
+    return () => document.removeEventListener('keydown', handleEscapeKey);
+  }, [isVisible, onClose]);
+
+  // Focus management - focus first input when modal opens
+  useEffect(() => {
+    if (isVisible) {
+      const timer = setTimeout(() => {
+        const firstInput = document.querySelector('#project-name-input') as HTMLInputElement;
+        if (firstInput) {
+          firstInput.focus();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isVisible]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isVisible) {
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isVisible]);
+
+  // Use atom-based server operation tracking instead of manual ref counting
+  const serverOperation = useAtomValue(serverOperationAtom);
+  
+  // Auto-select newly added servers using server operation atom with race condition protection
+  useEffect(() => {
+    if (!isVisible || serverOperation.type !== 'add' || !serverOperation.serverId) return;
+
+    // Use timeout to ensure server has been fully added to the state
+    const timeoutId = setTimeout(() => {
+      // Find the newly added server with additional validation
+      const newServer = servers.find(s => s.id === serverOperation.serverId);
+      if (!newServer) {
+        console.warn('Server auto-selection: Server not found after creation', {
+          expectedId: serverOperation.serverId,
+          availableServers: servers.map(s => s.id),
+        });
+        return;
+      }
+
+      // Only auto-select if no server is currently selected (avoid overriding user selection)
+      if (!formData.serverId) {
+        updateField('serverId', newServer.id);
+        
+        // Close the dropdown if it was open
+        setShowServerDropdown(false);
+        setActiveOptionId(null);
+        
+        // Notify parent component about the server addition
+        if (onServerAdded) {
+          onServerAdded({
+            id: newServer.id,
+            name: newServer.name,
+          });
+        }
+      }
+    }, 50); // Small delay to ensure state consistency
+
+    // Cleanup timeout on unmount or dependency change
+    return () => clearTimeout(timeoutId);
+  }, [serverOperation, servers, updateField, isVisible, onServerAdded, formData.serverId]);
+
+  // Validate form fields
+  const validateForm = useCallback((): boolean => {
+    const newErrors: FormErrors = {};
+
+    // Project name validation
+    if (!formData.name.trim()) {
+      newErrors.name = 'Project name is required';
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = 'Project name must be at least 2 characters';
+    } else if (formData.name.trim().length > 100) {
+      newErrors.name = 'Project name must be less than 100 characters';
+    }
+
+    // Project path validation with comprehensive security checks
+    if (!formData.path.trim()) {
+      newErrors.path = 'Project path is required';
+    } else {
+      const pathValidation = validateAndSanitizePath(formData.path);
+      if (!pathValidation.isValid) {
+        newErrors.path = pathValidation.error || 'Invalid path';
+      }
+    }
+
+    // Server selection validation with comprehensive checks
+    if (!formData.serverId) {
+      newErrors.serverId = 'Server selection is required';
+    } else {
+      const selectedServer = servers.find(s => s.id === formData.serverId);
+      if (!selectedServer) {
+        newErrors.serverId = 'Selected server is not available';
+      } else {
+        // Validate server configuration
+        if (!selectedServer.websocketUrl) {
+          newErrors.serverId = 'Server configuration is incomplete';
+        } else {
+          try {
+            new URL(selectedServer.websocketUrl);
+          } catch {
+            newErrors.serverId = 'Server connection URL is invalid';
+          }
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData, servers, setErrors]);
+
+  // Handle input changes
+  const handleInputChange = (field: 'name' | 'path') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    updateField(field, value);
+  };
+
+  // Handle server selection
+  const handleServerSelect = useCallback((serverId: string) => {
+    updateField('serverId', serverId);
+    setShowServerDropdown(false);
+    setActiveOptionId(null);
+  }, [updateField]);
+
+  // Handle "Add New Server" selection
+  const handleAddNewServer = useCallback(() => {
+    setShowServerDropdown(false);
+    onAddServer();
+    // Form state is preserved in atoms, so when user returns from server creation,
+    // their project name and path will still be there
+  }, [onAddServer]);
+
+  // Handle keyboard navigation for server dropdown
+  const handleServerDropdownKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!showServerDropdown) return;
+
+    const allOptions = [...servers, { id: 'add-new', name: 'Add New Server' }];
+    const currentIndex = activeOptionId ? allOptions.findIndex(opt => opt.id === activeOptionId) : -1;
+
+    switch (e.key) {
+      case 'ArrowDown': {
+        e.preventDefault();
+        const nextIndex = currentIndex < allOptions.length - 1 ? currentIndex + 1 : 0;
+        setActiveOptionId(allOptions[nextIndex].id);
+        break;
+      }
+      case 'ArrowUp': {
+        e.preventDefault();
+        const prevIndex = currentIndex > 0 ? currentIndex - 1 : allOptions.length - 1;
+        setActiveOptionId(allOptions[prevIndex].id);
+        break;
+      }
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        if (activeOptionId === 'add-new') {
+          handleAddNewServer();
+        } else if (activeOptionId) {
+          handleServerSelect(activeOptionId);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setShowServerDropdown(false);
+        setActiveOptionId(null);
+        break;
+    }
+  }, [showServerDropdown, servers, activeOptionId, handleServerSelect, handleAddNewServer]);
+
+  // Handle opening server dropdown
+  const handleOpenServerDropdown = useCallback(() => {
+    setShowServerDropdown(true);
+    // Set active option to currently selected server or first option
+    if (formData.serverId) {
+      setActiveOptionId(formData.serverId);
+    } else if (servers.length > 0) {
+      setActiveOptionId(servers[0].id);
+    } else {
+      setActiveOptionId('add-new');
+    }
+  }, [formData.serverId, servers]);
+
+
+  // Handle form submission with WebSocket integration
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    // Comprehensive server and connection validation
+    if (!selectedServer) {
+      failSubmission({
+        general: 'Please select a server before creating the project.',
+        serverId: 'Server selection is required',
+      });
+      return;
+    }
+
+    // Validate server exists in current servers list (prevent stale references)
+    const currentServer = servers.find(s => s.id === selectedServer.id);
+    if (!currentServer) {
+      failSubmission({
+        general: 'Selected server is no longer available. Please select a different server.',
+        serverId: 'Selected server is not available',
+      });
+      return;
+    }
+
+    // Validate WebSocket connection
+    if (!webSocket) {
+      failSubmission({
+        general: 'Unable to establish connection to server. Please try again.',
+      });
+      return;
+    }
+
+    if (!webSocket.isConnected) {
+      failSubmission({
+        general: 'Server connection lost. Please check your network and try again.',
+      });
+      return;
+    }
+
+    // Validate WebSocket URL format
+    try {
+      new URL(currentServer.websocketUrl);
+    } catch {
+      failSubmission({
+        general: 'Server connection URL is invalid. Please contact support.',
+        serverId: 'Invalid server configuration',
+      });
+      return;
+    }
+
+    startSubmission();
+
+    try {
+      // Validate and sanitize the path before sending
+      const pathValidation = validateAndSanitizePath(formData.path);
+      if (!pathValidation.isValid) {
+        throw new ProjectCreationError(pathValidation.error || 'Invalid path');
+      }
+
+      // Create WebSocket message for project creation
+      const createMessage: ProjectCreateMessage = {
+        type: 'project_create',
+        data: {
+          path: pathValidation.sanitizedPath!,
+        },
+      };
+
+      // Send project creation request via WebSocket
+      const messageSent = webSocket.send(createMessage);
+      if (!messageSent) {
+        throw new ProjectCreationError('Failed to send project creation request');
+      }
+
+      // Response will be handled by WebSocket message listeners
+      // (project_state message for success, error message for failure)
+      
+    } catch (error) {
+      console.error('Project creation error:', error);
+      
+      // Handle different error types with appropriate user messages
+      let errorMessage = 'Failed to create project. Please try again.';
+      
+      if (error instanceof ProjectCreationError) {
+        errorMessage = error.message;
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      failSubmission({ general: errorMessage });
+    }
+  }, [formData, validateForm, startSubmission, selectedServer, webSocket, failSubmission, servers]);
+
+  // Handle modal backdrop click
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
+  if (!isVisible) {
+    return null;
+  }
+
+  return (
+    <div 
+      className={cn(
+        "fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4",
+        // Full screen on mobile with safe area handling
+        "sm:p-6 md:p-8",
+        className
+      )}
+      onClick={handleBackdropClick}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="project-creation-title"
+    >
+      <Card className={cn(
+        "w-full max-w-md overflow-hidden",
+        // Full height on small screens, auto on larger
+        "max-h-[90vh] sm:max-h-[80vh]",
+        // Handle safe area on mobile devices
+        "safe-area-inset"
+      )}>
+        <CardHeader className="flex-row items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700">
+          <h2 
+            id="project-creation-title"
+            className="text-lg font-semibold text-gray-900 dark:text-gray-100"
+          >
+            Create New Project
+          </h2>
+          <IconButton
+            icon={X}
+            onPress={onClose}
+            size="sm"
+            variant="ghost"
+            aria-label="Close project creation modal"
+            disabled={isSubmitting}
+          />
+        </CardHeader>
+
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4 overflow-y-auto p-4">
+            {/* General error message */}
+            {errors.general && (
+              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-400" />
+                <p className="text-sm text-red-700 dark:text-red-300">
+                  {errors.general}
+                </p>
+              </div>
+            )}
+
+            {/* Project name input */}
+            <div>
+              <Input
+                id="project-name-input"
+                label="Project Name"
+                placeholder="My Awesome Project"
+                value={formData.name}
+                onChange={handleInputChange('name')}
+                error={errors.name}
+                required
+                autoComplete="off"
+                disabled={isSubmitting}
+                maxLength={100}
+              />
+            </div>
+
+            {/* Project path input */}
+            <div>
+              <Input
+                label="Project Path"
+                placeholder="/path/to/project or ~/projects/my-project"
+                value={formData.path}
+                onChange={handleInputChange('path')}
+                error={errors.path}
+                required
+                autoComplete="off"
+                disabled={isSubmitting}
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                The local filesystem path where your project is located
+              </p>
+            </div>
+
+            {/* Server selection */}
+            <div>
+              <label 
+                htmlFor="server-selection"
+                className="mb-2 block text-sm font-medium text-gray-900 dark:text-gray-100"
+              >
+                Server <span className="ml-1 text-red-500" aria-label="required">*</span>
+              </label>
+              
+              <div className="relative">
+                <button
+                  id="server-selection"
+                  type="button"
+                  onClick={() => showServerDropdown ? setShowServerDropdown(false) : handleOpenServerDropdown()}
+                  onKeyDown={handleServerDropdownKeyDown}
+                  disabled={isSubmitting}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-md border bg-white px-3 py-2 text-left text-base",
+                    "h-11 min-h-[44px]", // 44px minimum touch target
+                    "border-gray-300 text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",
+                    "disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-50 dark:disabled:bg-gray-700",
+                    errors.serverId && "border-red-500 focus-visible:ring-red-500"
+                  )}
+                  role="combobox"
+                  aria-expanded={showServerDropdown}
+                  aria-haspopup="listbox"
+                  aria-controls="server-listbox"
+                  aria-activedescendant={activeOptionId ? `server-option-${activeOptionId}` : undefined}
+                  aria-invalid={errors.serverId ? 'true' : 'false'}
+                  aria-describedby={errors.serverId ? "server-error" : undefined}
+                >
+                  <span className="flex items-center gap-2">
+                    <Server className="h-4 w-4 text-gray-500" />
+                    {selectedServer ? (
+                      <div className="flex flex-col">
+                        <span className="font-medium">{selectedServer.name}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {selectedServer.websocketUrl}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 dark:text-gray-400">
+                        Select a server...
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-gray-400">▼</span>
+                </button>
+
+                {/* Server dropdown */}
+                {showServerDropdown && (
+                  <div 
+                    id="server-listbox"
+                    role="listbox"
+                    aria-label="Server options"
+                    className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+                  >
+                    {hasServers ? (
+                      <>
+                        {servers.map((server) => (
+                          <button
+                            key={server.id}
+                            id={`server-option-${server.id}`}
+                            type="button"
+                            onClick={() => handleServerSelect(server.id)}
+                            className={cn(
+                              "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700",
+                              "min-h-[44px]", // Touch target
+                              selectedServer?.id === server.id && "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300",
+                              activeOptionId === server.id && "bg-gray-100 dark:bg-gray-700"
+                            )}
+                            role="option"
+                            aria-selected={selectedServer?.id === server.id}
+                          >
+                            <Server className="h-4 w-4" />
+                            <div>
+                              <div className="font-medium">{server.name}</div>
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
+                                {server.websocketUrl}
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                        <div className="border-t border-gray-200 dark:border-gray-700" />
+                      </>
+                    ) : null}
+                    
+                    {/* Add New Server option */}
+                    <button
+                      id="server-option-add-new"
+                      type="button"
+                      onClick={handleAddNewServer}
+                      className={cn(
+                        "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-blue-600 hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-gray-700",
+                        "min-h-[44px]", // Touch target
+                        activeOptionId === 'add-new' && "bg-gray-100 dark:bg-gray-700"
+                      )}
+                      role="option"
+                      aria-selected={false}
+                    >
+                      <Plus className="h-4 w-4" />
+                      <span className="font-medium">Add New Server</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {errors.serverId && (
+                <p
+                  id="server-error"
+                  className="mt-1 text-sm text-red-600 dark:text-red-400"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  {errors.serverId}
+                </p>
+              )}
+            </div>
+          </CardContent>
+
+          <CardFooter className="flex gap-3 border-t border-gray-200 p-4 dark:border-gray-700">
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              onPress={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              fullWidth
+              loading={isSubmitting}
+              disabled={!isValid}
+              onPress={() => {}} // Form submission handled by form onSubmit
+            >
+              Create Project
+            </Button>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}

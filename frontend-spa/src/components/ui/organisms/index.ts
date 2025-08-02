@@ -5,3 +5,5 @@ export { ServerForm } from './ServerForm';
 export type { ServerFormProps } from './ServerForm';
 export { EmptyState, EmptyStatePresets, createEmptyState } from './EmptyState';
 export type { EmptyStateProps, EmptyStateAction } from './EmptyState';
+export { ProjectCreationModal } from './ProjectCreationModal';
+export type { ProjectCreationModalProps } from './ProjectCreationModal';

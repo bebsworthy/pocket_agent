@@ -45,18 +45,26 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     };
 
     const renderIcon = () => {
+      // Handle React elements (already rendered JSX)
       if (React.isValidElement(icon)) {
         return React.cloneElement(icon as React.ReactElement, {
           className: cn(iconSizes[size], (icon as React.ReactElement).props?.className),
         });
       }
 
-      // Handle component-based icons (like Lucide, Heroicons, etc.)
+      // Handle component functions and component objects (like Lucide icons)
       if (typeof icon === 'function') {
         const IconComponent = icon as React.ComponentType<{ className?: string }>;
         return <IconComponent className={iconSizes[size]} />;
       }
 
+      // Handle React component objects (ForwardRef, memo, etc.)
+      if (typeof icon === 'object' && icon && (icon as any).$$typeof) {
+        const IconComponent = icon as React.ComponentType<{ className?: string }>;
+        return React.createElement(IconComponent, { className: iconSizes[size] });
+      }
+
+      // Handle other React nodes (strings, numbers, etc.)
       return icon;
     };
 

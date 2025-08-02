@@ -1,9 +1,9 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Card, CardContent } from '../molecules/Card';
-import { StatusIndicator } from '../molecules/StatusIndicator';
 import { IconButton } from '../atoms/IconButton';
 import { Project, Server, ConnectionStatus } from '../../../types/models';
-import { ArrowRight, MoreVertical, Folder } from 'lucide-react';
+import { ArrowRight, MoreVertical, Folder, Circle } from 'lucide-react';
+import { useServerConnectionStatus } from '../../../store/hooks/useServers';
 
 export interface ProjectCardProps {
   project: Project;
@@ -14,34 +14,58 @@ export interface ProjectCardProps {
 }
 
 /**
+ * Utility function to get connection status icon with appropriate colors
+ * Based on design.md specifications:
+ * - Green: Connected server
+ * - Yellow: Connecting to server  
+ * - Gray: Disconnected server
+ */
+const getConnectionStatusIcon = (status: ConnectionStatus): React.ReactNode => {
+  switch (status) {
+    case 'connected':
+      return <Circle className="w-3 h-3 fill-green-500 text-green-500" />;
+    case 'connecting':
+      return <Circle className="w-3 h-3 fill-yellow-500 text-yellow-500" />;
+    case 'error':
+      return <Circle className="w-3 h-3 fill-red-500 text-red-500" />;
+    case 'disconnected':
+    default:
+      return <Circle className="w-3 h-3 fill-gray-400 text-gray-400" />;
+  }
+};
+
+/**
+ * Format last active time for display
+ * Moved outside component to prevent recreation on every render
+ */
+const formatLastActive = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffHours < 1) return 'Active now';
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
+};
+
+/**
  * ProjectCard - An organism component for displaying project information
  * with server connection status and action buttons. Optimized for mobile touch.
+ * Memoized to prevent unnecessary re-renders when parent state changes.
  */
-export function ProjectCard({
+export const ProjectCard = React.memo<ProjectCardProps>(function ProjectCard({
   project,
   server,
   onPress,
   onDisconnect,
   onSettings,
-}: ProjectCardProps) {
-  // Determine connection status
-  const connectionStatus: ConnectionStatus = server.isConnected ? 'connected' : 'disconnected';
-
-  // Format last active time for display (memoized for performance)
-  const formatLastActive = useMemo(() => {
-    return (dateString: string) => {
-      const date = new Date(dateString);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffDays = Math.floor(diffHours / 24);
-
-      if (diffHours < 1) return 'Active now';
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (diffDays < 7) return `${diffDays}d ago`;
-      return date.toLocaleDateString();
-    };
-  }, []); // Empty dependency array since function logic is static
+}) {
+  // Get real-time connection status from hook, with fallback
+  const { status: realTimeStatus } = useServerConnectionStatus(server.id);
+  const connectionStatus: ConnectionStatus = realTimeStatus || 'disconnected';
 
   const handleCardPress = () => {
     onPress();
@@ -84,7 +108,12 @@ export function ProjectCard({
           </div>
 
           <div className="flex flex-shrink-0 items-center gap-2">
-            <StatusIndicator status={connectionStatus} size="sm" label={server.name} />
+            <div className="flex items-center gap-2">
+              {getConnectionStatusIcon(connectionStatus)}
+              <span className="text-xs text-gray-600 dark:text-gray-400">
+                {server.name}
+              </span>
+            </div>
             {onSettings && (
               <IconButton
                 icon={MoreVertical}
@@ -108,7 +137,7 @@ export function ProjectCard({
           </div>
 
           <div className="flex items-center gap-1">
-            {server.isConnected && onDisconnect && (
+            {connectionStatus === 'connected' && onDisconnect && (
               <button
                 onClick={handleDisconnect}
                 data-action-button
@@ -122,7 +151,7 @@ export function ProjectCard({
           </div>
         </div>
 
-        {/* Connection status banner for disconnected state */}
+        {/* Connection status banner for non-connected states */}
         {connectionStatus === 'disconnected' && (
           <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 dark:border-red-800 dark:bg-red-900/20">
             <p className="text-sm text-red-700 dark:text-red-300">
@@ -130,7 +159,21 @@ export function ProjectCard({
             </p>
           </div>
         )}
+        {connectionStatus === 'connecting' && (
+          <div className="mt-3 rounded-md border border-yellow-200 bg-yellow-50 p-2 dark:border-yellow-800 dark:bg-yellow-900/20">
+            <p className="text-sm text-yellow-700 dark:text-yellow-300">
+              Connecting to server...
+            </p>
+          </div>
+        )}
+        {connectionStatus === 'error' && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-2 dark:border-red-800 dark:bg-red-900/20">
+            <p className="text-sm text-red-700 dark:text-red-300">
+              Connection error. Check server status.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
-}
+});

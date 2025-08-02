@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "eventemitter3": "^5.0.1",
     "jotai": "^2.12.5",
     "lucide-react": "^0.460.0",
     "prettier-plugin-tailwindcss": "^0.6.14",

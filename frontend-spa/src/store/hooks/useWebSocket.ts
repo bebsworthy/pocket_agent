@@ -53,7 +53,7 @@ export function useWebSocket(serverId: string, url: string) {
   const connectionState = connectionStates.get(serverId) || 'disconnected';
   const messages = messageQueues.get(serverId) || [];
   const serverJoinedProjects = useMemo(
-    () => joinedProjects.get(serverId) || new Set(),
+    () => joinedProjects.get(serverId) || new Set<string>(),
     [joinedProjects, serverId]
   );
   const serverPendingMessages = useMemo(

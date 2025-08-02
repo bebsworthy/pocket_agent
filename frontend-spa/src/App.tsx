@@ -3,8 +3,11 @@ import { Provider as JotaiProvider } from 'jotai';
 import { useAtom } from 'jotai';
 import { Router } from './Router';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { DevErrorBoundary } from './components/DevErrorBoundary';
+import { WebSocketProvider } from './services/websocket/WebSocketContext';
 import { useMobileViewport } from './hooks/useMobileViewport';
 import { themeAtom } from './store/atoms/ui';
+import { debugComponentMount, debugComponentUnmount } from './utils/debug';
 import './styles/globals.css';
 
 // Theme Provider Component
@@ -70,6 +73,11 @@ const AppContent: React.FC = () => {
   // Use mobile viewport hook
   useMobileViewport();
 
+  useEffect(() => {
+    debugComponentMount('AppContent');
+    return () => debugComponentUnmount('AppContent');
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
       <Router />
@@ -79,13 +87,36 @@ const AppContent: React.FC = () => {
 
 // Main App Component
 const App: React.FC = () => {
-  return (
-    <ErrorBoundary>
-      <JotaiProvider>
+  const isDev = import.meta.env.DEV;
+
+  useEffect(() => {
+    debugComponentMount('App');
+    return () => debugComponentUnmount('App');
+  }, []);
+
+  const AppContentWrapper = () => (
+    <JotaiProvider>
+      <WebSocketProvider>
         <ThemeProvider>
           <AppContent />
         </ThemeProvider>
-      </JotaiProvider>
+      </WebSocketProvider>
+    </JotaiProvider>
+  );
+
+  if (isDev) {
+    return (
+      <DevErrorBoundary componentName="App (Development)">
+        <ErrorBoundary>
+          <AppContentWrapper />
+        </ErrorBoundary>
+      </DevErrorBoundary>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <AppContentWrapper />
     </ErrorBoundary>
   );
 };

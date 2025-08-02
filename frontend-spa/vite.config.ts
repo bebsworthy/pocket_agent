@@ -10,9 +10,13 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  define: {
+    __DEV__: JSON.stringify(process.env.NODE_ENV === 'development'), // Enable development mode flags
+  },
   build: {
     target: 'es2015',
     minify: 'esbuild',
+    sourcemap: true, // Enable sourcemaps for production too
     rollupOptions: {
       output: {
         manualChunks: {
@@ -24,6 +28,12 @@ export default defineConfig({
       },
     },
     chunkSizeWarningLimit: 1000,
+  },
+  css: {
+    devSourcemap: true, // Enable CSS sourcemaps in dev
+  },
+  esbuild: {
+    sourcemap: true, // Enable esbuild sourcemaps
   },
   server: {
     port: 3000,

@@ -164,6 +164,9 @@ export default {
           '-webkit-overflow-scrolling': 'touch',
           'overflow-scrolling': 'touch',
         },
+        '.no-tap-highlight': {
+          '-webkit-tap-highlight-color': 'transparent',
+        },
       };
       addUtilities(newUtilities);
     },
