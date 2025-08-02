@@ -321,9 +321,9 @@ export function validateProjectPath(path: string): PathValidationResult {
   const pathTraversalPatterns = [
     /\.\./,           // Parent directory traversal
     /\.\\/,           // Current directory with separator  
-    /\/\./,           // Hidden directory patterns
+    /\/\.[^/]/,       // Hidden directory patterns (starting with dot after slash)
     /~\//,            // User home shortcuts in middle of path
-    /\/+/,            // Multiple consecutive slashes
+    /\/\/+/,          // Multiple consecutive slashes (fixed to only match 2+ slashes)
   ];
 
   const hasPathTraversal = pathTraversalPatterns.some(pattern => pattern.test(trimmedPath));

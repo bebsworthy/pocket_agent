@@ -99,13 +99,55 @@ export function ServerForm({
     if (!formData.websocketUrl.trim()) {
       newErrors.websocketUrl = 'WebSocket URL is required';
     } else if (!validateWebSocketUrl(formData.websocketUrl)) {
-      newErrors.websocketUrl =
-        'Enter a valid WebSocket URL (ws://host:port, wss://host:port, or [IPv6]:port)';
+      const url = formData.websocketUrl.trim();
+      if (url.includes('://') && !url.startsWith('ws://') && !url.startsWith('wss://')) {
+        newErrors.websocketUrl = 'WebSocket URLs must start with ws:// or wss://';
+      } else {
+        newErrors.websocketUrl = 'Enter a valid format: localhost:8080, ws://server.com:8080, or wss://secure.server.com:8080';
+      }
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }, [formData]);
+
+  // Auto-infer server name from URL
+  const inferServerNameFromUrl = useCallback((url: string): string => {
+    if (!url.trim()) return '';
+    
+    try {
+      let hostname = '';
+      
+      // Handle full URLs with protocol
+      if (url.includes('://')) {
+        const parsedUrl = new URL(url);
+        hostname = parsedUrl.hostname;
+      } else {
+        // Handle host:port format
+        const hostPart = url.split(':')[0];
+        hostname = hostPart;
+      }
+      
+      // Convert hostname to friendly name
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'Local Development';
+      } else if (hostname.includes('.')) {
+        // For domain names, capitalize first part
+        const firstPart = hostname.split('.')[0];
+        return firstPart.charAt(0).toUpperCase() + firstPart.slice(1) + ' Server';
+      } else {
+        // For simple hostnames, capitalize and add "Server"
+        return hostname.charAt(0).toUpperCase() + hostname.slice(1) + ' Server';
+      }
+    } catch {
+      // If URL parsing fails, extract host from host:port format
+      const hostPart = url.split(':')[0];
+      if (hostPart) {
+        return hostPart.charAt(0).toUpperCase() + hostPart.slice(1) + ' Server';
+      }
+      return '';
+    }
+  }, []);
 
   // Handle input changes
   const handleInputChange = (field: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,9 +159,24 @@ export function ServerForm({
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
 
-    // Clear connection test result when URL changes
-    if (field === 'websocketUrl' && connectionTestResult) {
-      setConnectionTestResult(null);
+    // Auto-infer server name from WebSocket URL if name is empty or was auto-generated
+    if (field === 'websocketUrl') {
+      const currentName = formData.name.trim();
+      const inferredFromCurrentUrl = inferServerNameFromUrl(formData.websocketUrl);
+      
+      // Only auto-update name if it's empty or matches the previously inferred name
+      if (!currentName || currentName === inferredFromCurrentUrl) {
+        const newInferredName = inferServerNameFromUrl(value);
+        if (newInferredName) {
+          setFormData(prev => ({ ...prev, name: newInferredName, [field]: value }));
+          return; // Early return to avoid duplicate state update
+        }
+      }
+      
+      // Clear connection test result when URL changes
+      if (connectionTestResult) {
+        setConnectionTestResult(null);
+      }
     }
   };
 
@@ -140,8 +197,8 @@ export function ServerForm({
       // Determine the full WebSocket URL
       let wsUrl = formData.websocketUrl.trim();
       if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
-        // Default to ws:// for plain host:port format
-        wsUrl = `ws://${wsUrl}`;
+        // Default to ws:// for plain host:port format and add /ws path
+        wsUrl = `ws://${wsUrl}/ws`;
       }
 
       // Test connection with a timeout
@@ -195,7 +252,7 @@ export function ServerForm({
       // Process the WebSocket URL
       let websocketUrl = formData.websocketUrl.trim();
       if (!websocketUrl.startsWith('ws://') && !websocketUrl.startsWith('wss://')) {
-        websocketUrl = `ws://${websocketUrl}`;
+        websocketUrl = `ws://${websocketUrl}/ws`;
       }
 
       await onSubmit({
@@ -210,8 +267,8 @@ export function ServerForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <Card className="max-h-[90vh] w-full max-w-md overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
+      <Card className="h-full w-full max-h-none overflow-hidden rounded-none sm:h-auto sm:max-w-md sm:max-h-[90vh] sm:rounded-lg">
         <CardHeader className="flex-row items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             {isEditing ? 'Edit Server' : 'Add Server'}
@@ -225,8 +282,8 @@ export function ServerForm({
           />
         </CardHeader>
 
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4 overflow-y-auto p-4">
+        <form onSubmit={handleSubmit} className="flex h-full flex-col sm:h-auto">
+          <CardContent className="flex-1 space-y-4 overflow-y-auto p-4">
             {/* Server name input */}
             <div>
               <Input
@@ -244,7 +301,7 @@ export function ServerForm({
             <div>
               <Input
                 label="WebSocket URL"
-                placeholder="localhost:8080 or ws://server.com:8080"
+                placeholder="localhost:8080 (will become ws://localhost:8080/ws)"
                 value={formData.websocketUrl}
                 onChange={handleInputChange('websocketUrl')}
                 error={errors.websocketUrl}
@@ -254,7 +311,7 @@ export function ServerForm({
                 autoComplete="url"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                Enter host:port or full ws://host:port URL
+                Examples: localhost:8080 → ws://localhost:8080/ws, or ws://server.com:8080
               </p>
             </div>
 

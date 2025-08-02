@@ -30,6 +30,7 @@ import {
   isConnectionRetryingAtom,
 } from '../../../store/atoms/projectCreationAtoms';
 import { cn } from '../../../utils/cn';
+import { validateProjectPath } from '../../../utils/projectValidation';
 import type { 
   CreateProjectMessage, 
   ProjectCreatedMessage, 
@@ -64,75 +65,6 @@ class ProjectCreationError extends Error {
   }
 }
 
-/**
- * Comprehensive path validation and sanitization
- * Protects against path traversal attacks and validates filesystem compatibility
- */
-const validateAndSanitizePath = (path: string): { isValid: boolean; error?: string; sanitizedPath?: string } => {
-  if (!path || !path.trim()) {
-    return { isValid: false, error: 'Path cannot be empty' };
-  }
-
-  const trimmedPath = path.trim();
-
-  // Check for path traversal attempts
-  const pathTraversalPatterns = [
-    /\.\./,           // Parent directory traversal
-    /\.\\/,           // Current directory with separator  
-    /\/\./,           // Hidden directory patterns
-    /~\//,            // User home shortcuts in middle of path
-    /\/+/,            // Multiple consecutive slashes
-  ];
-
-  const hasPathTraversal = pathTraversalPatterns.some(pattern => pattern.test(trimmedPath));
-  if (hasPathTraversal && !trimmedPath.startsWith('~/')) {
-    return { isValid: false, error: 'Path contains invalid directory traversal patterns' };
-  }
-
-  // Check for dangerous filesystem characters (Windows + Unix)
-  // eslint-disable-next-line no-control-regex
-  const dangerousChars = /[<>:"|?*\0\x01-\x1f\x7f]/;
-  if (dangerousChars.test(trimmedPath)) {
-    return { isValid: false, error: 'Path contains invalid filesystem characters' };
-  }
-
-  // Check for reserved Windows filenames
-  const windowsReserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
-  const pathParts = trimmedPath.split(/[/\\]/).filter(Boolean);
-  const hasReservedName = pathParts.some(part => windowsReserved.test(part));
-  if (hasReservedName) {
-    return { isValid: false, error: 'Path contains reserved system names' };
-  }
-
-  // Length validation
-  if (trimmedPath.length > 260) { // Windows MAX_PATH limit
-    return { isValid: false, error: 'Path is too long (maximum 260 characters)' };
-  }
-
-  // Check for excessively long path segments
-  const hasLongSegment = pathParts.some(part => part.length > 255); // Most filesystems limit
-  if (hasLongSegment) {
-    return { isValid: false, error: 'Path segment is too long (maximum 255 characters)' };
-  }
-
-  // Sanitize the path by normalizing separators and removing redundant elements
-  let sanitizedPath = trimmedPath
-    .replace(/[/\\]+/g, '/') // Normalize separators to forward slash
-    .replace(/\/+$/, ''); // Remove trailing slashes
-
-  // Handle home directory expansion
-  if (sanitizedPath.startsWith('~/')) {
-    // Keep as-is for home directory paths - server will handle expansion
-  } else if (!sanitizedPath.startsWith('/')) {
-    // Ensure absolute paths start with /
-    sanitizedPath = '/' + sanitizedPath;
-  }
-
-  return { 
-    isValid: true, 
-    sanitizedPath: sanitizedPath || '/' 
-  };
-};
 
 /**
  * ProjectCreationModal - A full-screen modal for creating new projects.
@@ -359,7 +291,7 @@ export function ProjectCreationModal({
     if (!formData.path.trim()) {
       newErrors.path = 'Project path is required';
     } else {
-      const pathValidation = validateAndSanitizePath(formData.path);
+      const pathValidation = validateProjectPath(formData.path);
       if (!pathValidation.isValid) {
         newErrors.path = pathValidation.error || 'Invalid path';
       }
@@ -532,7 +464,7 @@ export function ProjectCreationModal({
 
     try {
       // Validate and sanitize the path before sending
-      const pathValidation = validateAndSanitizePath(formData.path);
+      const pathValidation = validateProjectPath(formData.path);
       if (!pathValidation.isValid) {
         throw new ProjectCreationError(pathValidation.error || 'Invalid path');
       }
@@ -544,7 +476,7 @@ export function ProjectCreationModal({
       startOptimisticCreation({
         formData: {
           name: formData.name.trim(),
-          path: pathValidation.sanitizedPath!,
+          path: pathValidation.sanitizedValue!,
           serverId: formData.serverId,
         },
         requestId,
@@ -555,7 +487,7 @@ export function ProjectCreationModal({
         type: 'create_project',
         data: {
           name: formData.name.trim(),
-          path: pathValidation.sanitizedPath!,
+          path: pathValidation.sanitizedValue!,
           description: undefined, // Optional description field
           server_id: formData.serverId,
           template: undefined, // Optional template field
@@ -602,9 +534,9 @@ export function ProjectCreationModal({
   return (
     <div 
       className={cn(
-        "fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4",
-        // Full screen on mobile with safe area handling
-        "sm:p-6 md:p-8",
+        "fixed inset-0 z-50 bg-black/50",
+        // Full screen on mobile, centered modal on desktop
+        "flex items-end justify-center sm:items-center sm:p-6 md:p-8",
         className
       )}
       onClick={handleBackdropClick}
@@ -613,9 +545,9 @@ export function ProjectCreationModal({
       aria-labelledby="project-creation-title"
     >
       <Card className={cn(
-        "w-full max-w-md overflow-hidden",
-        // Full height on small screens, auto on larger
-        "max-h-[90vh] sm:max-h-[80vh]",
+        "w-full overflow-hidden",
+        // Full screen modal on mobile, constrained modal on desktop
+        "h-full max-h-none rounded-none sm:h-auto sm:max-w-md sm:max-h-[80vh] sm:rounded-lg",
         // Handle safe area on mobile devices
         "safe-area-inset"
       )}>
@@ -636,8 +568,8 @@ export function ProjectCreationModal({
           />
         </CardHeader>
 
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4 overflow-y-auto p-4">
+        <form onSubmit={handleSubmit} className="flex h-full flex-col sm:h-auto">
+          <CardContent className="flex-1 space-y-4 overflow-y-auto p-4">
             {/* General error message */}
             {errors.general && (
               <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">

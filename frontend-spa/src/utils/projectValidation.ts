@@ -104,8 +104,8 @@ const RESERVED_PROJECT_NAMES = [
 const DANGEROUS_PATH_PATTERNS = [
   /\.\./,                    // Parent directory traversal
   /~[^/]/,                   // Invalid home directory usage
-  /\/\./,                    // Hidden directory patterns
-  /\/+/,                     // Multiple consecutive slashes
+  /\/\.[^/]/,                // Hidden directory patterns (starting with dot after slash)
+  /\/\/+/,                   // Multiple consecutive slashes (fixed to only match 2+ slashes)
   /[<>:"|?*]/,              // Windows invalid characters
   // eslint-disable-next-line no-control-regex
   /[\0-\x1f\x7f]/,          // Control characters
