@@ -7,7 +7,8 @@ import { IconButton } from '../atoms/IconButton';
 import { useProjects } from '../../../store/hooks/useProjects';
 import { useServers } from '../../../store/hooks/useServers';
 import { serverOperationAtom } from '../../../store/atoms/servers';
-import { useWebSocket, useWebSocketMessage } from '../../../store/hooks/useWebSocket';
+import { useWebSocketMessage } from '../../../store/hooks/useWebSocket';
+import { useWebSocketConnection } from '../../../services/websocket/WebSocketContext';
 import { X, Plus, Server, AlertCircle } from 'lucide-react';
 import {
   createProjectFormDataAtom,
@@ -32,9 +33,11 @@ import {
 import { cn } from '../../../utils/cn';
 import { validateProjectPath } from '../../../utils/projectValidation';
 import type { 
-  CreateProjectMessage, 
+  ProjectCreateMessage, 
   ProjectCreatedMessage, 
-  ProjectCreationErrorMessage, 
+  ProjectCreationErrorMessage,
+  ProjectStateMessage,
+  ErrorMessage,
   ServerMessage 
 } from '../../../types/messages';
 
@@ -105,13 +108,63 @@ export function ProjectCreationModal({
 
   // WebSocket integration for project creation
   const selectedServer = servers?.find(s => s.id === formData.serverId);
-  // Always call hook to avoid conditional hook rule violation
-  const webSocket = useWebSocket(
-    selectedServer?.id || 'placeholder', 
-    selectedServer?.websocketUrl || 'ws://placeholder'
+  
+  // Create WebSocket connection config only when valid server is selected
+  const webSocketConfig = selectedServer ? {
+    url: selectedServer.websocketUrl,
+    autoReconnect: true,
+    maxReconnectAttempts: 5,
+    initialReconnectDelay: 1000,
+    maxReconnectDelay: 30000,
+    pingInterval: 30000,
+    connectionTimeout: 10000,
+  } : null;
+  
+  // Clean WebSocket connection pattern - no placeholders, no fake connections
+  const webSocketConnection = useWebSocketConnection(
+    selectedServer?.id,
+    webSocketConfig,
+    false // autoConnect = false for on-demand connections
   );
   
-  // Handle WebSocket project_created messages for enhanced project creation
+  // Handle WebSocket project_state messages (what server actually sends for project creation)
+  useWebSocketMessage(
+    formData.serverId,
+    'project_state',
+    useCallback((message: ServerMessage) => {
+      const projectStateMessage = message as ProjectStateMessage;
+      if (projectStateMessage.data && (isSubmitting || isOptimisticCreation)) {
+        const serverProject = projectStateMessage.data;
+        
+        // Confirm optimistic creation with server data
+        confirmOptimisticCreation({
+          id: serverProject.id,
+          name: formData.name.trim(), // Use form name since server doesn't send it
+          path: serverProject.path,
+          created_at: serverProject.created_at,
+        });
+        
+        // Add project to global state
+        const projectData = {
+          id: serverProject.id,
+          name: formData.name.trim(), // Use form name since server doesn't send it
+          path: serverProject.path,
+          serverId: formData.serverId,
+          createdAt: serverProject.created_at,
+          lastActive: serverProject.last_active,
+        };
+        
+        addProject(projectData);
+        completeSubmission();
+        
+        // Close modal after successful creation
+        setTimeout(() => onClose(), 100);
+      }
+    }, [formData.serverId, formData.name, isSubmitting, isOptimisticCreation, confirmOptimisticCreation, addProject, completeSubmission, onClose]),
+    [formData.serverId, isSubmitting, isOptimisticCreation]
+  );
+
+  // Handle WebSocket project_created messages (keep for future compatibility)
   useWebSocketMessage(
     formData.serverId,
     'project_created',
@@ -148,7 +201,65 @@ export function ProjectCreationModal({
     [formData.serverId, isSubmitting, isOptimisticCreation]
   );
 
-  // Handle WebSocket project creation errors
+  // Handle WebSocket general errors (server sends 'error' type messages)
+  useWebSocketMessage(
+    formData.serverId,
+    'error',
+    useCallback((message: ServerMessage) => {
+      const errorMessage = message as ErrorMessage;
+      if (isSubmitting || isOptimisticCreation) {
+        const errorMsg = errorMessage.data?.message || 'Failed to create project';
+        const errorCode = errorMessage.data?.code || 'UNKNOWN_ERROR';
+        
+        // Map specific error codes to user-friendly messages
+        let userErrorMsg = errorMsg;
+        switch (errorCode) {
+          case 'INVALID_PATH':
+            // Provide specific guidance for path errors
+            if (errorMsg.includes('tilde expansion')) {
+              userErrorMsg = 'Home directory paths (~/) are not allowed for security reasons. Use an absolute path like /Users/username/path';
+            } else if (errorMsg.includes('absolute')) {
+              userErrorMsg = 'Path must be absolute. Use a full path starting with "/" (e.g., /Users/username/projects/myproject)';
+            } else {
+              userErrorMsg = 'The specified path is invalid. ' + errorMsg;
+            }
+            break;
+          case 'PROJECT_NESTING':
+            userErrorMsg = 'Cannot create nested projects';
+            break;
+          case 'PROJECT_LIMIT':
+            userErrorMsg = 'Server has reached maximum project limit';
+            break;
+          case 'RESOURCE_LIMIT':
+            userErrorMsg = 'Server resources are at capacity';
+            break;
+          case 'PROJECT_PATH_EXISTS':
+            userErrorMsg = 'A project already exists at this path';
+            break;
+          case 'PROJECT_NAME_TAKEN':
+            userErrorMsg = 'This project name is already in use';
+            break;
+          case 'PERMISSION_DENIED':
+            userErrorMsg = 'Permission denied - check directory access rights';
+            break;
+          case 'SERVER_UNAVAILABLE':
+            userErrorMsg = 'Server is currently unavailable';
+            break;
+          case 'VALIDATION_FAILED':
+            userErrorMsg = 'Validation failed: ' + errorMsg;
+            break;
+          default:
+            userErrorMsg = errorMsg;
+        }
+
+        // Rollback optimistic update and show error
+        rollbackOptimisticCreation({ general: userErrorMsg });
+      }
+    }, [isSubmitting, isOptimisticCreation, rollbackOptimisticCreation]),
+    [formData.serverId, isSubmitting, isOptimisticCreation]
+  );
+
+  // Handle WebSocket project creation errors (keep for future compatibility)
   useWebSocketMessage(
     formData.serverId,
     'project_creation_error',
@@ -158,7 +269,7 @@ export function ProjectCreationModal({
         const errorMsg = errorMessage.data?.message || 'Failed to create project';
         const errorCode = errorMessage.data?.error_code || 'UNKNOWN_ERROR';
         
-        // Map specific error codes to user-friendly messages
+        // Use same error mapping logic as general errors
         let userErrorMsg = errorMsg;
         switch (errorCode) {
           case 'INVALID_PATH':
@@ -422,34 +533,14 @@ export function ProjectCreationModal({
     }
 
     // Validate WebSocket connection
-    if (!webSocket) {
+    if (!webSocketConnection) {
       failSubmission({
-        general: 'Unable to establish connection to server. Please try again.',
+        general: 'Please select a server before creating the project.',
+        serverId: 'Server selection is required',
       });
       return;
     }
 
-    if (!webSocket.isConnected) {
-      // Queue the request for when connection is restored
-      const requestId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      queueProjectCreationRequest({
-        formData: {
-          name: formData.name.trim(),
-          path: formData.path.trim(),
-          serverId: formData.serverId,
-        },
-        requestId,
-      });
-      
-      // Start connection retry process
-      startConnectionRetry('Server connection lost during project creation');
-      
-      setErrors({
-        general: 'Connection lost. Your project creation request has been queued and will be processed when connection is restored.',
-      });
-      return;
-    }
 
     // Validate WebSocket URL format
     try {
@@ -482,20 +573,43 @@ export function ProjectCreationModal({
         requestId,
       });
 
-      // Create enhanced WebSocket message for project creation
-      const createMessage: CreateProjectMessage = {
-        type: 'create_project',
+      // Create WebSocket message for project creation (matching server's ProjectCreateData struct)
+      const createMessage: ProjectCreateMessage = {
+        type: 'project_create',
         data: {
-          name: formData.name.trim(),
           path: pathValidation.sanitizedValue!,
-          description: undefined, // Optional description field
-          server_id: formData.serverId,
-          template: undefined, // Optional template field
         },
       };
 
+      // Establish WebSocket connection first
+      try {
+        if (!webSocketConnection.isConnected) {
+          await webSocketConnection.connect();
+        }
+      } catch {
+        // Connection failed - queue the request for retry
+        const requestId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        
+        queueProjectCreationRequest({
+          formData: {
+            name: formData.name.trim(),
+            path: pathValidation.sanitizedValue!,
+            serverId: formData.serverId,
+          },
+          requestId,
+        });
+        
+        // Start connection retry process
+        startConnectionRetry('Failed to connect to server');
+        
+        setErrors({
+          general: 'Unable to connect to server. Your project creation request has been queued and will be processed when connection is restored.',
+        });
+        return;
+      }
+
       // Send project creation request via WebSocket
-      const messageSent = webSocket.send(createMessage);
+      const messageSent = webSocketConnection.service.send(createMessage);
       if (!messageSent) {
         throw new ProjectCreationError('Failed to send project creation request');
       }
@@ -518,7 +632,7 @@ export function ProjectCreationModal({
       // Rollback optimistic update on immediate error
       rollbackOptimisticCreation({ general: errorMessage });
     }
-  }, [formData, validateForm, selectedServer, webSocket, servers, startOptimisticCreation, rollbackOptimisticCreation, queueProjectCreationRequest, startConnectionRetry, setErrors, failSubmission]);
+  }, [formData, validateForm, selectedServer, webSocketConnection, servers, startOptimisticCreation, rollbackOptimisticCreation, queueProjectCreationRequest, startConnectionRetry, setErrors, failSubmission]);
 
   // Handle modal backdrop click
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
@@ -680,7 +794,7 @@ export function ProjectCreationModal({
             <div>
               <Input
                 label="Project Path"
-                placeholder="/path/to/project or ~/projects/my-project"
+                placeholder="/Users/username/projects/my-project"
                 value={formData.path}
                 onChange={handleInputChange('path')}
                 error={errors.path}
@@ -689,7 +803,7 @@ export function ProjectCreationModal({
                 disabled={isSubmitting}
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                The local filesystem path where your project is located
+                Must be an absolute path starting with "/" (home directory paths ~/... not allowed for security)
               </p>
             </div>
 

@@ -78,6 +78,24 @@ const FAB = React.forwardRef<HTMLButtonElement, FABProps>(
         return <IconComponent className={iconSizes[size]} />;
       }
 
+      // Handle any other potential component types or objects
+      if (icon && typeof icon === 'object' && !React.isValidElement(icon)) {
+        // Check if it's a component-like object (forwardRef, etc.)
+        if ('render' in icon && typeof (icon as any).render === 'function') {
+          const IconComponent = icon as unknown as React.ComponentType<{ className?: string }>;
+          return <IconComponent className={iconSizes[size]} />;
+        }
+      }
+
+      // Defensive fallback - if icon is not a valid React child, render nothing
+      if (icon && typeof icon === 'object') {
+        if (import.meta.env.DEV) {
+          console.warn('FAB: Invalid icon type provided. Expected React element, component function, or primitive value.', icon);
+        }
+        return null;
+      }
+
+      // For primitive values (string, number, etc.) - though unlikely for icons
       return icon;
     };
 

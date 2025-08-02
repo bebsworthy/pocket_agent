@@ -93,10 +93,12 @@ export interface ProjectStateMessage extends ServerMessage {
   type: 'project_state';
   project_id: string;
   data: {
+    id: string;
+    path: string;
     state: 'IDLE' | 'EXECUTING' | 'ERROR';
-    path?: string;
-    created_at?: string;
     session_id?: string | null;
+    created_at: string;
+    last_active: string;
   };
 }
 
@@ -164,8 +166,8 @@ export interface MessagesResponseMessage extends ServerMessage {
   };
 }
 
-export interface HealthStatusMessage extends ServerMessage {
-  type: 'health_status';
+export interface HealthCheckMessage extends ServerMessage {
+  type: 'health_check';
   data: {
     status: 'healthy' | 'degraded' | 'unhealthy';
     uptime: number;
@@ -214,16 +216,7 @@ export interface ServerStatsMessage extends ServerMessage {
 }
 
 // Enhanced project creation messages for Task 8: WebSocket project creation integration
-export interface CreateProjectMessage extends ClientMessage {
-  type: 'create_project';
-  data: {
-    name: string;
-    path: string;
-    description?: string;
-    server_id: string;
-    template?: string;
-  };
-}
+// Note: Using the correct ProjectCreateMessage interface above
 
 export interface ProjectCreatedMessage extends ServerMessage {
   type: 'project_created';
@@ -248,6 +241,36 @@ export interface ProjectCreationErrorMessage extends ServerMessage {
     message: string;
     details?: Record<string, unknown>;
     server_id: string;
+  };
+}
+
+// Additional server message types based on server specification
+export interface ProjectUpdateMessage extends ServerMessage {
+  type: 'project_update';
+  project_id: string;
+  data: {
+    update_type: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+export interface ProcessKilledMessage extends ServerMessage {
+  type: 'process_killed';
+  project_id: string;
+  data: {
+    process_id?: string;
+    reason?: string;
+    exit_code?: number;
+  };
+}
+
+export interface ConnectionHealthMessage extends ServerMessage {
+  type: 'connection_health';
+  data: {
+    status: 'healthy' | 'degraded' | 'unhealthy';
+    latency_ms?: number;
+    last_heartbeat?: string;
+    connection_quality?: number;
   };
 }
 
