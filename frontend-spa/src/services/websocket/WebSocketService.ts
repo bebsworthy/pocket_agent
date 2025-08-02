@@ -54,12 +54,16 @@ export interface WebSocketServiceEvents {
   error_message: (message: ServerMessage) => void;
   session_reset: (message: ServerMessage) => void;
   messages_response: (message: ServerMessage) => void;
-  health_status: (message: ServerMessage) => void;
+  health_check: (message: ServerMessage) => void;
   server_stats: (message: ServerMessage) => void;
   project_list_response: (message: ServerMessage) => void;
   // Enhanced project creation events for Task 8
   project_created: (message: ServerMessage) => void;
   project_creation_error: (message: ServerMessage) => void;
+  // Additional server message events based on server specification
+  project_update: (message: ServerMessage) => void;
+  process_killed: (message: ServerMessage) => void;
+  connection_health: (message: ServerMessage) => void;
 }
 
 // Define typed EventEmitter with proper event mapping

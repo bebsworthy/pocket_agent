@@ -14,7 +14,7 @@
 
 import type { CreateProjectFormData, CreateProjectValidationErrors } from '../store/atoms/projectCreationAtoms';
 import type { Server } from '../types/models';
-import { sanitizeProjectName, sanitizeFilePath, validateLength } from './sanitize';
+import { sanitizeProjectName, sanitizeAbsolutePath, validateLength } from './sanitize';
 
 // Validation error codes for internationalization and specific error handling
 export enum ValidationErrorCode {
@@ -344,11 +344,6 @@ export function validateProjectPath(
   // Security validation - check for dangerous patterns
   for (const pattern of DANGEROUS_PATH_PATTERNS) {
     if (pattern.test(trimmedPath)) {
-      // Special handling for home directory paths
-      if (trimmedPath.startsWith('~/')) {
-        continue; // This is allowed
-      }
-      
       return {
         isValid: false,
         error: 'Path contains invalid or potentially dangerous patterns',
@@ -360,7 +355,7 @@ export function validateProjectPath(
   }
 
   // Path traversal validation
-  if (trimmedPath.includes('..') && !trimmedPath.startsWith('~/')) {
+  if (trimmedPath.includes('..')) {
     return {
       isValid: false,
       error: 'Path contains directory traversal patterns',
@@ -405,21 +400,40 @@ export function validateProjectPath(
   const isAbsolute = trimmedPath.startsWith('/') || /^[A-Za-z]:/.test(trimmedPath);
   const isHomeRelative = trimmedPath.startsWith('~/');
 
-  // Sanitize the path
-  const sanitizedPath = sanitizeFilePath(trimmedPath);
-  
-  // Normalize path separators and remove redundant elements
-  let normalizedPath = sanitizedPath
-    .replace(/[/\\]+/g, '/') // Normalize separators to forward slash
-    .replace(/\/+$/, ''); // Remove trailing slashes
-
-  // Handle home directory expansion
+  // Reject home directory paths - server doesn't allow tilde expansion for security
   if (isHomeRelative) {
-    // Keep as-is for home directory paths - server will handle expansion
-  } else if (!isAbsolute && normalizedPath) {
-    // Ensure non-home relative paths are treated as absolute
-    normalizedPath = '/' + normalizedPath;
+    return {
+      isValid: false,
+      error: 'Home directory paths (~/) are not allowed for security reasons.',
+      errorCode: ValidationErrorCode.SECURITY_VIOLATION,
+      severity: ValidationSeverity.ERROR,
+      suggestions: [
+        'Use full absolute path: /Users/username/path/to/project',
+        'Example: /Users/boyd/projects/myproject',
+        'Avoid using ~/path shortcuts'
+      ],
+    };
   }
+
+  // Reject relative paths - server requires absolute paths
+  if (!isAbsolute) {
+    return {
+      isValid: false,
+      error: 'Path must be absolute. Server requires absolute paths starting with "/".',
+      errorCode: ValidationErrorCode.INVALID_FORMAT,
+      severity: ValidationSeverity.ERROR,
+      suggestions: [
+        'Use absolute path: /path/to/your/project',
+        'Example: /Users/username/projects/myproject',
+        'Start path with "/" for absolute paths'
+      ],
+    };
+  }
+
+  // Sanitize the path (preserve leading slash for absolute paths)
+  const normalizedPath = sanitizeAbsolutePath(trimmedPath);
+
+  // Only absolute paths are allowed (no home directory expansion)
 
   // Final validation of normalized path
   if (!normalizedPath || normalizedPath === '/') {
@@ -457,8 +471,8 @@ export function validateProjectPath(
   return {
     isValid: true,
     sanitizedValue: normalizedPath,
-    isAbsolute,
-    isHomeRelative,
+    isAbsolute: true, // Always true since we only allow absolute paths
+    isHomeRelative: false, // Always false since home paths are not allowed
     normalizedPath,
     pathSegments,
     suggestions: suggestions.length > 0 ? suggestions : undefined,

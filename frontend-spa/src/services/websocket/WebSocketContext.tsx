@@ -10,7 +10,7 @@
 
 import React, { createContext, useContext, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useWebSocketErrorHandler } from './WebSocketErrorBoundary';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useAtomValue } from 'jotai';
 import { WebSocketService, type WebSocketServiceConfig } from './WebSocketService';
 import {
   updateConnectionStatusAtom,
@@ -21,13 +21,17 @@ import {
   updateProjectStateAtom,
   updateServerStatsAtom,
   setWebSocketServiceAtom,
+  websocketConnectionStatesAtom,
 } from '../../store/atoms/websocket';
 import type {
   ServerMessage,
   ProjectStateMessage,
-  HealthStatusMessage,
+  HealthCheckMessage,
   ServerStatsMessage,
   ErrorMessage,
+  ProjectUpdateMessage,
+  ProcessKilledMessage,
+  ConnectionHealthMessage,
 } from '../../types/messages';
 
 interface WebSocketContextValue {
@@ -119,8 +123,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         }
       };
 
-      const healthStatusListener = (message: ServerMessage) => {
-        const healthMessage = message as HealthStatusMessage;
+      const healthCheckListener = (message: ServerMessage) => {
+        const healthMessage = message as HealthCheckMessage;
         if (healthMessage.data) {
           updateServerStats(serverId, {
             connections: healthMessage.data.connections?.active || 0,
@@ -168,6 +172,24 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         console.debug(`Session reset for project: ${message.project_id} on server ${serverId}`);
       };
 
+      const projectUpdateListener = (message: ServerMessage) => {
+        const updateMessage = message as ProjectUpdateMessage;
+        console.debug(`Project update: ${updateMessage.project_id} on server ${serverId}`);
+        // Add any specific project update handling logic here
+      };
+
+      const processKilledListener = (message: ServerMessage) => {
+        const processMessage = message as ProcessKilledMessage;
+        console.debug(`Process killed: ${processMessage.project_id} on server ${serverId}`);
+        // Add any specific process killed handling logic here
+      };
+
+      const connectionHealthListener = (message: ServerMessage) => {
+        const healthMessage = message as ConnectionHealthMessage;
+        console.debug(`Connection health update on server ${serverId}:`, healthMessage.data.status);
+        // Add any specific connection health handling logic here
+      };
+
       // Attach all listeners
       service.on('connected', connectedListener);
       service.on('disconnected', disconnectedListener);
@@ -176,13 +198,16 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       service.on('error', errorListener);
       service.on('message', messageListener);
       service.on('project_state', projectStateListener);
-      service.on('health_status', healthStatusListener);
+      service.on('health_check', healthCheckListener);
       service.on('server_stats', serverStatsListener);
       service.on('error_message', errorMessageListener);
       service.on('project_joined', projectJoinedListener);
       service.on('project_left', projectLeftListener);
       service.on('project_deleted', projectDeletedListener);
       service.on('session_reset', sessionResetListener);
+      service.on('project_update', projectUpdateListener);
+      service.on('process_killed', processKilledListener);
+      service.on('connection_health', connectionHealthListener);
 
       // Return cleanup function
       return () => {
@@ -193,13 +218,16 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         service.off('error', errorListener);
         service.off('message', messageListener);
         service.off('project_state', projectStateListener);
-        service.off('health_status', healthStatusListener);
+        service.off('health_check', healthCheckListener);
         service.off('server_stats', serverStatsListener);
         service.off('error_message', errorMessageListener);
         service.off('project_joined', projectJoinedListener);
         service.off('project_left', projectLeftListener);
         service.off('project_deleted', projectDeletedListener);
         service.off('session_reset', sessionResetListener);
+        service.off('project_update', projectUpdateListener);
+        service.off('process_killed', processKilledListener);
+        service.off('connection_health', connectionHealthListener);
       };
     },
     [
@@ -341,46 +369,83 @@ export function useWebSocketService(
 
 /**
  * Hook to automatically connect/disconnect a WebSocket service
+ * Returns null if serverId is null/undefined or config is invalid, preventing creation of placeholder services
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useWebSocketConnection(
-  serverId: string,
-  config: WebSocketServiceConfig,
+  serverId: string | null | undefined,
+  config: WebSocketServiceConfig | null | undefined,
   autoConnect = true
 ): {
   service: WebSocketService;
   connect: () => Promise<void>;
   disconnect: () => void;
   isConnected: boolean;
-} {
-  const service = useWebSocketService(serverId, config);
+} | null {
+  const context = useWebSocketContext();
+  
+  // ALWAYS call all hooks first (Rules of Hooks requirement)
+  const connectionStates = useAtomValue(websocketConnectionStatesAtom);
+  
+  // Stabilize config for useMemo
+  const configKey = config ? `${config.url}_${config.autoReconnect}_${config.maxReconnectAttempts}` : null;
+  
+  // Get or create the service
+  const service = useMemo(() => {
+    if (!serverId || !config || !config.url) {
+      return null;
+    }
+    
+    let svc = context.getService(serverId);
+    if (!svc) {
+      svc = context.createService(serverId, config);
+    }
+    return svc;
+  }, [serverId, configKey, context]);
+  
+  // Use ref to avoid service dependencies in callbacks
+  const serviceRef = useRef(service);
+  serviceRef.current = service;
+  
+  // Get reactive connection status from atoms (always call this hook)
+  const isConnected = service ? (connectionStates.get(serverId!) === 'connected') : false;
 
+  // Always define callbacks (called unconditionally for Rules of Hooks)
+  const connect = useCallback(async (): Promise<void> => {
+    const currentService = serviceRef.current;
+    if (currentService && !currentService.isConnected()) {
+      await currentService.connect();
+    }
+  }, []); // No dependencies needed - using ref
+
+  const disconnect = useCallback((): void => {
+    const currentService = serviceRef.current;
+    if (currentService) {
+      currentService.disconnect();
+    }
+  }, []); // No dependencies needed - using ref
+
+  // Auto-connect effect - always call useEffect (Rules of Hooks)
+  // Use stable keys to avoid dependency array issues when serverId is null/undefined
+  const autoConnectKey = `${serverId || 'null'}_${autoConnect}`;
+  
   useEffect(() => {
-    if (autoConnect && !service.isConnected()) {
+    if (service && autoConnect && !service.isConnected()) {
       service.connect().catch(error => {
-        console.error(`Failed to auto-connect to server ${serverId}:`, error);
+        console.error(`Failed to auto-connect to server ${serverId || 'unknown'}:`, error);
       });
     }
+  }, [service, autoConnectKey]); // Use stable key instead of nullable serverId
 
-    return () => {
-      // Don't auto-disconnect on unmount to maintain persistent connections
-    };
-  }, [service, autoConnect, serverId]);
-
-  const connect = async (): Promise<void> => {
-    if (!service.isConnected()) {
-      await service.connect();
-    }
-  };
-
-  const disconnect = (): void => {
-    service.disconnect();
-  };
+  // Early return for invalid configurations AFTER all hooks
+  if (!service) {
+    return null;
+  }
 
   return {
     service,
     connect,
     disconnect,
-    isConnected: service.isConnected(),
+    isConnected,
   };
 }

@@ -262,6 +262,7 @@ export function sanitizeServerName(name: string): string {
 
 /**
  * Sanitize file path to prevent directory traversal attacks
+ * NOTE: This function removes leading slashes for web security - use sanitizeAbsolutePath for filesystem paths
  */
 export function sanitizeFilePath(path: string): string {
   if (typeof path !== 'string') return '';
@@ -286,6 +287,41 @@ export function sanitizeFilePath(path: string): string {
 
   // Remove trailing slashes
   sanitized = sanitized.replace(/\/+$/, '');
+
+  // Limit length
+  if (sanitized.length > 500) {
+    sanitized = sanitized.substring(0, 500);
+  }
+
+  return sanitized;
+}
+
+/**
+ * Sanitize absolute filesystem path while preserving leading slash
+ * Designed for project paths that need to remain absolute
+ */
+export function sanitizeAbsolutePath(path: string): string {
+  if (typeof path !== 'string') return '';
+
+  let sanitized = path.trim();
+
+  // Remove null bytes
+  sanitized = sanitized.replace(/\0/g, '');
+
+  // Remove dangerous characters (but keep forward slashes for path structure)
+  sanitized = sanitized.replace(/[<>:"|?*]/g, '');
+
+  // Normalize path separators to forward slash
+  sanitized = sanitized.replace(/\\+/g, '/');
+  sanitized = sanitized.replace(/\/+/g, '/');
+
+  // Remove trailing slashes (but preserve leading slash for absolute paths)
+  sanitized = sanitized.replace(/\/+$/, '');
+
+  // Ensure we don't end up with empty string for root
+  if (sanitized === '') {
+    sanitized = '/';
+  }
 
   // Limit length
   if (sanitized.length > 500) {
