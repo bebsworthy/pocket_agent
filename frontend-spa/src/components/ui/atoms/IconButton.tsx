@@ -59,8 +59,8 @@ const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
       }
 
       // Handle React component objects (ForwardRef, memo, etc.)
-      if (typeof icon === 'object' && icon && (icon as any).$$typeof) {
-        const IconComponent = icon as React.ComponentType<{ className?: string }>;
+      if (typeof icon === 'object' && icon && (icon as { $$typeof?: symbol }).$$typeof) {
+        const IconComponent = icon as unknown as React.ComponentType<{ className?: string }>;
         return React.createElement(IconComponent, { className: iconSizes[size] });
       }
 

@@ -66,6 +66,29 @@ export const ProjectCard = React.memo<ProjectCardProps>(function ProjectCard({
   // Get real-time connection status from hook, with fallback
   const { status: realTimeStatus } = useServerConnectionStatus(server.id);
   const connectionStatus: ConnectionStatus = realTimeStatus || 'disconnected';
+  
+  // Track previous status for announcements
+  const [previousStatus, setPreviousStatus] = React.useState<ConnectionStatus>(connectionStatus);
+  const [statusAnnouncement, setStatusAnnouncement] = React.useState<string>('');
+  
+  // Announce connection status changes to screen readers
+  React.useEffect(() => {
+    if (previousStatus !== connectionStatus) {
+      const statusMessages = {
+        connected: `${project.name} is now connected to ${server.name}`,
+        connecting: `${project.name} is connecting to ${server.name}`,
+        disconnected: `${project.name} has disconnected from ${server.name}`,
+        error: `${project.name} connection to ${server.name} failed`
+      };
+      
+      setStatusAnnouncement(statusMessages[connectionStatus]);
+      setPreviousStatus(connectionStatus);
+      
+      // Clear announcement after screen reader has time to read it
+      const timer = setTimeout(() => setStatusAnnouncement(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [connectionStatus, previousStatus, project.name, server.name]);
 
   const handleCardPress = () => {
     onPress();
@@ -81,17 +104,30 @@ export const ProjectCard = React.memo<ProjectCardProps>(function ProjectCard({
   };
 
   return (
-    <Card
-      onPress={handleCardPress}
-      className="relative"
-      onClick={(e: React.MouseEvent) => {
-        // Prevent card press when clicking action buttons
-        if ((e.target as HTMLElement).closest('[data-action-button]')) {
-          e.stopPropagation();
-          return;
-        }
-      }}
-    >
+    <>
+      {/* Live region for screen reader announcements */}
+      {statusAnnouncement && (
+        <div
+          className="sr-only"
+          aria-live="polite"
+          aria-atomic="true"
+          role="status"
+        >
+          {statusAnnouncement}
+        </div>
+      )}
+      
+      <Card
+        onPress={handleCardPress}
+        className="relative"
+        onClick={(e: React.MouseEvent) => {
+          // Prevent card press when clicking action buttons
+          if ((e.target as HTMLElement).closest('[data-action-button]')) {
+            e.stopPropagation();
+            return;
+          }
+        }}
+      >
       <CardContent className="p-4">
         {/* Header with project name and status */}
         <div className="mb-3 flex items-center justify-between">
@@ -175,5 +211,6 @@ export const ProjectCard = React.memo<ProjectCardProps>(function ProjectCard({
         )}
       </CardContent>
     </Card>
+    </>
   );
 });

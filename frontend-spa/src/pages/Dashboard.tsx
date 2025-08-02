@@ -14,7 +14,7 @@ import { ServerForm } from '../components/ui/organisms/ServerForm';
 import { EmptyState, EmptyStatePresets } from '../components/ui/organisms/EmptyState';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { DevErrorBoundary } from '../components/DevErrorBoundary';
-import { debugRender, debugProps, debugComponentMount, debugComponentUnmount, validateProps } from '../utils/debug';
+import { debugRender, debugComponentMount, debugComponentUnmount, validateProps } from '../utils/debug';
 import type { Project, Server } from '../types/models';
 
 const DashboardInner: React.FC = () => {
@@ -148,6 +148,16 @@ const DashboardInner: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 dark:bg-gray-900">
+      {/* Skip Navigation Links */}
+      <div className="sr-only focus-within:not-sr-only">
+        <a
+          href="#main-content"
+          className="absolute left-4 top-4 z-50 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        >
+          Skip to main content
+        </a>
+      </div>
+
       {/* App Bar */}
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="container mx-auto max-w-md px-4">
@@ -182,7 +192,7 @@ const DashboardInner: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <div className="container mx-auto max-w-md p-4">
           {/* Projects Section Header */}
           <div className="mb-6">
@@ -199,8 +209,21 @@ const DashboardInner: React.FC = () => {
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
-                  <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-600 dark:border-t-blue-400"></div>
+                  <div 
+                    className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-600 dark:border-t-blue-400"
+                    aria-label="Loading projects"
+                    role="status"
+                  ></div>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Loading projects...</p>
+                  {/* Live region for screen reader announcements */}
+                  <div
+                    className="sr-only"
+                    aria-live="polite"
+                    aria-atomic="true"
+                    role="status"
+                  >
+                    Loading projects, please wait
+                  </div>
                 </div>
               </div>
             ) : hasProjects ? (

@@ -57,6 +57,9 @@ export interface WebSocketServiceEvents {
   health_status: (message: ServerMessage) => void;
   server_stats: (message: ServerMessage) => void;
   project_list_response: (message: ServerMessage) => void;
+  // Enhanced project creation events for Task 8
+  project_created: (message: ServerMessage) => void;
+  project_creation_error: (message: ServerMessage) => void;
 }
 
 // Define typed EventEmitter with proper event mapping
@@ -86,6 +89,7 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
   private projectActionRateLimit = createRateLimit(10, 60000); // 10 project actions per minute
   private connectionDebounceTimeout: NodeJS.Timeout | null = null;
   private lastConnectionAttempt = 0;
+  private networkStatusListener: (() => void) | null = null;
 
   constructor(serverId: string, config: WebSocketServiceConfig) {
     super();
@@ -102,6 +106,9 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
 
     // Load persisted joined projects from localStorage
     this.loadPersistedJoinedProjects();
+    
+    // Set up network status monitoring for better reconnection behavior
+    this.setupNetworkStatusMonitoring();
   }
 
   /**
@@ -192,6 +199,7 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
     this.clearPingInterval();
     this.clearConnectionTimeout();
     this.clearConnectionDebounceTimeout();
+    this.cleanupNetworkStatusMonitoring();
 
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');
@@ -403,11 +411,15 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
 
     this.reconnectAttempts++;
 
-    // Calculate delay with exponential backoff
+    // Calculate delay with exponential backoff and jitter
     const baseDelay = this.config.initialReconnectDelay;
     const maxDelay = this.config.maxReconnectDelay;
     const exponentialDelay = baseDelay * Math.pow(2, this.reconnectAttempts - 1);
-    const delay = Math.min(exponentialDelay, maxDelay);
+    const cappedDelay = Math.min(exponentialDelay, maxDelay);
+    
+    // Add jitter (up to 25% of the delay) to prevent thundering herd problem
+    const jitter = Math.random() * cappedDelay * 0.25;
+    const delay = cappedDelay + jitter;
 
     console.info(
       `Attempting reconnection ${this.reconnectAttempts}/${this.config.maxReconnectAttempts} to server ${this.serverId} in ${delay}ms`
@@ -593,6 +605,54 @@ export class WebSocketService extends EventEmitter implements TypedEventEmitter 
           error
         );
       }
+    }
+  }
+
+  /**
+   * Set up network status monitoring for enhanced reconnection behavior
+   */
+  private setupNetworkStatusMonitoring(): void {
+    // Only set up if running in browser environment
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return;
+    }
+
+    this.networkStatusListener = () => {
+      if (navigator.onLine) {
+        console.info(`Network connectivity restored for server ${this.serverId}`);
+        // If we're disconnected and network is back, attempt immediate reconnection
+        if (this.connectionStatus === 'disconnected' && this.config.autoReconnect) {
+          console.info(`Attempting immediate reconnection for server ${this.serverId} due to network restoration`);
+          // Reset reconnect attempts to give fresh attempts after network restoration
+          this.reconnectAttempts = 0;
+          this.connect().catch(error => {
+            console.error(`Immediate reconnection after network restoration failed for server ${this.serverId}:`, error);
+          });
+        }
+      } else {
+        console.warn(`Network connectivity lost for server ${this.serverId}`);
+        // Cancel any pending reconnection attempts when offline
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout);
+          this.reconnectTimeout = null;
+          console.info(`Cancelled pending reconnection attempts for server ${this.serverId} due to network loss`);
+        }
+      }
+    };
+
+    // Listen for network status changes
+    window.addEventListener('online', this.networkStatusListener);
+    window.addEventListener('offline', this.networkStatusListener);
+  }
+
+  /**
+   * Clean up network status monitoring
+   */
+  private cleanupNetworkStatusMonitoring(): void {
+    if (this.networkStatusListener && typeof window !== 'undefined') {
+      window.removeEventListener('online', this.networkStatusListener);
+      window.removeEventListener('offline', this.networkStatusListener);
+      this.networkStatusListener = null;
     }
   }
 

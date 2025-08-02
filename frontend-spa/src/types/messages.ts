@@ -213,6 +213,44 @@ export interface ServerStatsMessage extends ServerMessage {
   };
 }
 
+// Enhanced project creation messages for Task 8: WebSocket project creation integration
+export interface CreateProjectMessage extends ClientMessage {
+  type: 'create_project';
+  data: {
+    name: string;
+    path: string;
+    description?: string;
+    server_id: string;
+    template?: string;
+  };
+}
+
+export interface ProjectCreatedMessage extends ServerMessage {
+  type: 'project_created';
+  data: {
+    project: {
+      id: string;
+      name: string;
+      path: string;
+      created_at: string;
+      state: string;
+      session_id?: string;
+    };
+    server_id: string;
+    created_at: string;
+  };
+}
+
+export interface ProjectCreationErrorMessage extends ServerMessage {
+  type: 'project_creation_error';
+  data: {
+    error_code: string;
+    message: string;
+    details?: Record<string, unknown>;
+    server_id: string;
+  };
+}
+
 // Error codes
 export enum ErrorCode {
   INVALID_MESSAGE = 'INVALID_MESSAGE',
@@ -225,4 +263,12 @@ export enum ErrorCode {
   PROCESS_ACTIVE = 'PROCESS_ACTIVE',
   RESOURCE_LIMIT = 'RESOURCE_LIMIT',
   INTERNAL_ERROR = 'INTERNAL_ERROR',
+  // Project creation specific error codes
+  PROJECT_CREATION_FAILED = 'PROJECT_CREATION_FAILED',
+  PROJECT_VALIDATION_ERROR = 'PROJECT_VALIDATION_ERROR',
+  PROJECT_PATH_EXISTS = 'PROJECT_PATH_EXISTS',
+  PROJECT_NAME_TAKEN = 'PROJECT_NAME_TAKEN',
+  SERVER_UNAVAILABLE = 'SERVER_UNAVAILABLE',
+  CONNECTION_TIMEOUT = 'CONNECTION_TIMEOUT',
+  PERMISSION_DENIED = 'PERMISSION_DENIED',
 }

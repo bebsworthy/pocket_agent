@@ -5,6 +5,7 @@
  * More comprehensive testing will be added later in the testing phase.
  */
 
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LocalStorageService } from '../LocalStorageService';
 import { Project, Server } from '@/types/models';
 
@@ -13,20 +14,20 @@ const mockLocalStorage = (() => {
   let store: Record<string, string> = {};
 
   return {
-    getItem: jest.fn((key: string) => store[key] || null),
-    setItem: jest.fn((key: string, value: string) => {
+    getItem: vi.fn((key: string) => store[key] || null),
+    setItem: vi.fn((key: string, value: string) => {
       store[key] = value;
     }),
-    removeItem: jest.fn((key: string) => {
+    removeItem: vi.fn((key: string) => {
       delete store[key];
     }),
-    clear: jest.fn(() => {
+    clear: vi.fn(() => {
       store = {};
     }),
     get length() {
       return Object.keys(store).length;
     },
-    key: jest.fn((index: number) => Object.keys(store)[index] || null),
+    key: vi.fn((index: number) => Object.keys(store)[index] || null),
   };
 })();
 
@@ -42,7 +43,7 @@ describe('LocalStorageService', () => {
   beforeEach(() => {
     // Clear mock localStorage before each test
     mockLocalStorage.clear();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Get fresh instance (singleton will be reused but storage is cleared)
     service = LocalStorageService.getInstance();

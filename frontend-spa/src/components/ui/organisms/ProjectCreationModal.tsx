@@ -16,12 +16,26 @@ import {
   createProjectIsValidAtom,
   updateCreateProjectFieldAtom,
   setCreateProjectErrorsAtom,
-  startCreateProjectSubmissionAtom,
   completeCreateProjectSubmissionAtom,
   failCreateProjectSubmissionAtom,
+  startOptimisticProjectCreationAtom,
+  confirmOptimisticProjectCreationAtom,
+  rollbackOptimisticProjectCreationAtom,
+  isOptimisticCreationActiveAtom,
+  optimisticProjectDataAtom,
+  queueProjectCreationRequestAtom,
+  startConnectionRetryAtom,
+  connectionRetryStateAtom,
+  queuedRequestsCountAtom,
+  isConnectionRetryingAtom,
 } from '../../../store/atoms/projectCreationAtoms';
 import { cn } from '../../../utils/cn';
-import type { ProjectCreateMessage, ProjectStateMessage, ErrorMessage, ServerMessage } from '../../../types/messages';
+import type { 
+  CreateProjectMessage, 
+  ProjectCreatedMessage, 
+  ProjectCreationErrorMessage, 
+  ServerMessage 
+} from '../../../types/messages';
 
 export interface ProjectCreationModalProps {
   isVisible: boolean;
@@ -135,12 +149,21 @@ export function ProjectCreationModal({
   const errors = useAtomValue(createProjectErrorsAtom);
   const isSubmitting = useAtomValue(createProjectIsSubmittingAtom);
   const isValid = useAtomValue(createProjectIsValidAtom);
+  const isOptimisticCreation = useAtomValue(isOptimisticCreationActiveAtom);
+  const optimisticProject = useAtomValue(optimisticProjectDataAtom);
+  const connectionRetryState = useAtomValue(connectionRetryStateAtom);
+  const queuedRequestsCount = useAtomValue(queuedRequestsCountAtom);
+  const isConnectionRetrying = useAtomValue(isConnectionRetryingAtom);
   
   const updateField = useSetAtom(updateCreateProjectFieldAtom);
   const setErrors = useSetAtom(setCreateProjectErrorsAtom);
-  const startSubmission = useSetAtom(startCreateProjectSubmissionAtom);
   const completeSubmission = useSetAtom(completeCreateProjectSubmissionAtom);
   const failSubmission = useSetAtom(failCreateProjectSubmissionAtom);
+  const startOptimisticCreation = useSetAtom(startOptimisticProjectCreationAtom);
+  const confirmOptimisticCreation = useSetAtom(confirmOptimisticProjectCreationAtom);
+  const rollbackOptimisticCreation = useSetAtom(rollbackOptimisticProjectCreationAtom);
+  const queueProjectCreationRequest = useSetAtom(queueProjectCreationRequestAtom);
+  const startConnectionRetry = useSetAtom(startConnectionRetryAtom);
 
   const { addProject } = useProjects();
   const { servers, hasServers } = useServers();
@@ -149,47 +172,59 @@ export function ProjectCreationModal({
   const [activeOptionId, setActiveOptionId] = useState<string | null>(null);
 
   // WebSocket integration for project creation
-  const selectedServer = servers.find(s => s.id === formData.serverId);
+  const selectedServer = servers?.find(s => s.id === formData.serverId);
   // Always call hook to avoid conditional hook rule violation
   const webSocket = useWebSocket(
     selectedServer?.id || 'placeholder', 
     selectedServer?.websocketUrl || 'ws://placeholder'
   );
   
-  // Handle WebSocket responses for project creation
+  // Handle WebSocket project_created messages for enhanced project creation
   useWebSocketMessage(
     formData.serverId,
-    'project_state',
+    'project_created',
     useCallback((message: ServerMessage) => {
-      const projectStateMessage = message as ProjectStateMessage;
-      if (projectStateMessage.project_id && isSubmitting) {
-        // Project created successfully
+      const projectCreatedMessage = message as ProjectCreatedMessage;
+      if (projectCreatedMessage.data?.project && (isSubmitting || isOptimisticCreation)) {
+        const serverProject = projectCreatedMessage.data.project;
+        
+        // Confirm optimistic creation with server data
+        confirmOptimisticCreation({
+          id: serverProject.id,
+          name: serverProject.name,
+          path: serverProject.path,
+          created_at: serverProject.created_at,
+        });
+        
+        // Add project to global state
         const projectData = {
-          id: projectStateMessage.project_id,
-          name: formData.name.trim(),
-          path: projectStateMessage.data.path || formData.path.trim(),
+          id: serverProject.id,
+          name: serverProject.name,
+          path: serverProject.path,
           serverId: formData.serverId,
-          createdAt: projectStateMessage.data.created_at || new Date().toISOString(),
+          createdAt: serverProject.created_at,
           lastActive: new Date().toISOString(),
         };
         
         addProject(projectData);
         completeSubmission();
-        onClose();
+        
+        // Close modal after successful creation
+        setTimeout(() => onClose(), 100);
       }
-    }, [formData, isSubmitting, addProject, completeSubmission, onClose]),
-    [formData.serverId, formData.name, formData.path, isSubmitting]
+    }, [formData.serverId, isSubmitting, isOptimisticCreation, confirmOptimisticCreation, addProject, completeSubmission, onClose]),
+    [formData.serverId, isSubmitting, isOptimisticCreation]
   );
 
-  // Handle WebSocket errors
+  // Handle WebSocket project creation errors
   useWebSocketMessage(
     formData.serverId,
-    'error',
+    'project_creation_error',
     useCallback((message: ServerMessage) => {
-      const errorMessage = message as ErrorMessage;
-      if (isSubmitting) {
+      const errorMessage = message as ProjectCreationErrorMessage;
+      if (isSubmitting || isOptimisticCreation) {
         const errorMsg = errorMessage.data?.message || 'Failed to create project';
-        const errorCode = errorMessage.data?.code || 'UNKNOWN_ERROR';
+        const errorCode = errorMessage.data?.error_code || 'UNKNOWN_ERROR';
         
         // Map specific error codes to user-friendly messages
         let userErrorMsg = errorMsg;
@@ -206,14 +241,27 @@ export function ProjectCreationModal({
           case 'RESOURCE_LIMIT':
             userErrorMsg = 'Server resources are at capacity';
             break;
+          case 'PROJECT_PATH_EXISTS':
+            userErrorMsg = 'A project already exists at this path';
+            break;
+          case 'PROJECT_NAME_TAKEN':
+            userErrorMsg = 'This project name is already in use';
+            break;
+          case 'PERMISSION_DENIED':
+            userErrorMsg = 'Permission denied - check directory access rights';
+            break;
+          case 'SERVER_UNAVAILABLE':
+            userErrorMsg = 'Server is currently unavailable';
+            break;
           default:
             userErrorMsg = errorMsg;
         }
 
-        failSubmission({ general: userErrorMsg });
+        // Rollback optimistic update and show error
+        rollbackOptimisticCreation({ general: userErrorMsg });
       }
-    }, [isSubmitting, failSubmission]),
-    [formData.serverId, isSubmitting]
+    }, [isSubmitting, isOptimisticCreation, rollbackOptimisticCreation]),
+    [formData.serverId, isSubmitting, isOptimisticCreation]
   );
 
   // Handle escape key for modal dismissal
@@ -263,11 +311,11 @@ export function ProjectCreationModal({
     // Use timeout to ensure server has been fully added to the state
     const timeoutId = setTimeout(() => {
       // Find the newly added server with additional validation
-      const newServer = servers.find(s => s.id === serverOperation.serverId);
+      const newServer = servers?.find(s => s.id === serverOperation.serverId);
       if (!newServer) {
         console.warn('Server auto-selection: Server not found after creation', {
           expectedId: serverOperation.serverId,
-          availableServers: servers.map(s => s.id),
+          availableServers: servers?.map(s => s.id) || [],
         });
         return;
       }
@@ -321,7 +369,7 @@ export function ProjectCreationModal({
     if (!formData.serverId) {
       newErrors.serverId = 'Server selection is required';
     } else {
-      const selectedServer = servers.find(s => s.id === formData.serverId);
+      const selectedServer = servers?.find(s => s.id === formData.serverId);
       if (!selectedServer) {
         newErrors.serverId = 'Selected server is not available';
       } else {
@@ -367,7 +415,7 @@ export function ProjectCreationModal({
   const handleServerDropdownKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (!showServerDropdown) return;
 
-    const allOptions = [...servers, { id: 'add-new', name: 'Add New Server' }];
+    const allOptions = [...(servers || []), { id: 'add-new', name: 'Add New Server' }];
     const currentIndex = activeOptionId ? allOptions.findIndex(opt => opt.id === activeOptionId) : -1;
 
     switch (e.key) {
@@ -406,15 +454,15 @@ export function ProjectCreationModal({
     // Set active option to currently selected server or first option
     if (formData.serverId) {
       setActiveOptionId(formData.serverId);
-    } else if (servers.length > 0) {
-      setActiveOptionId(servers[0].id);
+    } else if (servers && servers.length > 0) {
+      setActiveOptionId(servers[0]?.id);
     } else {
       setActiveOptionId('add-new');
     }
   }, [formData.serverId, servers]);
 
 
-  // Handle form submission with WebSocket integration
+  // Handle form submission with enhanced WebSocket integration and optimistic updates
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -432,7 +480,7 @@ export function ProjectCreationModal({
     }
 
     // Validate server exists in current servers list (prevent stale references)
-    const currentServer = servers.find(s => s.id === selectedServer.id);
+    const currentServer = servers?.find(s => s.id === selectedServer.id);
     if (!currentServer) {
       failSubmission({
         general: 'Selected server is no longer available. Please select a different server.',
@@ -450,8 +498,23 @@ export function ProjectCreationModal({
     }
 
     if (!webSocket.isConnected) {
-      failSubmission({
-        general: 'Server connection lost. Please check your network and try again.',
+      // Queue the request for when connection is restored
+      const requestId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      queueProjectCreationRequest({
+        formData: {
+          name: formData.name.trim(),
+          path: formData.path.trim(),
+          serverId: formData.serverId,
+        },
+        requestId,
+      });
+      
+      // Start connection retry process
+      startConnectionRetry('Server connection lost during project creation');
+      
+      setErrors({
+        general: 'Connection lost. Your project creation request has been queued and will be processed when connection is restored.',
       });
       return;
     }
@@ -467,8 +530,6 @@ export function ProjectCreationModal({
       return;
     }
 
-    startSubmission();
-
     try {
       // Validate and sanitize the path before sending
       const pathValidation = validateAndSanitizePath(formData.path);
@@ -476,11 +537,28 @@ export function ProjectCreationModal({
         throw new ProjectCreationError(pathValidation.error || 'Invalid path');
       }
 
-      // Create WebSocket message for project creation
-      const createMessage: ProjectCreateMessage = {
-        type: 'project_create',
-        data: {
+      // Generate unique request ID for optimistic updates
+      const requestId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Start optimistic project creation
+      startOptimisticCreation({
+        formData: {
+          name: formData.name.trim(),
           path: pathValidation.sanitizedPath!,
+          serverId: formData.serverId,
+        },
+        requestId,
+      });
+
+      // Create enhanced WebSocket message for project creation
+      const createMessage: CreateProjectMessage = {
+        type: 'create_project',
+        data: {
+          name: formData.name.trim(),
+          path: pathValidation.sanitizedPath!,
+          description: undefined, // Optional description field
+          server_id: formData.serverId,
+          template: undefined, // Optional template field
         },
       };
 
@@ -491,7 +569,7 @@ export function ProjectCreationModal({
       }
 
       // Response will be handled by WebSocket message listeners
-      // (project_state message for success, error message for failure)
+      // (project_created message for success, project_creation_error for failure)
       
     } catch (error) {
       console.error('Project creation error:', error);
@@ -505,9 +583,10 @@ export function ProjectCreationModal({
         errorMessage = error.message;
       }
 
-      failSubmission({ general: errorMessage });
+      // Rollback optimistic update on immediate error
+      rollbackOptimisticCreation({ general: errorMessage });
     }
-  }, [formData, validateForm, startSubmission, selectedServer, webSocket, failSubmission, servers]);
+  }, [formData, validateForm, selectedServer, webSocket, servers, startOptimisticCreation, rollbackOptimisticCreation, queueProjectCreationRequest, startConnectionRetry, setErrors, failSubmission]);
 
   // Handle modal backdrop click
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
@@ -566,6 +645,86 @@ export function ProjectCreationModal({
                 <p className="text-sm text-red-700 dark:text-red-300">
                   {errors.general}
                 </p>
+              </div>
+            )}
+
+            {/* Optimistic creation indicator */}
+            {isOptimisticCreation && optimisticProject && (
+              <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+                <div className="mt-0.5 h-4 w-4 flex-shrink-0">
+                  <div 
+                    className="h-full w-full animate-spin rounded-full border-2 border-blue-300 border-t-blue-600 dark:border-blue-700 dark:border-t-blue-400"
+                    aria-label="Creating project"
+                    role="status"
+                  ></div>
+                </div>
+                <div className="text-sm text-blue-700 dark:text-blue-300">
+                  <p className="font-medium">Creating project "{optimisticProject.name}"...</p>
+                  <p className="text-xs opacity-75">This may take a moment. Please wait.</p>
+                </div>
+                {/* Live region for screen reader announcements */}
+                <div
+                  className="sr-only"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  role="status"
+                >
+                  Creating project {optimisticProject.name}, please wait
+                </div>
+              </div>
+            )}
+
+            {/* Connection retry indicator */}
+            {isConnectionRetrying && (
+              <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 p-3 dark:border-yellow-800 dark:bg-yellow-900/20">
+                <div className="mt-0.5 h-4 w-4 flex-shrink-0">
+                  <div 
+                    className="h-full w-full animate-spin rounded-full border-2 border-yellow-300 border-t-yellow-600 dark:border-yellow-700 dark:border-t-yellow-400"
+                    aria-label="Reconnecting to server"
+                    role="status"
+                  ></div>
+                </div>
+                <div className="text-sm text-yellow-700 dark:text-yellow-300">
+                  <p className="font-medium">Reconnecting to server...</p>
+                  <p className="text-xs opacity-75">
+                    Attempt {connectionRetryState.retryAttempt} of {connectionRetryState.maxRetries}
+                  </p>
+                </div>
+                {/* Live region for screen reader announcements */}
+                <div
+                  className="sr-only"
+                  aria-live="polite"
+                  aria-atomic="true"
+                  role="status"
+                >
+                  Reconnecting to server, attempt {connectionRetryState.retryAttempt} of {connectionRetryState.maxRetries}
+                </div>
+              </div>
+            )}
+
+            {/* Queued requests indicator */}
+            {queuedRequestsCount > 0 && !isConnectionRetrying && (
+              <div className="flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50 p-3 dark:border-orange-800 dark:bg-orange-900/20">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-orange-600 dark:text-orange-400" />
+                <div className="text-sm text-orange-700 dark:text-orange-300">
+                  <p className="font-medium">Connection lost - project creation queued</p>
+                  <p className="text-xs opacity-75">
+                    {queuedRequestsCount} request{queuedRequestsCount > 1 ? 's' : ''} waiting for connection
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Connection error with max retries reached */}
+            {connectionRetryState.lastError && 
+             connectionRetryState.retryAttempt >= connectionRetryState.maxRetries && 
+             !isConnectionRetrying && (
+              <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600 dark:text-red-400" />
+                <div className="text-sm text-red-700 dark:text-red-300">
+                  <p className="font-medium">Connection failed</p>
+                  <p className="text-xs opacity-75">{connectionRetryState.lastError}</p>
+                </div>
               </div>
             )}
 
@@ -630,9 +789,11 @@ export function ProjectCreationModal({
                   aria-expanded={showServerDropdown}
                   aria-haspopup="listbox"
                   aria-controls="server-listbox"
+                  aria-owns="server-listbox"
                   aria-activedescendant={activeOptionId ? `server-option-${activeOptionId}` : undefined}
                   aria-invalid={errors.serverId ? 'true' : 'false'}
-                  aria-describedby={errors.serverId ? "server-error" : undefined}
+                  aria-describedby={errors.serverId ? "server-error server-help" : "server-help"}
+                  aria-label={selectedServer ? `Selected server: ${selectedServer.name}` : 'Select a server'}
                 >
                   <span className="flex items-center gap-2">
                     <Server className="h-4 w-4 text-gray-500" />
@@ -662,7 +823,7 @@ export function ProjectCreationModal({
                   >
                     {hasServers ? (
                       <>
-                        {servers.map((server) => (
+                        {servers?.map((server) => (
                           <button
                             key={server.id}
                             id={`server-option-${server.id}`}
@@ -710,6 +871,14 @@ export function ProjectCreationModal({
                 )}
               </div>
 
+              {/* Help text for server dropdown */}
+              <p
+                id="server-help"
+                className="mt-1 text-xs text-gray-500 dark:text-gray-400"
+              >
+                Choose the server where your project will be managed. Use arrow keys to navigate options.
+              </p>
+
               {errors.serverId && (
                 <p
                   id="server-error"
@@ -729,7 +898,7 @@ export function ProjectCreationModal({
               variant="secondary"
               fullWidth
               onPress={onClose}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isOptimisticCreation}
             >
               Cancel
             </Button>
@@ -737,11 +906,11 @@ export function ProjectCreationModal({
               type="submit"
               variant="primary"
               fullWidth
-              loading={isSubmitting}
-              disabled={!isValid}
+              loading={isSubmitting || isOptimisticCreation}
+              disabled={!isValid || isOptimisticCreation}
               onPress={() => {}} // Form submission handled by form onSubmit
             >
-              Create Project
+              {isOptimisticCreation ? 'Creating...' : 'Create Project'}
             </Button>
           </CardFooter>
         </form>

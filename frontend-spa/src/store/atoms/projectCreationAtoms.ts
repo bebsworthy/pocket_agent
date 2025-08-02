@@ -21,6 +21,42 @@ export interface CreateProjectValidationErrors {
   general?: string;
 }
 
+// Queue entry for deferred project creation requests
+export interface QueuedProjectCreationRequest {
+  id: string;
+  formData: CreateProjectFormData;
+  timestamp: number;
+  retryCount: number;
+  maxRetries: number;
+}
+
+// Connection status and retry handling
+export interface ConnectionRetryState {
+  isRetrying: boolean;
+  retryAttempt: number;
+  maxRetries: number;
+  nextRetryTime?: number;
+  lastError?: string;
+}
+
+// Optimistic update state for WebSocket project creation
+export interface OptimisticProjectState {
+  isOptimistic: boolean;
+  optimisticProject?: {
+    id: string;
+    name: string;
+    path: string;
+    serverId: string;
+    createdAt: string;
+    lastActive: string;
+  };
+  rollbackData?: CreateProjectFormData;
+  requestId?: string;
+  startTime?: number;
+  queuedRequests: QueuedProjectCreationRequest[];
+  retryState: ConnectionRetryState;
+}
+
 // Complete project creation state interface
 export interface CreateProjectState {
   isVisible: boolean;
@@ -28,7 +64,28 @@ export interface CreateProjectState {
   errors: CreateProjectValidationErrors;
   isSubmitting: boolean;
   hasUnsavedChanges: boolean;
+  optimisticState: OptimisticProjectState;
 }
+
+// Default connection retry state
+const defaultRetryState: ConnectionRetryState = {
+  isRetrying: false,
+  retryAttempt: 0,
+  maxRetries: 3,
+  nextRetryTime: undefined,
+  lastError: undefined,
+};
+
+// Default optimistic state
+const defaultOptimisticState: OptimisticProjectState = {
+  isOptimistic: false,
+  optimisticProject: undefined,
+  rollbackData: undefined,
+  requestId: undefined,
+  startTime: undefined,
+  queuedRequests: [],
+  retryState: defaultRetryState,
+};
 
 // Default state for project creation
 const defaultCreateProjectState: CreateProjectState = {
@@ -41,6 +98,7 @@ const defaultCreateProjectState: CreateProjectState = {
   errors: {},
   isSubmitting: false,
   hasUnsavedChanges: false,
+  optimisticState: defaultOptimisticState,
 };
 
 // Custom storage implementation with error handling for project creation state
@@ -73,6 +131,8 @@ const createProjectStorage = {
           ...parsed.formData,
         },
         errors: parsed.errors || {},
+        // Don't persist optimistic state - always start with default
+        optimisticState: initialValue.optimisticState,
       };
     } catch (error) {
       console.error('Failed to deserialize project creation state from localStorage:', error);
@@ -81,7 +141,7 @@ const createProjectStorage = {
   },
   setItem: (key: string, value: CreateProjectState): void => {
     try {
-      // Only persist form data and hasUnsavedChanges, not modal visibility or errors
+      // Only persist form data and hasUnsavedChanges, not modal visibility, errors, or optimistic state
       const persistedState = {
         formData: value.formData,
         hasUnsavedChanges: value.hasUnsavedChanges,
@@ -285,6 +345,7 @@ export const resetCreateProjectFormDataAtom = atom(null, (get, set) => {
     formData: defaultCreateProjectState.formData,
     errors: {},
     hasUnsavedChanges: false,
+    optimisticState: defaultOptimisticState,
   });
 });
 
@@ -323,6 +384,280 @@ export const cleanupCreateProjectFormAtom = atom(null, (get, set) => {
       isVisible: false,
       errors: {},
       isSubmitting: false,
+      optimisticState: defaultOptimisticState, // Reset optimistic state
     });
   }
+});
+
+// Optimistic update atoms for WebSocket project creation
+
+// Read-only atom for optimistic state
+export const createProjectOptimisticStateAtom = atom(
+  (get) => get(createProjectStateAtom).optimisticState
+);
+
+// Write-only atom for starting optimistic project creation
+export const startOptimisticProjectCreationAtom = atom(
+  null,
+  (get, set, params: { formData: CreateProjectFormData; requestId: string }) => {
+    const { formData, requestId } = params;
+    const currentState = get(createProjectStateAtom);
+    
+    // Generate optimistic project data
+    const optimisticProject = {
+      id: `temp_${requestId}`,
+      name: formData.name.trim(),
+      path: formData.path.trim(),
+      serverId: formData.serverId,
+      createdAt: new Date().toISOString(),
+      lastActive: new Date().toISOString(),
+    };
+
+    set(createProjectStateAtom, {
+      ...currentState,
+      isSubmitting: true,
+      errors: {},
+      optimisticState: {
+        ...currentState.optimisticState,
+        isOptimistic: true,
+        optimisticProject,
+        rollbackData: { ...formData },
+        requestId,
+        startTime: Date.now(),
+      },
+    });
+  }
+);
+
+// Write-only atom for confirming optimistic project creation (WebSocket success)
+export const confirmOptimisticProjectCreationAtom = atom(
+  null,
+  (get, set, serverProject: { id: string; name: string; path: string; created_at: string }) => {
+    const currentState = get(createProjectStateAtom);
+    
+    // Update optimistic project with server data
+    set(createProjectStateAtom, {
+      ...currentState,
+      isSubmitting: false,
+      optimisticState: {
+        ...currentState.optimisticState,
+        isOptimistic: false,
+        optimisticProject: {
+          ...currentState.optimisticState.optimisticProject!,
+          id: serverProject.id,
+          createdAt: serverProject.created_at,
+        },
+      },
+    });
+  }
+);
+
+// Write-only atom for rolling back optimistic project creation (WebSocket error)
+export const rollbackOptimisticProjectCreationAtom = atom(
+  null,
+  (get, set, errors: CreateProjectValidationErrors) => {
+    const currentState = get(createProjectStateAtom);
+    
+    // Rollback to previous state with errors
+    set(createProjectStateAtom, {
+      ...currentState,
+      isSubmitting: false,
+      errors,
+      optimisticState: defaultOptimisticState,
+    });
+  }
+);
+
+// Write-only atom for clearing optimistic state
+export const clearOptimisticStateAtom = atom(null, (get, set) => {
+  const currentState = get(createProjectStateAtom);
+  set(createProjectStateAtom, {
+    ...currentState,
+    optimisticState: defaultOptimisticState,
+  });
+});
+
+// Read-only atom to check if currently in optimistic state
+export const isOptimisticCreationActiveAtom = atom(
+  (get) => get(createProjectOptimisticStateAtom).isOptimistic
+);
+
+// Read-only atom to get optimistic project data
+export const optimisticProjectDataAtom = atom(
+  (get) => get(createProjectOptimisticStateAtom).optimisticProject
+);
+
+// Connection status and queuing atoms for WebSocket project creation
+
+// Write-only atom for queuing project creation when connection is lost
+export const queueProjectCreationRequestAtom = atom(
+  null,
+  (get, set, params: { formData: CreateProjectFormData; requestId: string }) => {
+    const { formData, requestId } = params;
+    const currentState = get(createProjectStateAtom);
+    
+    const queuedRequest: QueuedProjectCreationRequest = {
+      id: requestId,
+      formData: { ...formData },
+      timestamp: Date.now(),
+      retryCount: 0,
+      maxRetries: 3,
+    };
+
+    set(createProjectStateAtom, {
+      ...currentState,
+      optimisticState: {
+        ...currentState.optimisticState,
+        queuedRequests: [...currentState.optimisticState.queuedRequests, queuedRequest],
+      },
+    });
+  }
+);
+
+// Write-only atom for processing queued requests when connection is restored
+export const processQueuedRequestsAtom = atom(
+  null,
+  (get, set) => {
+    const currentState = get(createProjectStateAtom);
+    const queuedRequests = currentState.optimisticState.queuedRequests;
+    
+    if (queuedRequests.length === 0) {
+      return;
+    }
+
+    // Process the oldest request first
+    const nextRequest = queuedRequests[0];
+    const remainingRequests = queuedRequests.slice(1);
+    
+    // Update state to remove processed request from queue
+    set(createProjectStateAtom, {
+      ...currentState,
+      optimisticState: {
+        ...currentState.optimisticState,
+        queuedRequests: remainingRequests,
+      },
+    });
+
+    // Return the request to be processed by the component
+    return nextRequest;
+  }
+);
+
+// Write-only atom for starting connection retry
+export const startConnectionRetryAtom = atom(
+  null,
+  (get, set, error?: string) => {
+    const currentState = get(createProjectStateAtom);
+    const currentRetryState = currentState.optimisticState.retryState;
+    
+    if (currentRetryState.retryAttempt >= currentRetryState.maxRetries) {
+      // Max retries reached, give up
+      set(createProjectStateAtom, {
+        ...currentState,
+        optimisticState: {
+          ...currentState.optimisticState,
+          retryState: {
+            ...currentRetryState,
+            isRetrying: false,
+            lastError: error || 'Maximum retry attempts exceeded',
+          },
+        },
+      });
+      return;
+    }
+
+    // Calculate exponential backoff delay
+    const baseDelay = 1000; // 1 second
+    const maxDelay = 30000; // 30 seconds
+    const exponentialDelay = baseDelay * Math.pow(2, currentRetryState.retryAttempt);
+    const delay = Math.min(exponentialDelay, maxDelay);
+    const nextRetryTime = Date.now() + delay;
+
+    set(createProjectStateAtom, {
+      ...currentState,
+      optimisticState: {
+        ...currentState.optimisticState,
+        retryState: {
+          isRetrying: true,
+          retryAttempt: currentRetryState.retryAttempt + 1,
+          maxRetries: currentRetryState.maxRetries,
+          nextRetryTime,
+          lastError: error,
+        },
+      },
+    });
+  }
+);
+
+// Write-only atom for completing connection retry
+export const completeConnectionRetryAtom = atom(
+  null,
+  (get, set, success: boolean) => {
+    const currentState = get(createProjectStateAtom);
+    
+    if (success) {
+      // Reset retry state on successful connection
+      set(createProjectStateAtom, {
+        ...currentState,
+        optimisticState: {
+          ...currentState.optimisticState,
+          retryState: defaultRetryState,
+        },
+      });
+    } else {
+      // Continue retrying or give up if max retries reached
+      const currentRetryState = currentState.optimisticState.retryState;
+      if (currentRetryState.retryAttempt >= currentRetryState.maxRetries) {
+        set(createProjectStateAtom, {
+          ...currentState,
+          optimisticState: {
+            ...currentState.optimisticState,
+            retryState: {
+              ...currentRetryState,
+              isRetrying: false,
+              lastError: 'Connection failed after maximum retry attempts',
+            },
+          },
+        });
+      } else {
+        // Prepare for next retry
+        set(createProjectStateAtom, {
+          ...currentState,
+          optimisticState: {
+            ...currentState.optimisticState,
+            retryState: {
+              ...currentRetryState,
+              isRetrying: false,
+            },
+          },
+        });
+      }
+    }
+  }
+);
+
+// Read-only atoms for connection status
+export const connectionRetryStateAtom = atom(
+  (get) => get(createProjectOptimisticStateAtom).retryState
+);
+
+export const queuedRequestsCountAtom = atom(
+  (get) => get(createProjectOptimisticStateAtom).queuedRequests.length
+);
+
+export const isConnectionRetryingAtom = atom(
+  (get) => get(connectionRetryStateAtom).isRetrying
+);
+
+// Write-only atom for clearing all queued requests (e.g., on user cancel)
+export const clearQueuedRequestsAtom = atom(null, (get, set) => {
+  const currentState = get(createProjectStateAtom);
+  set(createProjectStateAtom, {
+    ...currentState,
+    optimisticState: {
+      ...currentState.optimisticState,
+      queuedRequests: [],
+      retryState: defaultRetryState,
+    },
+  });
 });

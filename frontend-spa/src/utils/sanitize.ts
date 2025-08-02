@@ -125,14 +125,6 @@ export function sanitizeHtml(html: string): string {
   return sanitized;
 }
 
-/**
- * Sanitize user input for display
- */
-export function sanitizeUserInput(input: string): string {
-  if (typeof input !== 'string') return '';
-
-  return escapeHtml(input.trim());
-}
 
 /**
  * Sanitize and validate project name
@@ -155,6 +147,94 @@ export function sanitizeProjectName(name: string): string {
   }
 
   return sanitized;
+}
+
+/**
+ * Sanitize project description with enhanced HTML entity encoding
+ */
+export function sanitizeProjectDescription(description: string): string {
+  if (typeof description !== 'string') return '';
+
+  // Remove HTML and trim
+  let sanitized = stripHtml(description).trim();
+
+  // Apply HTML entity encoding for XSS prevention
+  sanitized = escapeHtml(sanitized);
+
+  // Remove control characters and null bytes
+  // eslint-disable-next-line no-control-regex
+  sanitized = sanitized.replace(/[\0-\x1f\x7f]/g, '');
+
+  // Collapse multiple spaces into one
+  sanitized = sanitized.replace(/\s+/g, ' ');
+
+  // Limit length for descriptions
+  if (sanitized.length > 500) {
+    sanitized = sanitized.substring(0, 500).trim();
+  }
+
+  return sanitized;
+}
+
+/**
+ * Enhanced user input sanitization with configurable options
+ */
+export function sanitizeUserInput(input: string, options?: SanitizationOptions): string {
+  if (typeof input !== 'string') return '';
+
+  const config = {
+    allowSpecialChars: false,
+    maxLength: 1000,
+    preserveCase: true,
+    trimWhitespace: true,
+    ...options,
+  };
+
+  let sanitized = input;
+
+  // Trim whitespace if requested
+  if (config.trimWhitespace) {
+    sanitized = sanitized.trim();
+  }
+
+  // Remove HTML tags
+  sanitized = stripHtml(sanitized);
+
+  // Apply HTML entity encoding for XSS prevention
+  sanitized = escapeHtml(sanitized);
+
+  // Remove control characters and null bytes
+  // eslint-disable-next-line no-control-regex
+  sanitized = sanitized.replace(/[\0-\x1f\x7f]/g, '');
+
+  // Handle special characters based on configuration
+  if (!config.allowSpecialChars) {
+    // Remove potentially dangerous special characters
+    sanitized = sanitized.replace(/[<>:"|?*\\]/g, '');
+  }
+
+  // Handle case preservation
+  if (!config.preserveCase) {
+    sanitized = sanitized.toLowerCase();
+  }
+
+  // Apply length limit
+  if (sanitized.length > config.maxLength) {
+    sanitized = sanitized.substring(0, config.maxLength);
+    if (config.trimWhitespace) {
+      sanitized = sanitized.trim();
+    }
+  }
+
+  return sanitized;
+}
+
+// Enhanced sanitization options interface
+export interface SanitizationOptions {
+  allowSpecialChars?: boolean;
+  maxLength?: number;
+  preserveCase?: boolean;
+  trimWhitespace?: boolean;
 }
 
 /**
@@ -213,6 +293,114 @@ export function sanitizeFilePath(path: string): string {
   }
 
   return sanitized;
+}
+
+/**
+ * Enhanced project path validation with comprehensive security checks
+ */
+export function validateProjectPath(path: string): PathValidationResult {
+  if (typeof path !== 'string') {
+    return {
+      isValid: false,
+      error: 'Path must be a string',
+      sanitizedPath: '',
+    };
+  }
+
+  const trimmedPath = path.trim();
+
+  if (!trimmedPath) {
+    return {
+      isValid: false,
+      error: 'Path cannot be empty',
+      sanitizedPath: '',
+    };
+  }
+
+  // Check for path traversal attempts
+  const pathTraversalPatterns = [
+    /\.\./,           // Parent directory traversal
+    /\.\\/,           // Current directory with separator  
+    /\/\./,           // Hidden directory patterns
+    /~\//,            // User home shortcuts in middle of path
+    /\/+/,            // Multiple consecutive slashes
+  ];
+
+  const hasPathTraversal = pathTraversalPatterns.some(pattern => pattern.test(trimmedPath));
+  if (hasPathTraversal && !trimmedPath.startsWith('~/')) {
+    return {
+      isValid: false,
+      error: 'Path contains invalid directory traversal patterns',
+      sanitizedPath: '',
+    };
+  }
+
+  // Check for dangerous filesystem characters (Windows + Unix)
+  // eslint-disable-next-line no-control-regex
+  const dangerousChars = /[<>:"|?*\0\x01-\x1f\x7f]/;
+  if (dangerousChars.test(trimmedPath)) {
+    return {
+      isValid: false,
+      error: 'Path contains invalid filesystem characters',
+      sanitizedPath: '',
+    };
+  }
+
+  // Check for reserved Windows filenames
+  const windowsReserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+  const pathParts = trimmedPath.split(/[/\\]/).filter(Boolean);
+  const hasReservedName = pathParts.some(part => windowsReserved.test(part));
+  if (hasReservedName) {
+    return {
+      isValid: false,
+      error: 'Path contains reserved system names',
+      sanitizedPath: '',
+    };
+  }
+
+  // Length validation
+  if (trimmedPath.length > 260) { // Windows MAX_PATH limit
+    return {
+      isValid: false,
+      error: 'Path is too long (maximum 260 characters)',
+      sanitizedPath: '',
+    };
+  }
+
+  // Check for excessively long path segments
+  const hasLongSegment = pathParts.some(part => part.length > 255); // Most filesystems limit
+  if (hasLongSegment) {
+    return {
+      isValid: false,
+      error: 'Path segment is too long (maximum 255 characters)',
+      sanitizedPath: '',
+    };
+  }
+
+  // Sanitize the path by normalizing separators and removing redundant elements
+  let sanitizedPath = trimmedPath
+    .replace(/[/\\]+/g, '/') // Normalize separators to forward slash
+    .replace(/\/+$/, ''); // Remove trailing slashes
+
+  // Handle home directory expansion
+  if (sanitizedPath.startsWith('~/')) {
+    // Keep as-is for home directory paths - server will handle expansion
+  } else if (!sanitizedPath.startsWith('/')) {
+    // Ensure absolute paths start with /
+    sanitizedPath = '/' + sanitizedPath;
+  }
+
+  return { 
+    isValid: true, 
+    sanitizedPath: sanitizedPath || '/' 
+  };
+}
+
+// Path validation result interface
+export interface PathValidationResult {
+  isValid: boolean;
+  error?: string;
+  sanitizedPath: string;
 }
 
 /**
